@@ -44,10 +44,10 @@ fun MainAppLayout() {
                 AlineacionScreen()
             }
             composable(Screen.Partidos.route) {
-                // TODO: Insertar Pantalla de Partidos
+                // TODO: PartidosScreen()
             }
             composable(Screen.Estadisticas.route) {
-                // TODO: Insertar Pantalla de Estadísticas
+                // TODO: EstadisticasScreen()
             }
         }
     }

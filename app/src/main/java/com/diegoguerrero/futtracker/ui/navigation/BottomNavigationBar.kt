@@ -4,6 +4,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
@@ -13,14 +14,19 @@ import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
-    val items = listOf(Screen.Alineacion, Screen.Partidos, Screen.Estadisticas)
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val items = listOf(
+        Screen.Alineacion,
+        Screen.Partidos,
+        Screen.Estadisticas
+    )
 
     NavigationBar(
         containerColor = DarkCard,
-        contentColor = LimeVolt
+        tonalElevation = 8.dp
     ) {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
+
         items.forEach { screen ->
             val isSelected = currentRoute == screen.route
             NavigationBarItem(
