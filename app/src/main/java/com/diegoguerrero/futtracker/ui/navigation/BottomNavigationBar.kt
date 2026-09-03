@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
-import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 
@@ -16,6 +15,7 @@ import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 fun BottomNavigationBar(navController: NavController) {
     val items = listOf(
         Screen.Alineacion,
+        Screen.Jugadores,
         Screen.Partidos,
         Screen.Estadisticas
     )

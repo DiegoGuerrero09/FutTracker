@@ -43,6 +43,8 @@ fun AlineacionScreen(
         alineacionMapaCampo = null
     }
 
+    val numRequerido = tipoFutbol.nJugadoresCampo
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -74,7 +76,7 @@ fun AlineacionScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Selector Formaciones ordenadas
-        Text("Esquema Táctico", color = TextSecondary)
+        Text("Alineación", color = TextSecondary)
         ScrollableTabRow(
             selectedTabIndex = formacionesDisponibles.indexOf(formacionSeleccionada).coerceAtLeast(0),
             edgePadding = 0.dp,
@@ -91,7 +93,7 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Boton Generar Alineacion
+        // Boton Generar Alineacion (se habilita unicamente con el numero exacto de convocados)
         Button(
             onClick = {
                 val alineacionLista: List<Pair<Posicion, Jugador>> = useCase(convocados, formacionSeleccionada)
@@ -101,7 +103,7 @@ fun AlineacionScreen(
                     alineacionLista.firstOrNull { (posAsignada, _) -> posAsignada == posicionCampo }?.second
                 }
             },
-            enabled = convocados.size >= tipoFutbol.nJugadoresCampo,
+            enabled = convocados.size == numRequerido,
             colors = ButtonDefaults.buttonColors(containerColor = LimeVolt, contentColor = Color.Black),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -132,7 +134,7 @@ fun AlineacionScreen(
 
             item {
                 Text(
-                    text = "Convocados Disponibles (${convocados.size}/${tipoFutbol.nJugadoresCampo} min)",
+                    text = "Convocados (${convocados.size}/$numRequerido)",
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -152,7 +154,13 @@ fun AlineacionScreen(
                     Checkbox(
                         checked = isSelected,
                         onCheckedChange = { checked ->
-                            if (checked) convocados.add(jugador) else convocados.remove(jugador)
+                            if (checked) {
+                                if (convocados.size < numRequerido) {
+                                    convocados.add(jugador)
+                                }
+                            } else {
+                                convocados.remove(jugador)
+                            }
                         },
                         colors = CheckboxDefaults.colors(checkedColor = LimeVolt, checkmarkColor = Color.Black)
                     )

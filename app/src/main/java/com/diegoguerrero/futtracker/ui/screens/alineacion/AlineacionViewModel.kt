@@ -20,19 +20,56 @@ class AlineacionViewModel(
     val uiState: StateFlow<AlineacionUiState> = _uiState.asStateFlow()
 
     fun seleccionarTipoFutbol(tipo: TipoFutbol) {
-        _uiState.update { it.copy(tipoFutbol = tipo, formacionSeleccionada = null, alineacionCalculada = null) }
+        _uiState.update { 
+            it.copy(
+                tipoFutbol = tipo, 
+                formacionSeleccionada = null, 
+                alineacionCalculada = null,
+                convocados = emptyList(),
+                error = null
+            ) 
+        }
     }
 
     fun seleccionarFormacion(formacion: Formacion) {
         _uiState.update { it.copy(formacionSeleccionada = formacion) }
     }
 
-    fun calcularAlineacion(jugadoresDisponibles: List<Jugador>) {
-        val formacionActual = _uiState.value.formacionSeleccionada ?: return
-        
+    fun toggleConvocado(jugador: Jugador) {
+        _uiState.update { state ->
+            val listaActual = state.convocados.toMutableList()
+            val maxRequerido = state.tipoFutbol.nJugadoresCampo
+
+            if (listaActual.contains(jugador)) {
+                listaActual.remove(jugador)
+            } else if (listaActual.size < maxRequerido) {
+                listaActual.add(jugador)
+            }
+
+            state.copy(
+                convocados = listaActual,
+                error = null
+            )
+        }
+    }
+
+    fun calcularAlineacion() {
+        val currentState = _uiState.value
+        val formacionActual = currentState.formacionSeleccionada ?: return
+        val convocados = currentState.convocados
+        val numRequerido = currentState.tipoFutbol.nJugadoresCampo
+
+        // Validación de número exacto de convocados
+        if (convocados.size != numRequerido) {
+            _uiState.update { 
+                it.copy(error = "Se requieren exactamente $numRequerido jugadores para la alineación.") 
+            }
+            return
+        }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val resultado = generarAlineacionUseCase(jugadoresDisponibles, formacionActual)
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val resultado = generarAlineacionUseCase(convocados, formacionActual)
             _uiState.update { 
                 it.copy(
                     alineacionCalculada = resultado,

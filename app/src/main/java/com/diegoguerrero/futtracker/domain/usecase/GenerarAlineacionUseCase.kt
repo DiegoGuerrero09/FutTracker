@@ -5,10 +5,10 @@ import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
 
 class GenerarAlineacionUseCase {
-    operator fun invoke(disponibles: List<Jugador>, formacion: Formacion): List<Pair<Posicion, Jugador>> {
+    operator fun invoke(convocados: List<Jugador>, formacion: Formacion): List<Pair<Posicion, Jugador>> {
         val requeridas = mutableListOf(Posicion.POR).apply { addAll(formacion.posicionesRequeridas) }
         val asignaciones = mutableListOf<Pair<Posicion, Jugador>>()
-        val sinAsignar = disponibles.toMutableList()
+        val sinAsignar = convocados.toMutableList()
 
         for (pos in requeridas) {
             // Evaluamos la afinidad con el Set de posiciones

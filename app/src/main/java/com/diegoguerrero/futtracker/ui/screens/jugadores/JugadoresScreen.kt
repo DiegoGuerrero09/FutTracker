@@ -34,7 +34,7 @@ fun JugadoresScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Plantilla de Jugadores", fontWeight = FontWeight.Bold) },
+                title = { Text("Plantilla", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
