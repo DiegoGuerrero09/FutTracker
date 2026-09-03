@@ -10,14 +10,16 @@ data class JugadorEntity(
     @PrimaryKey val id: String,
     val nombre: String,
     val posicionesPrimarias: String,
-    val posicionesSecundarias: String
+    val posicionesSecundarias: String,
+    val esFavorito: Boolean = false
 ) {
     fun toDomain(): Jugador {
         return Jugador(
             id = id,
             nombre = nombre,
             posicionesPrimarias = posicionesPrimarias.toPosicionSet(),
-            posicionesSecundarias = posicionesSecundarias.toPosicionSet()
+            posicionesSecundarias = posicionesSecundarias.toPosicionSet(),
+            esFavorito = esFavorito
         )
     }
 }
@@ -27,13 +29,14 @@ fun Jugador.toEntity(): JugadorEntity {
         id = id,
         nombre = nombre,
         posicionesPrimarias = posicionesPrimarias.joinToString(",") { it.name },
-        posicionesSecundarias = posicionesSecundarias.joinToString(",") { it.name }
+        posicionesSecundarias = posicionesSecundarias.joinToString(",") { it.name },
+        esFavorito = esFavorito
     )
 }
 
 private fun String.toPosicionSet(): Set<Posicion> {
     if (this.isBlank()) return emptySet()
     return this.split(",")
-        .mapNotNull { name -> runCatching { Posicion.valueOf(name) }.getOrNull() }
+        .mapNotNull { name -> runCatching { Posicion.valueOf(name.trim()) }.getOrNull() }
         .toSet()
 }

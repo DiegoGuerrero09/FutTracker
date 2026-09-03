@@ -1,9 +1,12 @@
 package com.diegoguerrero.futtracker.ui.screens.alineacion
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,8 +24,7 @@ fun AlineacionScreen(
     plantillaCompleta: List<Jugador>
 ) {
     var tipoFutbol by remember { mutableStateOf(TipoFutbol.FUTSAL) }
-    
-    // Primero los favoritos, luego ordenados alfabéticamente por nombre
+
     val plantillaOrdenada = remember(plantillaCompleta) {
         plantillaCompleta.sortedWith(
             compareByDescending<Jugador> { it.esFavorito }
@@ -53,6 +55,14 @@ fun AlineacionScreen(
         alineacionMapaCampo = null
     }
 
+    LaunchedEffect(plantillaCompleta) {
+        val actualizados = convocados.mapNotNull { convocado ->
+            plantillaCompleta.find { it.id == convocado.id }
+        }
+        convocados.clear()
+        convocados.addAll(actualizados)
+    }
+
     val numRequerido = tipoFutbol.nJugadoresCampo
 
     Column(
@@ -61,7 +71,6 @@ fun AlineacionScreen(
             .background(DarkBackground)
             .padding(16.dp)
     ) {
-        // Seleccion de modalidad: Futsal -> Fut 6 -> Fut 7
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -85,7 +94,6 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Selector Formaciones ordenadas
         Text("Alineación", color = TextSecondary)
         ScrollableTabRow(
             selectedTabIndex = formacionesDisponibles.indexOf(formacionSeleccionada).coerceAtLeast(0),
@@ -103,19 +111,18 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Boton Generar Alineacion
         Button(
             onClick = {
                 val alineacionLista: List<Pair<Posicion, Jugador>> = useCase(convocados, formacionSeleccionada)
                 val coords = obtenerCoordenadas(formacionSeleccionada)
-                
+
                 alineacionMapaCampo = coords.associateWith { (posicionCampo, _) ->
                     alineacionLista.firstOrNull { (posAsignada, _) -> posAsignada == posicionCampo }?.second
                 }
             },
             enabled = convocados.size == numRequerido,
             colors = ButtonDefaults.buttonColors(
-                containerColor = LimeVolt, 
+                containerColor = LimeVolt,
                 contentColor = Color.Black,
                 disabledContainerColor = LimeVolt.copy(alpha = 0.3f),
                 disabledContentColor = Color.Black.copy(alpha = 0.5f)
@@ -127,7 +134,6 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Vista de lista + tablero
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -159,11 +165,18 @@ fun AlineacionScreen(
                 items = plantillaOrdenada,
                 key = { it.id }
             ) { jugador ->
-                val isSelected = convocados.contains(jugador)
+                val isSelected = convocados.any { it.id == jugador.id }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
+                        .clickable {
+                            if (isSelected) {
+                                convocados.removeAll { it.id == jugador.id }
+                            } else if (convocados.size < numRequerido) {
+                                convocados.add(jugador)
+                            }
+                        }
+                        .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
@@ -174,19 +187,28 @@ fun AlineacionScreen(
                                     convocados.add(jugador)
                                 }
                             } else {
-                                convocados.remove(jugador)
+                                convocados.removeAll { it.id == jugador.id }
                             }
                         },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = LimeVolt, 
+                            checkedColor = LimeVolt,
                             checkmarkColor = Color.Black,
                             uncheckedColor = TextSecondary
                         )
                     )
                     Text(
                         text = jugador.nombre,
-                        color = Color.White
+                        color = Color.White,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (jugador.esFavorito) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Favorito",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }

@@ -1,6 +1,7 @@
 package com.diegoguerrero.futtracker.ui.screens.jugadores
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -31,10 +32,12 @@ import com.diegoguerrero.futtracker.domain.model.Posicion
 fun JugadoresScreen(
     jugadores: List<Jugador>,
     onAgregarJugador: (Jugador) -> Unit,
+    onActualizarJugador: (Jugador) -> Unit,
     onEliminarJugador: (Jugador) -> Unit,
     onToggleFavorito: (Jugador) -> Unit
 ) {
-    var mostrarDialogo by remember { mutableStateOf(false) }
+    var mostrarDialogoCrear by remember { mutableStateOf(false) }
+    var jugadorAEditar by remember { mutableStateOf<Jugador?>(null) }
     var jugadorAEliminar by remember { mutableStateOf<Jugador?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -71,7 +74,7 @@ fun JugadoresScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { mostrarDialogo = true },
+                onClick = { mostrarDialogoCrear = true },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir Jugador", tint = Color.White)
@@ -84,7 +87,6 @@ fun JugadoresScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Buscador por nombre
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -104,7 +106,6 @@ fun JugadoresScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Filtros rápidos
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
@@ -173,6 +174,7 @@ fun JugadoresScreen(
                     ) { jugador ->
                         JugadorItem(
                             jugador = jugador,
+                            onClick = { jugadorAEditar = jugador },
                             onToggleFavorito = { onToggleFavorito(jugador) },
                             onEliminar = { jugadorAEliminar = jugador }
                         )
@@ -181,12 +183,24 @@ fun JugadoresScreen(
             }
         }
 
-        if (mostrarDialogo) {
-            DialogoNuevoJugador(
-                onDismiss = { mostrarDialogo = false },
-                onGuardar = { nuevoJugador ->
-                    onAgregarJugador(nuevoJugador)
-                    mostrarDialogo = false
+        if (mostrarDialogoCrear) {
+            DialogoJugador(
+                jugadorExistente = null,
+                onDismiss = { mostrarDialogoCrear = false },
+                onGuardar = { nuevo ->
+                    onAgregarJugador(nuevo)
+                    mostrarDialogoCrear = false
+                }
+            )
+        }
+
+        jugadorAEditar?.let { jugador ->
+            DialogoJugador(
+                jugadorExistente = jugador,
+                onDismiss = { jugadorAEditar = null },
+                onGuardar = { actualizado ->
+                    onActualizarJugador(actualizado)
+                    jugadorAEditar = null
                 }
             )
         }
@@ -219,11 +233,14 @@ fun JugadoresScreen(
 @Composable
 private fun JugadorItem(
     jugador: Jugador,
+    onClick: () -> Unit,
     onToggleFavorito: () -> Unit,
     onEliminar: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -330,20 +347,21 @@ private fun BadgePosicion(label: String, esPrimaria: Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DialogoNuevoJugador(
+private fun DialogoJugador(
+    jugadorExistente: Jugador? = null,
     onDismiss: () -> Unit,
     onGuardar: (Jugador) -> Unit
 ) {
-    var nombre by remember { mutableStateOf("") }
-    var posPrimarias by remember { mutableStateOf(setOf<Posicion>()) }
-    var posSecundarias by remember { mutableStateOf(setOf<Posicion>()) }
+    var nombre by remember { mutableStateOf(jugadorExistente?.nombre ?: "") }
+    var posPrimarias by remember { mutableStateOf(jugadorExistente?.posicionesPrimarias ?: setOf()) }
+    var posSecundarias by remember { mutableStateOf(jugadorExistente?.posicionesSecundarias ?: setOf()) }
 
     var expPrincipal by remember { mutableStateOf(false) }
     var expSecundaria by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nuevo Jugador") },
+        title = { Text(if (jugadorExistente == null) "Nuevo Jugador" else "Editar Jugador") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -354,7 +372,6 @@ private fun DialogoNuevoJugador(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Posiciones Primarias
                 ExposedDropdownMenuBox(
                     expanded = expPrincipal,
                     onExpandedChange = { expPrincipal = !expPrincipal }
@@ -386,7 +403,6 @@ private fun DialogoNuevoJugador(
                     }
                 }
 
-                // Posiciones Secundarias
                 ExposedDropdownMenuBox(
                     expanded = expSecundaria,
                     onExpandedChange = { expSecundaria = !expSecundaria }
@@ -422,13 +438,16 @@ private fun DialogoNuevoJugador(
             Button(
                 onClick = {
                     if (nombre.isNotBlank() && posPrimarias.isNotEmpty()) {
-                        onGuardar(
-                            Jugador(
-                                nombre = nombre.trim(),
-                                posicionesPrimarias = posPrimarias,
-                                posicionesSecundarias = posSecundarias
-                            )
+                        val jugadorGuardar = jugadorExistente?.copy(
+                            nombre = nombre.trim(),
+                            posicionesPrimarias = posPrimarias,
+                            posicionesSecundarias = posSecundarias
+                        ) ?: Jugador(
+                            nombre = nombre.trim(),
+                            posicionesPrimarias = posPrimarias,
+                            posicionesSecundarias = posSecundarias
                         )
+                        onGuardar(jugadorGuardar)
                     }
                 },
                 enabled = nombre.isNotBlank() && posPrimarias.isNotEmpty()
