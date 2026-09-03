@@ -8,7 +8,7 @@ App Android nativa para uso personal desarrollada con **Kotlin** y **Jetpack Com
 
 - 📊 **Estadísticas Personalizadas:** Seguimiento de goles y asistencias por temporada deportiva (septiembre - agosto) y por año natural.
 - 📋 **Registro de Partidos:** Historial detallado de encuentros de fútbol 6 y fútbol 7.
-- 👥 **Gestión de Plantilla:** Ficha de jugadores/amigos con avatar personalizado y definición de posiciones (principal, secundaria y terciaria).
+- 👥 **Gestión de Plantilla:** Ficha de jugadores/amigos con avatar personalizado y definición de posiciones (principales y secundarias).
 - 🏟️ **Pizarra Táctica:** Visualización e interacción con alineaciones tácticas en campo virtual.
 - 🤖 **Generador de Alineaciones:** Algoritmo automático que asigna la plantilla óptima según la formación elegida (ej. 2-3-1, 2-2-1) y la polivalencia de cada jugador.
 

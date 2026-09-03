@@ -14,6 +14,7 @@ import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.ui.navigation.BottomNavigationBar
 import com.diegoguerrero.futtracker.ui.navigation.Screen
 import com.diegoguerrero.futtracker.ui.screens.alineacion.AlineacionScreen
+import com.diegoguerrero.futtracker.ui.screens.jugadores.JugadoresScreen
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
 import com.diegoguerrero.futtracker.ui.theme.FutTrackerTheme
 
@@ -31,7 +32,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppLayout() {
     val navController = rememberNavController()
-    var listaJugadores by remember { mutableStateOf<List<Jugador>>(emptyList()) }
+    val jugadores = remember { mutableStateListOf<Jugador>() }
 
     Scaffold(
         containerColor = DarkBackground,
@@ -43,13 +44,24 @@ fun MainAppLayout() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Alineacion.route) {
-                AlineacionScreen(plantillaCompleta = listaJugadores)
+                AlineacionScreen(plantillaCompleta = jugadores)
+            }
+            composable(Screen.Jugadores.route) {
+                JugadoresScreen(
+                    jugadores = jugadores,
+                    onAgregarJugador = { nuevoJugador ->
+                        jugadores.add(nuevoJugador)
+                    },
+                    onEliminarJugador = { jugadorAEliminar ->
+                        jugadores.remove(jugadorAEliminar)
+                    }
+                )
             }
             composable(Screen.Partidos.route) {
-                // TODO: PartidosScreen()
+                // PartidosScreen()
             }
             composable(Screen.Estadisticas.route) {
-                // TODO: EstadisticasScreen()
+                // EstadisticasScreen()
             }
         }
     }

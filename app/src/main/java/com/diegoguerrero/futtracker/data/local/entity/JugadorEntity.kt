@@ -1,4 +1,3 @@
-// data/local/entity/JugadorEntity.kt
 package com.diegoguerrero.futtracker.data.local.entity
 
 import androidx.room.Entity
@@ -8,26 +7,33 @@ import com.diegoguerrero.futtracker.domain.model.Posicion
 
 @Entity(tableName = "jugadores")
 data class JugadorEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val nombre: String,
-    val fotoUrl: String? = null,
-    val posPrincipal: Posicion,
-    val posSecundaria: Posicion? = null,
-    val posTercera: Posicion? = null
-)
+    val posicionesPrimarias: String,
+    val posicionesSecundarias: String
+) {
+    fun toDomain(): Jugador {
+        return Jugador(
+            id = id,
+            nombre = nombre,
+            posicionesPrimarias = posicionesPrimarias.toPosicionSet(),
+            posicionesSecundarias = posicionesSecundarias.toPosicionSet()
+        )
+    }
+}
 
-fun JugadorEntity.toDomain(): Jugador = Jugador(
-    id = id,
-    nombre = nombre,
-    posPrincipal = posPrincipal,
-    posSecundaria = posSecundaria,
-    posTercera = posTercera
-)
+fun Jugador.toEntity(): JugadorEntity {
+    return JugadorEntity(
+        id = id,
+        nombre = nombre,
+        posicionesPrimarias = posicionesPrimarias.joinToString(",") { it.name },
+        posicionesSecundarias = posicionesSecundarias.joinToString(",") { it.name }
+    )
+}
 
-fun Jugador.toEntity(): JugadorEntity = JugadorEntity(
-    id = id,
-    nombre = nombre,
-    posPrincipal = posPrincipal,
-    posSecundaria = posSecundaria,
-    posTercera = posTercera
-)
+private fun String.toPosicionSet(): Set<Posicion> {
+    if (this.isBlank()) return emptySet()
+    return this.split(",")
+        .mapNotNull { name -> runCatching { Posicion.valueOf(name) }.getOrNull() }
+        .toSet()
+}

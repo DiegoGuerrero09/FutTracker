@@ -29,6 +29,7 @@ fun JugadoresScreen(
     onEliminarJugador: (Jugador) -> Unit
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
+    var jugadorAEliminar by remember { mutableStateOf<Jugador?>(null) }
 
     Scaffold(
         topBar = {
@@ -77,7 +78,7 @@ fun JugadoresScreen(
                     ) { jugador ->
                         JugadorItem(
                             jugador = jugador,
-                            onEliminar = { onEliminarJugador(jugador) }
+                            onEliminar = { jugadorAEliminar = jugador }
                         )
                     }
                 }
@@ -93,6 +94,29 @@ fun JugadoresScreen(
                 }
             )
         }
+
+        jugadorAEliminar?.let { jugador ->
+            AlertDialog(
+                onDismissRequest = { jugadorAEliminar = null },
+                title = { Text("Eliminar jugador") },
+                text = { Text("¿Estás seguro de que quieres eliminar a ${jugador.nombre}?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onEliminarJugador(jugador)
+                            jugadorAEliminar = null
+                        }
+                    ) {
+                        Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { jugadorAEliminar = null }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -101,6 +125,8 @@ private fun JugadorItem(
     jugador: Jugador,
     onEliminar: () -> Unit
 ) {
+    val primaryPosText = jugador.posicionesPrimarias.joinToString("/") { it.name }.ifEmpty { "-" }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -125,10 +151,10 @@ private fun JugadorItem(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = jugador.posPrincipal.name,
+                        text = primaryPosText,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 12.sp
                     )
                 }
 
@@ -138,9 +164,13 @@ private fun JugadorItem(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
-                    jugador.posSecundaria?.let { sec ->
-                        Spacer(modifier = Modifier.height(2.dp))
-                        BadgePosicion(sec.name, MaterialTheme.colorScheme.secondary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (jugador.posicionesSecundarias.isNotEmpty()) {
+                            BadgePosicion(
+                                label = "Sec: " + jugador.posicionesSecundarias.joinToString("/") { it.name },
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
                 }
             }
@@ -157,13 +187,13 @@ private fun JugadorItem(
 }
 
 @Composable
-private fun BadgePosicion(nombre: String, color: Color) {
+private fun BadgePosicion(label: String, color: Color) {
     Surface(
         color = color.copy(alpha = 0.2f),
         shape = RoundedCornerShape(4.dp)
     ) {
         Text(
-            text = nombre,
+            text = label,
             color = color,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -179,8 +209,8 @@ private fun DialogoNuevoJugador(
     onGuardar: (Jugador) -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
-    var posPrincipal by remember { mutableStateOf(Posicion.DFC) }
-    var posSecundaria by remember { mutableStateOf<Posicion?>(null) }
+    var posPrimarias by remember { mutableStateOf(setOf<Posicion>()) }
+    var posSecundarias by remember { mutableStateOf(setOf<Posicion>()) }
 
     var expPrincipal by remember { mutableStateOf(false) }
     var expSecundaria by remember { mutableStateOf(false) }
@@ -198,65 +228,63 @@ private fun DialogoNuevoJugador(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Dropdown Posición Principal
+                // Posiciones Primarias
                 ExposedDropdownMenuBox(
                     expanded = expPrincipal,
                     onExpandedChange = { expPrincipal = !expPrincipal }
                 ) {
                     OutlinedTextField(
-                        value = posPrincipal.name,
+                        value = posPrimarias.joinToString { it.name }.ifEmpty { "Seleccionar Primarias" },
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Posición Principal") },
+                        label = { Text("Posiciones Primarias") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expPrincipal) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = expPrincipal,
                         onDismissRequest = { expPrincipal = false }
                     ) {
                         Posicion.entries.forEach { pos ->
+                            val isSelected = pos in posPrimarias
                             DropdownMenuItem(
-                                text = { Text(pos.name) },
+                                text = { Text("${if (isSelected) "✓ " else ""}${pos.name}") },
                                 onClick = {
-                                    posPrincipal = pos
-                                    expPrincipal = false
+                                    posPrimarias = if (isSelected) posPrimarias - pos else posPrimarias + pos
+                                    posSecundarias = posSecundarias - pos
                                 }
                             )
                         }
                     }
                 }
 
-                // Dropdown Posición Secundaria
+                // Posiciones Secundarias
                 ExposedDropdownMenuBox(
                     expanded = expSecundaria,
                     onExpandedChange = { expSecundaria = !expSecundaria }
                 ) {
                     OutlinedTextField(
-                        value = posSecundaria?.name ?: "Ninguna",
+                        value = posSecundarias.joinToString { it.name }.ifEmpty { "Ninguna (Opcional)" },
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Posición Secundaria (Opcional)") },
+                        label = { Text("Posiciones Secundarias") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expSecundaria) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = expSecundaria,
                         onDismissRequest = { expSecundaria = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Ninguna") },
-                            onClick = {
-                                posSecundaria = null
-                                expSecundaria = false
-                            }
-                        )
-                        Posicion.entries.forEach { pos ->
+                        Posicion.entries.filter { it !in posPrimarias }.forEach { pos ->
+                            val isSelected = pos in posSecundarias
                             DropdownMenuItem(
-                                text = { Text(pos.name) },
+                                text = { Text("${if (isSelected) "✓ " else ""}${pos.name}") },
                                 onClick = {
-                                    posSecundaria = pos
-                                    expSecundaria = false
+                                    posSecundarias = if (isSelected) posSecundarias - pos else posSecundarias + pos
                                 }
                             )
                         }
@@ -267,17 +295,17 @@ private fun DialogoNuevoJugador(
         confirmButton = {
             Button(
                 onClick = {
-                    if (nombre.isNotBlank()) {
+                    if (nombre.isNotBlank() && posPrimarias.isNotEmpty()) {
                         onGuardar(
                             Jugador(
                                 nombre = nombre.trim(),
-                                posPrincipal = posPrincipal,
-                                posSecundaria = posSecundaria
+                                posicionesPrimarias = posPrimarias,
+                                posicionesSecundarias = posSecundarias
                             )
                         )
                     }
                 },
-                enabled = nombre.isNotBlank()
+                enabled = nombre.isNotBlank() && posPrimarias.isNotEmpty()
             ) {
                 Text("Guardar")
             }

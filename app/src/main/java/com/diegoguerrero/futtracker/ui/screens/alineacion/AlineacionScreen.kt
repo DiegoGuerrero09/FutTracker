@@ -15,14 +15,20 @@ import com.diegoguerrero.futtracker.domain.usecase.GenerarAlineacionUseCase
 import com.diegoguerrero.futtracker.ui.components.CampoFutbol
 import com.diegoguerrero.futtracker.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlineacionScreen(
     plantillaCompleta: List<Jugador>
 ) {
-    var tipoFutbol by remember { mutableStateOf(TipoFutbol.FUT_7) }
-    val formacionesDisponibles = if (tipoFutbol == TipoFutbol.FUT_6) FORMACIONES_FUT_6 else FORMACIONES_FUT_7
-    var formacionSeleccionada by remember { mutableStateOf(formacionesDisponibles.first()) }
+    var tipoFutbol by remember { mutableStateOf(TipoFutbol.FUTSAL) }
     
+    val formacionesDisponibles = when (tipoFutbol) {
+        TipoFutbol.FUTSAL -> FORMACIONES_FUTSAL
+        TipoFutbol.FUT_6 -> FORMACIONES_FUT_6
+        TipoFutbol.FUT_7 -> FORMACIONES_FUT_7
+    }.sortedBy { it.nombre } // Orden lexicográfico (alfabético)
+
+    var formacionSeleccionada by remember { mutableStateOf(formacionesDisponibles.first()) }
     val convocados = remember { mutableStateListOf<Jugador>() }
     var alineacionMapaCampo by remember { mutableStateOf<Map<Pair<Posicion, Pair<Float, Float>>, Jugador?>?>(null) }
 
@@ -43,26 +49,31 @@ fun AlineacionScreen(
             .background(DarkBackground)
             .padding(16.dp)
     ) {
-        // Selector Fut 6 vs Fut 7
+        // Seleccion de modalidad: Futsal -> Fut 6 -> Fut 7
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             FilterChip(
+                selected = tipoFutbol == TipoFutbol.FUTSAL,
+                onClick = { tipoFutbol = TipoFutbol.FUTSAL },
+                label = { Text("Futsal") }
+            )
+            FilterChip(
                 selected = tipoFutbol == TipoFutbol.FUT_6,
                 onClick = { tipoFutbol = TipoFutbol.FUT_6 },
-                label = { Text("Fut 6 (5+1)") }
+                label = { Text("Fut 6") }
             )
             FilterChip(
                 selected = tipoFutbol == TipoFutbol.FUT_7,
                 onClick = { tipoFutbol = TipoFutbol.FUT_7 },
-                label = { Text("Fut 7 (6+1)") }
+                label = { Text("Fut 7") }
             )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Selector Formación
+        // Selector Formaciones ordenadas
         Text("Esquema Táctico", color = TextSecondary)
         ScrollableTabRow(
             selectedTabIndex = formacionesDisponibles.indexOf(formacionSeleccionada).coerceAtLeast(0),
@@ -80,29 +91,26 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Botón Generar
+        // Boton Generar Alineacion
         Button(
             onClick = {
                 val alineacionLista: List<Pair<Posicion, Jugador>> = useCase(convocados, formacionSeleccionada)
                 val coords = obtenerCoordenadas(formacionSeleccionada)
                 
-                // Asociamos cada par (Posicion, Pair<Float, Float>) con su Jugador
                 alineacionMapaCampo = coords.associateWith { (posicionCampo, _) ->
-                    alineacionLista.firstOrNull { (posAsignada, _) -> 
-                        posAsignada == posicionCampo 
-                    }?.second
+                    alineacionLista.firstOrNull { (posAsignada, _) -> posAsignada == posicionCampo }?.second
                 }
             },
-            enabled = convocados.size >= (tipoFutbol.nJugadoresCampo + 1),
+            enabled = convocados.size >= tipoFutbol.nJugadoresCampo,
             colors = ButtonDefaults.buttonColors(containerColor = LimeVolt, contentColor = Color.Black),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Calcular Mejor 11 (${convocados.size}/${tipoFutbol.nJugadoresCampo + 1} min)")
+            Text("Generar alineación")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Contenido Principal
+        // Vista de lista + tablero
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -124,7 +132,7 @@ fun AlineacionScreen(
 
             item {
                 Text(
-                    text = "Convocados Disponibles",
+                    text = "Convocados Disponibles (${convocados.size}/${tipoFutbol.nJugadoresCampo} min)",
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -149,8 +157,6 @@ fun AlineacionScreen(
                         colors = CheckboxDefaults.colors(checkedColor = LimeVolt, checkmarkColor = Color.Black)
                     )
                     Text(jugador.nombre, color = Color.White)
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(jugador.posPrincipal.name, color = TextSecondary)
                 }
             }
         }

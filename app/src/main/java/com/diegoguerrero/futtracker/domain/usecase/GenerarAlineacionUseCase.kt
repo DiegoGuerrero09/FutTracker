@@ -11,14 +11,20 @@ class GenerarAlineacionUseCase {
         val sinAsignar = disponibles.toMutableList()
 
         for (pos in requeridas) {
-            val mejorCandidato = sinAsignar.maxByOrNull { j ->
-                when (pos) {
-                    j.posPrincipal -> 3
-                    j.posSecundaria -> 2
-                    j.posTercera -> 1
+            // Evaluamos la afinidad con el Set de posiciones
+            val candidatosConPuntuacion = sinAsignar.mapNotNull { jugador ->
+                val puntos = when {
+                    pos in jugador.posicionesPrimarias -> 2
+                    pos in jugador.posicionesSecundarias -> 1
                     else -> 0
                 }
+                // Solo consideramos candidatos si tienen puntos > 0
+                if (puntos > 0) jugador to puntos else null
             }
+
+            // Seleccionamos al jugador con mayor puntuación
+            val mejorCandidato = candidatosConPuntuacion.maxByOrNull { it.second }?.first
+
             if (mejorCandidato != null) {
                 asignaciones.add(pos to mejorCandidato)
                 sinAsignar.remove(mejorCandidato)

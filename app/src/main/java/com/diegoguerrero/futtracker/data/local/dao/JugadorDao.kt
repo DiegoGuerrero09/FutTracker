@@ -1,4 +1,3 @@
-// data/local/dao/JugadorDao.kt
 package com.diegoguerrero.futtracker.data.local.dao
 
 import androidx.room.Dao
@@ -10,12 +9,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface JugadorDao {
+
     @Query("SELECT * FROM jugadores")
-    fun getAllJugadores(): Flow<List<JugadorEntity>>
+    fun getAll(): Flow<List<JugadorEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertJugador(jugador: JugadorEntity)
+    suspend fun insert(jugador: JugadorEntity)
 
     @Query("DELETE FROM jugadores WHERE id = :id")
-    suspend fun deleteJugadorById(id: Long)
+    suspend fun deleteById(id: String)
 }

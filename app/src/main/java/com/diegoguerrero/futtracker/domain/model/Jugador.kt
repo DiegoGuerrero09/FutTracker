@@ -8,9 +8,8 @@ enum class TipoPosicion(val label: String, val shortLabel: String) {
 }
 
 data class Jugador(
-    val id: Long = 0,
+    val id: String = java.util.UUID.randomUUID().toString(),
     val nombre: String,
-    val posPrincipal: Posicion,
-    val posSecundaria: Posicion? = null,
-    val posTercera: Posicion? = null
+    val posicionesPrimarias: Set<Posicion> = emptySet(),
+    val posicionesSecundarias: Set<Posicion> = emptySet()
 )
