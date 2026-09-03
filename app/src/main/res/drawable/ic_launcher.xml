@@ -6,7 +6,18 @@
     <path
         android:fillColor="#090A0F"
         android:pathData="0,0h108v108h-108z"/>
+    <!-- Círculo exterior -->
+    <path
+        android:strokeColor="#D4FF00"
+        android:strokeWidth="3"
+        android:pathData="M54,18 A36,36 0 1,0 54,90 A36,36 0 1,0 54,18 Z"/>
+    <!-- Pentágono central -->
     <path
         android:fillColor="#D4FF00"
-        android:pathData="M54,27 C39.09,27 27,39.09 27,54 C27,68.91 39.09,81 54,81 C68.91,81 81,68.91 81,54 C81,39.09 68.91,27 54,27 Z"/>
+        android:pathData="M54,44 L63,50 L59,60 L49,60 L45,50 Z"/>
+    <!-- Costuras -->
+    <path
+        android:strokeColor="#D4FF00"
+        android:strokeWidth="2"
+        android:pathData="M54,44 L54,26 M63,50 L78,54 M59,60 L68,74 M49,60 L40,74 M45,50 L30,54"/>
 </vector>

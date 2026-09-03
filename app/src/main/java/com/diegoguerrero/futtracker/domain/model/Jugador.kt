@@ -10,8 +10,7 @@ enum class TipoPosicion(val label: String, val shortLabel: String) {
 data class Jugador(
     val id: Long = 0,
     val nombre: String,
-    val fotoUrl: String? = null,
-    val posPrincipal: TipoPosicion,
-    val posSecundaria: TipoPosicion? = null,
-    val posTercera: TipoPosicion? = null
+    val posPrincipal: Posicion,
+    val posSecundaria: Posicion? = null,
+    val posTercera: Posicion? = null
 )

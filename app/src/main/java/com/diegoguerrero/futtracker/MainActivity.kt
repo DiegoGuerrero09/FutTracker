@@ -5,11 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.ui.navigation.BottomNavigationBar
 import com.diegoguerrero.futtracker.ui.navigation.Screen
 import com.diegoguerrero.futtracker.ui.screens.alineacion.AlineacionScreen
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppLayout() {
     val navController = rememberNavController()
+    var listaJugadores by remember { mutableStateOf<List<Jugador>>(emptyList()) }
 
     Scaffold(
         containerColor = DarkBackground,
@@ -41,7 +43,7 @@ fun MainAppLayout() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Alineacion.route) {
-                AlineacionScreen()
+                AlineacionScreen(plantillaCompleta = listaJugadores)
             }
             composable(Screen.Partidos.route) {
                 // TODO: PartidosScreen()

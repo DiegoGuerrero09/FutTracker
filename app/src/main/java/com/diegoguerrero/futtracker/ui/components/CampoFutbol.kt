@@ -2,91 +2,140 @@ package com.diegoguerrero.futtracker.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.diegoguerrero.futtracker.domain.model.*
-import com.diegoguerrero.futtracker.ui.theme.*
+import com.diegoguerrero.futtracker.domain.model.Jugador
+import com.diegoguerrero.futtracker.domain.model.Posicion
+import com.diegoguerrero.futtracker.ui.theme.LimeVolt
+
+private val PitchGreen = Color(0xFF1B4D3E)
 
 @Composable
 fun CampoFutbol(
-    alineacion: Map<Pair<TipoPosicion, CoordenadaCampo>, Jugador?>,
+    alineacion: Map<Pair<Posicion, Pair<Float, Float>>, Jugador?>,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(480.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(420.dp)
+            .clip(MaterialTheme.shapes.medium)
             .background(PitchGreen)
-            .border(1.dp, DarkCardBorder, RoundedCornerShape(16.dp))
     ) {
-        val width = maxWidth
-        val height = maxHeight
+        val width = constraints.maxWidth.toFloat()
+        val height = constraints.maxHeight.toFloat()
 
-        // Dibujar marcas del campo táctico
+        // Líneas tácticas del campo
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            val strokeWidth = 3f
+            val lineColor = Color.White.copy(alpha = 0.35f)
+            val strokeWidth = 2.dp.toPx()
 
-            // Líneas exteriores y centro
-            drawRect(color = PitchLines, style = Stroke(strokeWidth))
-            drawLine(PitchLines, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth)
-            drawCircle(PitchLines, radius = w * 0.18f, center = Offset(w / 2, h / 2), style = Stroke(strokeWidth))
+            // Líneas límite
+            drawRect(
+                color = lineColor,
+                style = Stroke(width = strokeWidth)
+            )
 
-            // Áreas de meta
-            drawRect(PitchLines, Offset(w * 0.22f, 0f), androidx.compose.ui.geometry.Size(w * 0.56f, h * 0.16f), style = Stroke(strokeWidth))
-            drawRect(PitchLines, Offset(w * 0.22f, h * 0.84f), androidx.compose.ui.geometry.Size(w * 0.56f, h * 0.16f), style = Stroke(strokeWidth))
+            // Línea central
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, height / 2),
+                end = Offset(width, height / 2),
+                strokeWidth = strokeWidth
+            )
+
+            // Círculo central
+            drawCircle(
+                color = lineColor,
+                radius = width * 0.15f,
+                center = Offset(width / 2, height / 2),
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Área de portería (Abajo)
+            drawRect(
+                color = lineColor,
+                topLeft = Offset(width * 0.25f, height * 0.82f),
+                size = Size(width * 0.5f, height * 0.18f),
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Área de portería (Arriba)
+            drawRect(
+                color = lineColor,
+                topLeft = Offset(width * 0.25f, 0f),
+                size = Size(width * 0.5f, height * 0.18f),
+                style = Stroke(width = strokeWidth)
+            )
         }
 
-        // Posicionar jugadores
-        alineacion.forEach { (slot, jugador) ->
-            val (posTipo, coord) = slot
-            val posX = width * coord.x - 28.dp
-            val posY = height * coord.y - 28.dp
+        // Renderizado de jugadores / posiciones
+        alineacion.forEach { (posConCoords, jugador) ->
+            val posicionEnum = posConCoords.first
+            val coords = posConCoords.second
+            val normX = coords.first
+            val normY = coords.second
+
+            val posX = normX * width
+            val posY = normY * height
+
+            val iconSize = 44.dp
+
+            val xDp = with(density) { posX.toDp() } - 22.dp
+            val yDp = with(density) { posY.toDp() } - 22.dp
 
             Box(
                 modifier = Modifier
-                    .offset(x = posX, y = posY)
-                    .size(56.dp),
+                    .offset(x = xDp, y = yDp)
+                    .size(iconSize),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Ficha de posición
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
-                            .background(DarkCard)
-                            .border(2.dp, if (jugador != null) LimeVolt else TextSecondary, CircleShape),
+                            .background(if (jugador != null) LimeVolt else Color.Gray.copy(alpha = 0.6f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = jugador?.nombre?.take(2)?.uppercase() ?: posTipo.shortLabel,
-                            color = if (jugador != null) TextPrimary else TextSecondary,
-                            fontSize = 12.sp,
+                            text = posicionEnum.name,
+                            color = if (jugador != null) Color.Black else Color.White,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Text(
-                        text = jugador?.nombre ?: posTipo.shortLabel,
-                        color = TextPrimary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
-                    )
+
+                    // Nombre del jugador asignado
+                    jugador?.let {
+                        Text(
+                            text = it.nombre,
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
