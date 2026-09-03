@@ -15,9 +15,10 @@ import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 fun BottomNavigationBar(navController: NavController) {
     val items = listOf(
         Screen.Alineacion,
+        Screen.Sorteos,
         Screen.Jugadores,
         Screen.Partidos,
-        Screen.Estadisticas
+        Screen.Perfil
     )
 
     NavigationBar(

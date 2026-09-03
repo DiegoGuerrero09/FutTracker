@@ -367,7 +367,7 @@ private fun DialogoJugador(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre completo") },
+                    label = { Text("Nombre") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -377,7 +377,7 @@ private fun DialogoJugador(
                     onExpandedChange = { expPrincipal = !expPrincipal }
                 ) {
                     OutlinedTextField(
-                        value = posPrimarias.joinToString(transform = { it.name }).ifEmpty { "Seleccionar Primarias" },
+                        value = posPrimarias.joinToString(transform = { it.name }).ifEmpty { "Seleccionar posición" }, // <--- MODIFICADO AQUÍ
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Posiciones Primarias") },
