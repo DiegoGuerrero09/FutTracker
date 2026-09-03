@@ -22,11 +22,21 @@ fun AlineacionScreen(
 ) {
     var tipoFutbol by remember { mutableStateOf(TipoFutbol.FUTSAL) }
     
-    val formacionesDisponibles = when (tipoFutbol) {
-        TipoFutbol.FUTSAL -> FORMACIONES_FUTSAL
-        TipoFutbol.FUT_6 -> FORMACIONES_FUT_6
-        TipoFutbol.FUT_7 -> FORMACIONES_FUT_7
-    }.sortedBy { it.nombre } // Orden lexicográfico (alfabético)
+    // Primero los favoritos, luego ordenados alfabéticamente por nombre
+    val plantillaOrdenada = remember(plantillaCompleta) {
+        plantillaCompleta.sortedWith(
+            compareByDescending<Jugador> { it.esFavorito }
+                .thenBy { it.nombre }
+        )
+    }
+
+    val formacionesDisponibles = remember(tipoFutbol) {
+        when (tipoFutbol) {
+            TipoFutbol.FUTSAL -> FORMACIONES_FUTSAL
+            TipoFutbol.FUT_6 -> FORMACIONES_FUT_6
+            TipoFutbol.FUT_7 -> FORMACIONES_FUT_7
+        }.sortedBy { it.nombre }
+    }
 
     var formacionSeleccionada by remember { mutableStateOf(formacionesDisponibles.first()) }
     val convocados = remember { mutableStateListOf<Jugador>() }
@@ -93,7 +103,7 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Boton Generar Alineacion (se habilita unicamente con el numero exacto de convocados)
+        // Boton Generar Alineacion
         Button(
             onClick = {
                 val alineacionLista: List<Pair<Posicion, Jugador>> = useCase(convocados, formacionSeleccionada)
@@ -104,7 +114,12 @@ fun AlineacionScreen(
                 }
             },
             enabled = convocados.size == numRequerido,
-            colors = ButtonDefaults.buttonColors(containerColor = LimeVolt, contentColor = Color.Black),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LimeVolt, 
+                contentColor = Color.Black,
+                disabledContainerColor = LimeVolt.copy(alpha = 0.3f),
+                disabledContentColor = Color.Black.copy(alpha = 0.5f)
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Generar alineación")
@@ -141,7 +156,7 @@ fun AlineacionScreen(
             }
 
             items(
-                items = plantillaCompleta,
+                items = plantillaOrdenada,
                 key = { it.id }
             ) { jugador ->
                 val isSelected = convocados.contains(jugador)
@@ -162,9 +177,16 @@ fun AlineacionScreen(
                                 convocados.remove(jugador)
                             }
                         },
-                        colors = CheckboxDefaults.colors(checkedColor = LimeVolt, checkmarkColor = Color.Black)
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = LimeVolt, 
+                            checkmarkColor = Color.Black,
+                            uncheckedColor = TextSecondary
+                        )
                     )
-                    Text(jugador.nombre, color = Color.White)
+                    Text(
+                        text = jugador.nombre,
+                        color = Color.White
+                    )
                 }
             }
         }

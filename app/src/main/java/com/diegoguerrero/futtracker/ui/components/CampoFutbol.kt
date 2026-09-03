@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.diegoguerrero.futtracker.domain.model.Jugador
@@ -95,20 +97,21 @@ fun CampoFutbol(
             val posX = normX * width
             val posY = normY * height
 
-            val iconSize = 44.dp
+            val iconWidth = 60.dp
+            val iconHeight = 48.dp
 
-            val xDp = with(density) { posX.toDp() } - 22.dp
-            val yDp = with(density) { posY.toDp() } - 22.dp
+            val xDp = with(density) { posX.toDp() } - (iconWidth / 2)
+            val yDp = with(density) { posY.toDp() } - 14.dp
 
             Box(
                 modifier = Modifier
                     .offset(x = xDp, y = yDp)
-                    .size(iconSize),
-                contentAlignment = Alignment.Center
+                    .size(width = iconWidth, height = iconHeight),
+                contentAlignment = Alignment.TopCenter
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Top
                 ) {
                     // Ficha de posición
                     Box(
@@ -133,7 +136,11 @@ fun CampoFutbol(
                             color = Color.White,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 11.sp,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }

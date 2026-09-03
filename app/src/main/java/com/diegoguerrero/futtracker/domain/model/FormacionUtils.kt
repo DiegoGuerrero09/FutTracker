@@ -6,133 +6,136 @@ fun Formacion.obtenerCoordenadas(): List<Pair<Posicion, Coordenada>> {
     val mapa = mutableListOf<Pair<Posicion, Coordenada>>()
     
     // El portero siempre ocupa el centro abajo
-    mapa.add(Posicion.POR to Coordenada(0.50f, 0.90f))
+    mapa.add(Posicion.POR to Coordenada(0.50f, 0.88f))
 
-    when (nombre) {
-        // --- FUT 6 ---
-        "3-1-1" -> {
-            mapa.add(Posicion.LI to Coordenada(0.20f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.80f, 0.70f))
+    when (id) {
+        // --- FUTBOL SALA ---
+        "FUTSAL_1_2_1" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.65f))
+            mapa.add(Posicion.EI to Coordenada(0.25f, 0.42f))
+            mapa.add(Posicion.ED to Coordenada(0.75f, 0.42f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.18f))
+        }
+        "FUTSAL_2_2_0" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.32f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.68f, 0.65f))
+            mapa.add(Posicion.DC to Coordenada(0.35f, 0.22f))
+            mapa.add(Posicion.DC to Coordenada(0.65f, 0.22f))
+        }
+        "FUTSAL_3_0_1" -> {
+            mapa.add(Posicion.LI to Coordenada(0.20f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.80f, 0.65f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
+        }
+        "FUTSAL_2_1_1" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.32f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.68f, 0.65f))
             mapa.add(Posicion.MC to Coordenada(0.50f, 0.45f))
             mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "3-2-0" -> {
-            mapa.add(Posicion.LI to Coordenada(0.20f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.80f, 0.70f))
-            mapa.add(Posicion.MC to Coordenada(0.35f, 0.35f))
-            mapa.add(Posicion.MC to Coordenada(0.65f, 0.35f))
+
+        // --- FUTBOL 6 ---
+        "FUT6_3_1_1" -> {
+            mapa.add(Posicion.LI to Coordenada(0.20f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.80f, 0.65f))
+            mapa.add(Posicion.MC to Coordenada(0.50f, 0.45f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "2-2-1" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.35f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.65f, 0.70f))
+        "FUT6_3_2_0" -> {
+            mapa.add(Posicion.LI to Coordenada(0.20f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.80f, 0.65f))
+            mapa.add(Posicion.DC to Coordenada(0.35f, 0.25f))
+            mapa.add(Posicion.DC to Coordenada(0.65f, 0.25f))
+        }
+        "FUT6_2_2_1" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.30f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.70f, 0.65f))
             mapa.add(Posicion.EI to Coordenada(0.25f, 0.45f))
             mapa.add(Posicion.ED to Coordenada(0.75f, 0.45f))
             mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "1-3-1" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
+        "FUT6_1_3_1" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.65f))
             mapa.add(Posicion.EI to Coordenada(0.20f, 0.45f))
-            mapa.add(Posicion.MC to Coordenada(0.50f, 0.48f))
+            mapa.add(Posicion.MC to Coordenada(0.50f, 0.45f))
             mapa.add(Posicion.ED to Coordenada(0.80f, 0.45f))
             mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "2-3-0" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.35f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.65f, 0.70f))
-            mapa.add(Posicion.EI to Coordenada(0.20f, 0.40f))
-            mapa.add(Posicion.MC to Coordenada(0.50f, 0.42f))
-            mapa.add(Posicion.ED to Coordenada(0.80f, 0.40f))
+        "FUT6_2_3_0" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.30f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.70f, 0.65f))
+            mapa.add(Posicion.EI to Coordenada(0.20f, 0.38f))
+            mapa.add(Posicion.MC to Coordenada(0.50f, 0.38f))
+            mapa.add(Posicion.ED to Coordenada(0.80f, 0.38f))
         }
-        "1-2-2" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
+
+        // --- FUTBOL 7 ---
+        "FUT7_2_3_1" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.30f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.70f, 0.65f))
+            mapa.add(Posicion.EI to Coordenada(0.20f, 0.45f))
+            mapa.add(Posicion.MC to Coordenada(0.50f, 0.45f))
+            mapa.add(Posicion.ED to Coordenada(0.80f, 0.45f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
+        }
+        "FUT7_2_2_2" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.30f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.70f, 0.65f))
             mapa.add(Posicion.EI to Coordenada(0.25f, 0.45f))
             mapa.add(Posicion.ED to Coordenada(0.75f, 0.45f))
             mapa.add(Posicion.DC to Coordenada(0.35f, 0.20f))
             mapa.add(Posicion.DC to Coordenada(0.65f, 0.20f))
         }
-
-        // --- FUT 7 ---
-        "2-3-1" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.35f, 0.72f))
-            mapa.add(Posicion.DFC to Coordenada(0.65f, 0.72f))
-            mapa.add(Posicion.EI to Coordenada(0.20f, 0.45f))
-            mapa.add(Posicion.MC to Coordenada(0.50f, 0.48f))
-            mapa.add(Posicion.ED to Coordenada(0.80f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.50f, 0.18f))
-        }
-        "2-2-2" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.35f, 0.72f))
-            mapa.add(Posicion.DFC to Coordenada(0.65f, 0.72f))
-            mapa.add(Posicion.EI to Coordenada(0.25f, 0.45f))
-            mapa.add(Posicion.ED to Coordenada(0.75f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.35f, 0.18f))
-            mapa.add(Posicion.DC to Coordenada(0.65f, 0.18f))
-        }
-        "3-2-1 Cerrada" -> {
-            mapa.add(Posicion.LI to Coordenada(0.20f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.80f, 0.70f))
+        "FUT7_3_2_1_CERRADA" -> {
+            mapa.add(Posicion.LI to Coordenada(0.20f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.80f, 0.65f))
             mapa.add(Posicion.MC to Coordenada(0.35f, 0.45f))
             mapa.add(Posicion.MC to Coordenada(0.65f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.50f, 0.18f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "3-2-1 Abierta" -> {
-            mapa.add(Posicion.LI to Coordenada(0.20f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.80f, 0.70f))
+        "FUT7_3_2_1_ABIERTA" -> {
+            mapa.add(Posicion.LI to Coordenada(0.20f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.80f, 0.65f))
             mapa.add(Posicion.EI to Coordenada(0.25f, 0.45f))
             mapa.add(Posicion.ED to Coordenada(0.75f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.50f, 0.18f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "4-1-1" -> {
-            mapa.add(Posicion.LI to Coordenada(0.15f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.38f, 0.72f))
-            mapa.add(Posicion.DFC to Coordenada(0.62f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.85f, 0.70f))
+        "FUT7_4_1_1" -> {
+            mapa.add(Posicion.LI to Coordenada(0.15f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.38f, 0.68f))
+            mapa.add(Posicion.DFC to Coordenada(0.62f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.85f, 0.65f))
             mapa.add(Posicion.MC to Coordenada(0.50f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.50f, 0.18f))
+            mapa.add(Posicion.DC to Coordenada(0.50f, 0.20f))
         }
-        "3-3-0" -> {
-            mapa.add(Posicion.LI to Coordenada(0.20f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.80f, 0.70f))
+        "FUT7_3_3_0" -> {
+            mapa.add(Posicion.LI to Coordenada(0.20f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.80f, 0.65f))
             mapa.add(Posicion.EI to Coordenada(0.20f, 0.38f))
-            mapa.add(Posicion.MC to Coordenada(0.50f, 0.40f))
+            mapa.add(Posicion.MC to Coordenada(0.50f, 0.38f))
             mapa.add(Posicion.ED to Coordenada(0.80f, 0.38f))
         }
-        "4-2-0" -> {
-            mapa.add(Posicion.LI to Coordenada(0.15f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.38f, 0.72f))
-            mapa.add(Posicion.DFC to Coordenada(0.62f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.85f, 0.70f))
+        "FUT7_4_2_0" -> {
+            mapa.add(Posicion.LI to Coordenada(0.15f, 0.65f))
+            mapa.add(Posicion.DFC to Coordenada(0.38f, 0.68f))
+            mapa.add(Posicion.DFC to Coordenada(0.62f, 0.68f))
+            mapa.add(Posicion.LD to Coordenada(0.85f, 0.65f))
             mapa.add(Posicion.MC to Coordenada(0.35f, 0.40f))
             mapa.add(Posicion.MC to Coordenada(0.65f, 0.40f))
         }
-        "1-3-2" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
+        "FUT7_1_3_2" -> {
+            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.68f))
             mapa.add(Posicion.EI to Coordenada(0.20f, 0.45f))
-            mapa.add(Posicion.MC to Coordenada(0.50f, 0.48f))
-            mapa.add(Posicion.ED to Coordenada(0.80f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.35f, 0.18f))
-            mapa.add(Posicion.DC to Coordenada(0.65f, 0.18f))
-        }
-        "3-1-2" -> {
-            mapa.add(Posicion.LI to Coordenada(0.20f, 0.70f))
-            mapa.add(Posicion.DFC to Coordenada(0.50f, 0.72f))
-            mapa.add(Posicion.LD to Coordenada(0.80f, 0.70f))
             mapa.add(Posicion.MC to Coordenada(0.50f, 0.45f))
-            mapa.add(Posicion.DC to Coordenada(0.35f, 0.18f))
-            mapa.add(Posicion.DC to Coordenada(0.65f, 0.18f))
-        }
-        "2-1-2-1" -> {
-            mapa.add(Posicion.DFC to Coordenada(0.35f, 0.72f))
-            mapa.add(Posicion.DFC to Coordenada(0.65f, 0.72f))
-            mapa.add(Posicion.MC to Coordenada(0.50f, 0.52f))
-            mapa.add(Posicion.EI to Coordenada(0.25f, 0.35f))
-            mapa.add(Posicion.ED to Coordenada(0.75f, 0.35f))
-            mapa.add(Posicion.DC to Coordenada(0.50f, 0.18f))
+            mapa.add(Posicion.ED to Coordenada(0.80f, 0.45f))
+            mapa.add(Posicion.DC to Coordenada(0.35f, 0.20f))
+            mapa.add(Posicion.DC to Coordenada(0.65f, 0.20f))
         }
     }
     return mapa

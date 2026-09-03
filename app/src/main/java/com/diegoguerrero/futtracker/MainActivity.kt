@@ -54,6 +54,14 @@ fun MainAppLayout() {
                     },
                     onEliminarJugador = { jugadorAEliminar ->
                         jugadores.remove(jugadorAEliminar)
+                    },
+                    onToggleFavorito = { jugadorAAlternar ->
+                        val index = jugadores.indexOfFirst { it.id == jugadorAAlternar.id }
+                        if (index != -1) {
+                            jugadores[index] = jugadores[index].copy(
+                                esFavorito = !jugadores[index].esFavorito
+                            )
+                        }
                     }
                 )
             }

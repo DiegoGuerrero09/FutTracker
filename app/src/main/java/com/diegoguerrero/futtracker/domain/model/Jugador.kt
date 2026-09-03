@@ -11,5 +11,13 @@ data class Jugador(
     val id: String = java.util.UUID.randomUUID().toString(),
     val nombre: String,
     val posicionesPrimarias: Set<Posicion> = emptySet(),
-    val posicionesSecundarias: Set<Posicion> = emptySet()
-)
+    val posicionesSecundarias: Set<Posicion> = emptySet(),
+    val esFavorito: Boolean = false
+) {
+    val inicialesPosiciones: String
+        get() = if (posicionesPrimarias.isEmpty()) {
+            "-"
+        } else {
+            posicionesPrimarias.joinToString("/") { it.name }
+        }
+}

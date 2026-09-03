@@ -3,12 +3,17 @@ package com.diegoguerrero.futtracker.ui.screens.jugadores
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,10 +31,33 @@ import com.diegoguerrero.futtracker.domain.model.Posicion
 fun JugadoresScreen(
     jugadores: List<Jugador>,
     onAgregarJugador: (Jugador) -> Unit,
-    onEliminarJugador: (Jugador) -> Unit
+    onEliminarJugador: (Jugador) -> Unit,
+    onToggleFavorito: (Jugador) -> Unit
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
     var jugadorAEliminar by remember { mutableStateOf<Jugador?>(null) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedPosicionFilter by remember { mutableStateOf<Posicion?>(null) }
+    var soloFavoritosFilter by remember { mutableStateOf(false) }
+
+    val jugadoresFiltrados = remember(jugadores, searchQuery, selectedPosicionFilter, soloFavoritosFilter) {
+        jugadores.filter { jugador ->
+            val coincideBusqueda = searchQuery.isBlank() ||
+                jugador.nombre.contains(searchQuery, ignoreCase = true)
+
+            val coincidePosicion = selectedPosicionFilter == null ||
+                jugador.posicionesPrimarias.contains(selectedPosicionFilter) ||
+                jugador.posicionesSecundarias.contains(selectedPosicionFilter)
+
+            val coincideFavorito = !soloFavoritosFilter || jugador.esFavorito
+
+            coincideBusqueda && coincidePosicion && coincideFavorito
+        }.sortedWith(
+            compareByDescending<Jugador> { it.esFavorito }
+                .thenBy { it.nombre }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -50,18 +78,85 @@ fun JugadoresScreen(
             }
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            if (jugadores.isEmpty()) {
+            // Buscador por nombre
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Buscar por nombre...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Filtros rápidos
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = soloFavoritosFilter,
+                        onClick = { soloFavoritosFilter = !soloFavoritosFilter },
+                        label = { Text("Favoritos") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (soloFavoritosFilter) Icons.Default.Star else Icons.Outlined.StarOutline,
+                                contentDescription = null,
+                                tint = if (soloFavoritosFilter) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = selectedPosicionFilter == null && !soloFavoritosFilter,
+                        onClick = {
+                            selectedPosicionFilter = null
+                            soloFavoritosFilter = false
+                        },
+                        label = { Text("Todos") }
+                    )
+                }
+                items(Posicion.entries.toTypedArray()) { pos ->
+                    FilterChip(
+                        selected = selectedPosicionFilter == pos,
+                        onClick = {
+                            selectedPosicionFilter = if (selectedPosicionFilter == pos) null else pos
+                        },
+                        label = { Text(pos.name) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (jugadoresFiltrados.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No hay jugadores registrados.\nAgrega uno con el botón +",
+                        text = if (jugadores.isEmpty()) {
+                            "No hay jugadores registrados.\nAgrega uno con el botón +"
+                        } else {
+                            "No se encontraron jugadores"
+                        },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp
                     )
@@ -69,15 +164,16 @@ fun JugadoresScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     items(
-                        items = jugadores,
+                        items = jugadoresFiltrados,
                         key = { it.id }
                     ) { jugador ->
                         JugadorItem(
                             jugador = jugador,
+                            onToggleFavorito = { onToggleFavorito(jugador) },
                             onEliminar = { jugadorAEliminar = jugador }
                         )
                     }
@@ -123,10 +219,9 @@ fun JugadoresScreen(
 @Composable
 private fun JugadorItem(
     jugador: Jugador,
+    onToggleFavorito: () -> Unit,
     onEliminar: () -> Unit
 ) {
-    val primaryPosText = jugador.posicionesPrimarias.joinToString("/") { it.name }.ifEmpty { "-" }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -140,6 +235,7 @@ private fun JugadorItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -151,53 +247,83 @@ private fun JugadorItem(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = primaryPosText,
-                        color = Color.White,
+                        text = obtenerIniciales(jugador.nombre),
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 14.sp
                     )
                 }
 
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = jugador.nombre,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 20.sp
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (jugador.posicionesSecundarias.isNotEmpty()) {
-                            BadgePosicion(
-                                label = "Sec: " + jugador.posicionesSecundarias.joinToString("/") { it.name },
-                                color = MaterialTheme.colorScheme.secondary
-                            )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        jugador.posicionesPrimarias.forEach { pos ->
+                            BadgePosicion(label = pos.name, esPrimaria = true)
+                        }
+                        jugador.posicionesSecundarias.forEach { pos ->
+                            BadgePosicion(label = pos.name, esPrimaria = false)
                         }
                     }
                 }
             }
 
-            IconButton(onClick = onEliminar) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Eliminar",
-                    tint = MaterialTheme.colorScheme.error
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onToggleFavorito) {
+                    Icon(
+                        imageVector = if (jugador.esFavorito) Icons.Default.Star else Icons.Outlined.StarOutline,
+                        contentDescription = "Marcar como favorito",
+                        tint = if (jugador.esFavorito) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(onClick = onEliminar) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun BadgePosicion(label: String, color: Color) {
+private fun BadgePosicion(label: String, esPrimaria: Boolean) {
+    val bgColor = if (esPrimaria) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+    }
+    val textColor = if (esPrimaria) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
+
     Surface(
-        color = color.copy(alpha = 0.2f),
+        color = bgColor,
         shape = RoundedCornerShape(4.dp)
     ) {
         Text(
             text = label,
-            color = color,
+            color = textColor,
             fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            fontWeight = if (esPrimaria) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            lineHeight = 14.sp
         )
     }
 }
@@ -223,7 +349,7 @@ private fun DialogoNuevoJugador(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre") },
+                    label = { Text("Nombre completo") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -234,7 +360,7 @@ private fun DialogoNuevoJugador(
                     onExpandedChange = { expPrincipal = !expPrincipal }
                 ) {
                     OutlinedTextField(
-                        value = posPrimarias.joinToString { it.name }.ifEmpty { "Seleccionar Primarias" },
+                        value = posPrimarias.joinToString(transform = { it.name }).ifEmpty { "Seleccionar Primarias" },
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Posiciones Primarias") },
@@ -266,7 +392,7 @@ private fun DialogoNuevoJugador(
                     onExpandedChange = { expSecundaria = !expSecundaria }
                 ) {
                     OutlinedTextField(
-                        value = posSecundarias.joinToString { it.name }.ifEmpty { "Ninguna (Opcional)" },
+                        value = posSecundarias.joinToString(transform = { it.name }).ifEmpty { "Ninguna (Opcional)" },
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Posiciones Secundarias") },
@@ -316,4 +442,13 @@ private fun DialogoNuevoJugador(
             }
         }
     )
+}
+
+fun obtenerIniciales(nombre: String): String {
+    val partes = nombre.trim().split("\\s+".toRegex())
+    return when {
+        partes.isEmpty() -> "??"
+        partes.size == 1 -> partes[0].take(2).uppercase()
+        else -> "${partes[0].take(1)}${partes[1].take(1)}".uppercase()
+    }
 }
