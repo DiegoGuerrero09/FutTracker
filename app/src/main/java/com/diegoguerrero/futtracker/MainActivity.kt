@@ -4,15 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,7 +18,12 @@ import com.diegoguerrero.futtracker.ui.navigation.Screen
 import com.diegoguerrero.futtracker.ui.screens.alineacion.AlineacionScreen
 import com.diegoguerrero.futtracker.ui.screens.jugadores.JugadoresScreen
 import com.diegoguerrero.futtracker.ui.screens.jugadores.JugadoresViewModel
+import com.diegoguerrero.futtracker.ui.screens.partidos.PartidosScreen
+import com.diegoguerrero.futtracker.ui.screens.partidos.PartidosViewModel
+import com.diegoguerrero.futtracker.ui.screens.perfil.PerfilScreen
+import com.diegoguerrero.futtracker.ui.screens.perfil.PerfilViewModel
 import com.diegoguerrero.futtracker.ui.screens.sorteos.SorteosScreen
+import com.diegoguerrero.futtracker.ui.screens.splash.SplashScreen
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
 import com.diegoguerrero.futtracker.ui.theme.FutTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,21 +32,39 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val jugadoresViewModel: JugadoresViewModel by viewModels()
+    private val partidosViewModel: PartidosViewModel by viewModels()
+    private val perfilViewModel: PerfilViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             FutTrackerTheme {
-                MainAppLayout(viewModel = jugadoresViewModel)
+                var showSplash by remember { mutableStateOf(true) }
+
+                Crossfade(targetState = showSplash, label = "splashTransition") { isSplash ->
+                    if (isSplash) {
+                        SplashScreen(onSplashFinished = { showSplash = false })
+                    } else {
+                        MainAppLayout(
+                            jugadoresViewModel = jugadoresViewModel,
+                            partidosViewModel = partidosViewModel,
+                            perfilViewModel = perfilViewModel
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun MainAppLayout(viewModel: JugadoresViewModel) {
+fun MainAppLayout(
+    jugadoresViewModel: JugadoresViewModel,
+    partidosViewModel: PartidosViewModel,
+    perfilViewModel: PerfilViewModel
+) {
     val navController = rememberNavController()
-    val jugadores by viewModel.jugadores.collectAsStateWithLifecycle()
+    val jugadores by jugadoresViewModel.jugadores.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = DarkBackground,
@@ -66,35 +85,53 @@ fun MainAppLayout(viewModel: JugadoresViewModel) {
                 JugadoresScreen(
                     jugadores = jugadores,
                     onAgregarJugador = { nuevoJugador ->
-                        viewModel.agregarJugador(nuevoJugador)
+                        jugadoresViewModel.agregarJugador(nuevoJugador)
                     },
                     onActualizarJugador = { jugadorActualizado ->
-                        viewModel.actualizarJugador(jugadorActualizado)
+                        jugadoresViewModel.actualizarJugador(jugadorActualizado)
                     },
                     onEliminarJugador = { jugadorAEliminar ->
-                        viewModel.eliminarJugador(jugadorAEliminar)
+                        jugadoresViewModel.eliminarJugador(jugadorAEliminar)
                     },
                     onToggleFavorito = { jugadorAAlternar ->
-                        viewModel.toggleFavorito(jugadorAAlternar)
+                        jugadoresViewModel.toggleFavorito(jugadorAAlternar)
                     }
                 )
             }
             composable(Screen.Partidos.route) {
-                PantallaEnConstruccion("Partidos")
+                val partidos by partidosViewModel.partidos.collectAsStateWithLifecycle()
+                PartidosScreen(
+                    partidos = partidos,
+                    jugadores = jugadores,
+                    onAgregarPartido = { partidosViewModel.agregarPartido(it) },
+                    onActualizarPartido = { partidosViewModel.actualizarPartido(it) },
+                    onEliminarPartido = { partidosViewModel.eliminarPartido(it) }
+                )
             }
             composable(Screen.Perfil.route) {
-                PantallaEnConstruccion("Perfil")
+                val perfil by perfilViewModel.perfil.collectAsStateWithLifecycle()
+                val partidosFiltrados by perfilViewModel.partidosFiltrados.collectAsStateWithLifecycle()
+                val filtroTipo by perfilViewModel.filtroTipo.collectAsStateWithLifecycle()
+                val temporada by perfilViewModel.temporadaSeleccionada.collectAsStateWithLifecycle()
+                val anio by perfilViewModel.anioSeleccionado.collectAsStateWithLifecycle()
+                val fechaInicio by perfilViewModel.fechaInicio.collectAsStateWithLifecycle()
+                val fechaFin by perfilViewModel.fechaFin.collectAsStateWithLifecycle()
+
+                PerfilScreen(
+                    perfil = perfil,
+                    partidosFiltrados = partidosFiltrados,
+                    filtroTipo = filtroTipo,
+                    temporadaSeleccionada = temporada,
+                    anioSeleccionado = anio,
+                    fechaInicio = fechaInicio,
+                    fechaFin = fechaFin,
+                    onGuardarPerfil = { perfilViewModel.guardarPerfil(it) },
+                    onCambiarFiltro = { perfilViewModel.setFiltroTipo(it) },
+                    onCambiarTemporada = { perfilViewModel.setTemporada(it) },
+                    onCambiarAnio = { perfilViewModel.setAnio(it) },
+                    onCambiarRangoFechas = { inicio, fin -> perfilViewModel.setRangoFechas(inicio, fin) }
+                )
             }
         }
-    }
-}
-
-@Composable
-fun PantallaEnConstruccion(titulo: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = "$titulo - Próximamente", color = Color.White)
     }
 }

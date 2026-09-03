@@ -66,4 +66,27 @@ class GenerarAlineacionUseCase {
             disponibles.firstOrNull()
         }
     }
+
+    fun sugerirMejorFormacion(convocados: List<Jugador>, formaciones: List<Formacion>): Formacion {
+        if (formaciones.isEmpty()) throw IllegalArgumentException("La lista de formaciones no puede estar vacía")
+        if (convocados.isEmpty()) return formaciones.first()
+
+        return formaciones.maxByOrNull { formacion ->
+            evaluarAfinidadTotal(convocados, formacion)
+        } ?: formaciones.first()
+    }
+
+    fun evaluarAfinidadTotal(convocados: List<Jugador>, formacion: Formacion): Int {
+        val asignaciones = invoke(convocados, formacion)
+        var total = 0
+        for ((pos, jugador) in asignaciones) {
+            val puntos: Int = when {
+                pos in jugador.posicionesPrimarias -> if (pos == Posicion.POR) 5 else 3
+                pos in jugador.posicionesSecundarias -> if (pos == Posicion.POR) 2 else 1
+                else -> 0
+            }
+            total += puntos
+        }
+        return total
+    }
 }

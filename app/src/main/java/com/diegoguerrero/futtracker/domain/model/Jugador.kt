@@ -12,7 +12,9 @@ data class Jugador(
     val nombre: String,
     val posicionesPrimarias: Set<Posicion> = emptySet(),
     val posicionesSecundarias: Set<Posicion> = emptySet(),
-    val esFavorito: Boolean = false
+    val esFavorito: Boolean = false,
+    val nivel: Int = 3,
+    val esUsuarioPropio: Boolean = false
 ) {
     val inicialesPosiciones: String
         get() = if (posicionesPrimarias.isEmpty()) {

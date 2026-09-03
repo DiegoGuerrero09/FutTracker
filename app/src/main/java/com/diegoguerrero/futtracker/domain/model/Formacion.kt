@@ -40,6 +40,30 @@ val FORMACIONES_FUTSAL = listOf(
         nombre = "2-1-1",
         tipo = TipoFutbol.FUTSAL,
         posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.MC, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUTSAL_1_1_2",
+        nombre = "1-1-2",
+        tipo = TipoFutbol.FUTSAL,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.MC, Posicion.DC, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUTSAL_2_0_2",
+        nombre = "2-0-2",
+        tipo = TipoFutbol.FUTSAL,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.EI, Posicion.ED)
+    ),
+    Formacion(
+        id = "FUTSAL_1_3_0",
+        nombre = "1-3-0",
+        tipo = TipoFutbol.FUTSAL,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.EI, Posicion.MC, Posicion.ED)
+    ),
+    Formacion(
+        id = "FUTSAL_4_0_0",
+        nombre = "4-0-0",
+        tipo = TipoFutbol.FUTSAL,
+        posicionesRequeridas = listOf(Posicion.LI, Posicion.DFC, Posicion.DFC, Posicion.LD)
     )
 ).sortedBy { it.nombre }
 
@@ -74,6 +98,30 @@ val FORMACIONES_FUT_6 = listOf(
         nombre = "2-3-0",
         tipo = TipoFutbol.FUT_6,
         posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.EI, Posicion.MC, Posicion.ED)
+    ),
+    Formacion(
+        id = "FUT6_2_1_2",
+        nombre = "2-1-2",
+        tipo = TipoFutbol.FUT_6,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.MC, Posicion.DC, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUT6_1_2_2",
+        nombre = "1-2-2",
+        tipo = TipoFutbol.FUT_6,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.MC, Posicion.MC, Posicion.DC, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUT6_1_4_0",
+        nombre = "1-4-0",
+        tipo = TipoFutbol.FUT_6,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.LI, Posicion.MC, Posicion.MC, Posicion.LD)
+    ),
+    Formacion(
+        id = "FUT6_2_0_3",
+        nombre = "2-0-3",
+        tipo = TipoFutbol.FUT_6,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.EI, Posicion.DC, Posicion.ED)
     )
 ).sortedBy { it.nombre }
 
@@ -126,6 +174,30 @@ val FORMACIONES_FUT_7 = listOf(
         nombre = "1-3-2",
         tipo = TipoFutbol.FUT_7,
         posicionesRequeridas = listOf(Posicion.DFC, Posicion.EI, Posicion.MC, Posicion.ED, Posicion.DC, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUT7_2_1_3",
+        nombre = "2-1-3",
+        tipo = TipoFutbol.FUT_7,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.MC, Posicion.EI, Posicion.ED, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUT7_3_1_2",
+        nombre = "3-1-2",
+        tipo = TipoFutbol.FUT_7,
+        posicionesRequeridas = listOf(Posicion.LI, Posicion.DFC, Posicion.LD, Posicion.MC, Posicion.DC, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUT7_1_4_1",
+        nombre = "1-4-1",
+        tipo = TipoFutbol.FUT_7,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.LI, Posicion.MC, Posicion.MC, Posicion.LD, Posicion.DC)
+    ),
+    Formacion(
+        id = "FUT7_2_4_0",
+        nombre = "2-4-0",
+        tipo = TipoFutbol.FUT_7,
+        posicionesRequeridas = listOf(Posicion.DFC, Posicion.DFC, Posicion.LI, Posicion.MC, Posicion.MC, Posicion.LD)
     )
 ).sortedBy { it.nombre }
 
@@ -159,6 +231,34 @@ fun obtenerCoordenadas(formacion: Formacion): List<Pair<Posicion, Pair<Float, Fl
             Posicion.DFC to (0.68f to 0.65f),
             Posicion.MC  to (0.50f to 0.45f),
             Posicion.DC  to (0.50f to 0.20f)
+        )
+        "FUTSAL_1_1_2" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.50f to 0.68f),
+            Posicion.MC  to (0.50f to 0.45f),
+            Posicion.DC  to (0.35f to 0.20f),
+            Posicion.DC  to (0.65f to 0.20f)
+        )
+        "FUTSAL_2_0_2" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.32f to 0.65f),
+            Posicion.DFC to (0.68f to 0.65f),
+            Posicion.EI  to (0.25f to 0.30f),
+            Posicion.ED  to (0.75f to 0.30f)
+        )
+        "FUTSAL_1_3_0" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.50f to 0.68f),
+            Posicion.EI  to (0.20f to 0.42f),
+            Posicion.MC  to (0.50f to 0.40f),
+            Posicion.ED  to (0.80f to 0.42f)
+        )
+        "FUTSAL_4_0_0" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.LI  to (0.18f to 0.60f),
+            Posicion.DFC to (0.38f to 0.65f),
+            Posicion.DFC to (0.62f to 0.65f),
+            Posicion.LD  to (0.82f to 0.60f)
         )
 
         // --- FUTBOL 6 ---
@@ -201,6 +301,38 @@ fun obtenerCoordenadas(formacion: Formacion): List<Pair<Posicion, Pair<Float, Fl
             Posicion.EI  to (0.2f to 0.38f),
             Posicion.MC  to (0.5f to 0.38f),
             Posicion.ED  to (0.8f to 0.38f)
+        )
+        "FUT6_2_1_2" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.3f to 0.65f),
+            Posicion.DFC to (0.7f to 0.65f),
+            Posicion.MC  to (0.5f to 0.45f),
+            Posicion.DC  to (0.35f to 0.20f),
+            Posicion.DC  to (0.65f to 0.20f)
+        )
+        "FUT6_1_2_2" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.5f to 0.68f),
+            Posicion.MC  to (0.32f to 0.45f),
+            Posicion.MC  to (0.68f to 0.45f),
+            Posicion.DC  to (0.35f to 0.20f),
+            Posicion.DC  to (0.65f to 0.20f)
+        )
+        "FUT6_1_4_0" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.5f to 0.68f),
+            Posicion.LI  to (0.18f to 0.45f),
+            Posicion.MC  to (0.39f to 0.45f),
+            Posicion.MC  to (0.61f to 0.45f),
+            Posicion.LD  to (0.82f to 0.45f)
+        )
+        "FUT6_2_0_3" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.30f to 0.65f),
+            Posicion.DFC to (0.70f to 0.65f),
+            Posicion.EI  to (0.20f to 0.30f),
+            Posicion.DC  to (0.50f to 0.20f),
+            Posicion.ED  to (0.80f to 0.30f)
         )
 
         // --- FUTBOL 7 ---
@@ -275,6 +407,42 @@ fun obtenerCoordenadas(formacion: Formacion): List<Pair<Posicion, Pair<Float, Fl
             Posicion.ED  to (0.8f to 0.45f),
             Posicion.DC  to (0.35f to 0.20f),
             Posicion.DC  to (0.65f to 0.20f)
+        )
+        "FUT7_2_1_3" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.30f to 0.68f),
+            Posicion.DFC to (0.70f to 0.68f),
+            Posicion.MC  to (0.50f to 0.48f),
+            Posicion.EI  to (0.20f to 0.25f),
+            Posicion.ED  to (0.80f to 0.25f),
+            Posicion.DC  to (0.50f to 0.20f)
+        )
+        "FUT7_3_1_2" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.LI  to (0.20f to 0.65f),
+            Posicion.DFC to (0.50f to 0.68f),
+            Posicion.LD  to (0.80f to 0.65f),
+            Posicion.MC  to (0.50f to 0.45f),
+            Posicion.DC  to (0.35f to 0.20f),
+            Posicion.DC  to (0.65f to 0.20f)
+        )
+        "FUT7_1_4_1" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.50f to 0.68f),
+            Posicion.LI  to (0.15f to 0.45f),
+            Posicion.MC  to (0.38f to 0.45f),
+            Posicion.MC  to (0.62f to 0.45f),
+            Posicion.LD  to (0.85f to 0.45f),
+            Posicion.DC  to (0.50f to 0.20f)
+        )
+        "FUT7_2_4_0" -> listOf(
+            Posicion.POR to (0.5f to 0.88f),
+            Posicion.DFC to (0.32f to 0.68f),
+            Posicion.DFC to (0.68f to 0.68f),
+            Posicion.LI  to (0.18f to 0.42f),
+            Posicion.MC  to (0.40f to 0.42f),
+            Posicion.MC  to (0.60f to 0.42f),
+            Posicion.LD  to (0.82f to 0.42f)
         )
         else -> emptyList()
     }

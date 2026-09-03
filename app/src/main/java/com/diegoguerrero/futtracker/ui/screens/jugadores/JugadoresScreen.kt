@@ -43,15 +43,20 @@ fun JugadoresScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedPosicionFilter by remember { mutableStateOf<Posicion?>(null) }
     var soloFavoritosFilter by remember { mutableStateOf(false) }
+    var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
 
-    val jugadoresFiltrados = remember(jugadores, searchQuery, selectedPosicionFilter, soloFavoritosFilter) {
+    val jugadoresFiltrados = remember(jugadores, searchQuery, selectedPosicionFilter, soloFavoritosFilter, soloPosicionPrincipalFilter) {
         jugadores.filter { jugador ->
             val coincideBusqueda = searchQuery.isBlank() ||
                 jugador.nombre.contains(searchQuery, ignoreCase = true)
 
             val coincidePosicion = selectedPosicionFilter == null ||
-                jugador.posicionesPrimarias.contains(selectedPosicionFilter) ||
-                jugador.posicionesSecundarias.contains(selectedPosicionFilter)
+                if (soloPosicionPrincipalFilter) {
+                    jugador.posicionesPrimarias.contains(selectedPosicionFilter)
+                } else {
+                    jugador.posicionesPrimarias.contains(selectedPosicionFilter) ||
+                    jugador.posicionesSecundarias.contains(selectedPosicionFilter)
+                }
 
             val coincideFavorito = !soloFavoritosFilter || jugador.esFavorito
 
@@ -141,6 +146,25 @@ fun JugadoresScreen(
                             selectedPosicionFilter = if (selectedPosicionFilter == pos) null else pos
                         },
                         label = { Text(pos.name) }
+                    )
+                }
+            }
+
+            if (selectedPosicionFilter != null) {
+                Row(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = !soloPosicionPrincipalFilter,
+                        onClick = { soloPosicionPrincipalFilter = false },
+                        label = { Text("Ambas posiciones", fontSize = 11.sp) }
+                    )
+                    FilterChip(
+                        selected = soloPosicionPrincipalFilter,
+                        onClick = { soloPosicionPrincipalFilter = true },
+                        label = { Text("Solo posición principal", fontSize = 11.sp) }
                     )
                 }
             }
@@ -295,7 +319,7 @@ private fun JugadorItem(
                             primerasVisibles.forEach { pos ->
                                 BadgePosicion(label = pos.name, esPrimaria = pos in jugador.posicionesPrimarias)
                             }
-                            BadgePosicion(label = "+${totalPosiciones.size - 4}...", esPrimaria = false)
+                            BadgePosicion(label = "+${totalPosiciones.size - 4}", esPrimaria = false)
                         } else {
                             jugador.posicionesPrimarias.forEach { pos ->
                                 BadgePosicion(label = pos.name, esPrimaria = true)
@@ -367,6 +391,7 @@ private fun DialogoJugador(
     var nombre by remember { mutableStateOf(jugadorExistente?.nombre ?: "") }
     var posPrimarias by remember { mutableStateOf(jugadorExistente?.posicionesPrimarias ?: setOf()) }
     var posSecundarias by remember { mutableStateOf(jugadorExistente?.posicionesSecundarias ?: setOf()) }
+    var nivel by remember { mutableStateOf(jugadorExistente?.nivel ?: 3) }
 
     var expPrincipal by remember { mutableStateOf(false) }
     var expSecundaria by remember { mutableStateOf(false) }
@@ -383,6 +408,24 @@ private fun DialogoJugador(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Column {
+                    Text("Nivel del jugador (1 al 5)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        (1..5).forEach { lvl ->
+                            FilterChip(
+                                selected = nivel == lvl,
+                                onClick = { nivel = lvl },
+                                label = { Text("★ $lvl", fontSize = 11.sp) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
 
                 ExposedDropdownMenuBox(
                     expanded = expPrincipal,
@@ -453,11 +496,13 @@ private fun DialogoJugador(
                         val jugadorGuardar = jugadorExistente?.copy(
                             nombre = nombre.trim(),
                             posicionesPrimarias = posPrimarias,
-                            posicionesSecundarias = posSecundarias
+                            posicionesSecundarias = posSecundarias,
+                            nivel = nivel
                         ) ?: Jugador(
                             nombre = nombre.trim(),
                             posicionesPrimarias = posPrimarias,
-                            posicionesSecundarias = posSecundarias
+                            posicionesSecundarias = posSecundarias,
+                            nivel = nivel
                         )
                         onGuardar(jugadorGuardar)
                     }

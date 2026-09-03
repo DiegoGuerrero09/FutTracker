@@ -11,7 +11,9 @@ data class JugadorEntity(
     val nombre: String,
     val posicionesPrimarias: String,
     val posicionesSecundarias: String,
-    val esFavorito: Boolean = false
+    val esFavorito: Boolean = false,
+    val nivel: Int = 3,
+    val esUsuarioPropio: Boolean = false
 ) {
     fun toDomain(): Jugador {
         return Jugador(
@@ -19,7 +21,9 @@ data class JugadorEntity(
             nombre = nombre,
             posicionesPrimarias = posicionesPrimarias.toPosicionSet(),
             posicionesSecundarias = posicionesSecundarias.toPosicionSet(),
-            esFavorito = esFavorito
+            esFavorito = esFavorito,
+            nivel = nivel,
+            esUsuarioPropio = esUsuarioPropio
         )
     }
 }
@@ -30,7 +34,9 @@ fun Jugador.toEntity(): JugadorEntity {
         nombre = nombre,
         posicionesPrimarias = posicionesPrimarias.joinToString(",") { it.name },
         posicionesSecundarias = posicionesSecundarias.joinToString(",") { it.name },
-        esFavorito = esFavorito
+        esFavorito = esFavorito,
+        nivel = nivel,
+        esUsuarioPropio = esUsuarioPropio
     )
 }
 

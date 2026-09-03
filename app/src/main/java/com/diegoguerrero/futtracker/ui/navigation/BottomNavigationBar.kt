@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
@@ -32,7 +33,14 @@ fun BottomNavigationBar(navController: NavController) {
             val isSelected = currentRoute == screen.route
             NavigationBarItem(
                 icon = { Icon(screen.icon, contentDescription = screen.title) },
-                label = { Text(screen.title) },
+                label = {
+                    Text(
+                        text = screen.title,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                },
                 selected = isSelected,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.Black,
