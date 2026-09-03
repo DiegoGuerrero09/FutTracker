@@ -1,4 +1,4 @@
-# ⚽ FutStats & Lineup Generator
+# ⚽ FutTracker & Lineup Generator
 
 App Android nativa para uso personal desarrollada con **Kotlin** y **Jetpack Compose**. Diseñada para llevar el registro individual de partidos de fútbol 6 y fútbol 7, estadísticas por temporada y generación de alineaciones tácticas automáticas.
 
