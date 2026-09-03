@@ -78,7 +78,7 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "futtracker",
+                text = "FutTracker",
                 color = Color.White,
                 fontSize = 34.sp,
                 fontWeight = FontWeight.ExtraBold,

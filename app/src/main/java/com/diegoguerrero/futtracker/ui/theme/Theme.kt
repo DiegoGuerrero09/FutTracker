@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 private val DarkColorScheme = darkColorScheme(
     primary = LimeVolt,
     onPrimary = DarkBackground,
+    primaryContainer = LimeVolt,
+    onPrimaryContainer = DarkBackground,
     background = DarkBackground,
     surface = DarkCard,
     onBackground = TextPrimary,

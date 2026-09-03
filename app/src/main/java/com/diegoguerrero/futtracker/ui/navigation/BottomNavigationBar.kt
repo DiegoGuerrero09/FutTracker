@@ -35,10 +35,12 @@ fun BottomNavigationBar(navController: NavController) {
                 icon = { Icon(screen.icon, contentDescription = screen.title) },
                 label = {
                     Text(
-                        text = screen.title,
-                        fontSize = 10.sp,
+                        text = if (screen == Screen.Alineacion) "Alineación" else screen.title,
+                        fontSize = 9.5.sp,
+                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
                         maxLines = 1,
-                        softWrap = false
+                        softWrap = false,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 },
                 selected = isSelected,

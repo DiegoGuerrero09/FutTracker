@@ -4,9 +4,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import java.io.File
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,11 +100,11 @@ fun CampoFutbol(
             val posX = normX * width
             val posY = normY * height
 
-            val iconWidth = 60.dp
-            val iconHeight = 48.dp
+            val iconWidth = 64.dp
+            val iconHeight = 56.dp
 
             val xDp = with(density) { posX.toDp() } - (iconWidth / 2)
-            val yDp = with(density) { posY.toDp() } - 14.dp
+            val yDp = with(density) { posY.toDp() } - 18.dp
 
             Box(
                 modifier = Modifier
@@ -113,20 +116,49 @@ fun CampoFutbol(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    // Ficha de posición
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(if (jugador != null) LimeVolt else Color.Gray.copy(alpha = 0.6f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = posicionEnum.name,
-                            color = if (jugador != null) Color.Black else Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    val tieneFoto = jugador?.fotoUri?.let { path ->
+                        runCatching { File(path).exists() }.getOrDefault(false)
+                    } ?: false
+
+                    if (tieneFoto && jugador != null) {
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            JugadorAvatar(
+                                fotoUri = jugador.fotoUri,
+                                nombre = jugador.nombre,
+                                tamano = 32.dp,
+                                bordeColor = LimeVolt,
+                                bordeAncho = 1.5.dp
+                            )
+                            Surface(
+                                color = LimeVolt,
+                                shape = RoundedCornerShape(3.dp),
+                                modifier = Modifier.offset(x = 4.dp, y = 2.dp)
+                            ) {
+                                Text(
+                                    text = posicionEnum.name,
+                                    color = Color.Black,
+                                    fontSize = 7.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        // Ficha de posición tradicional
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (jugador != null) LimeVolt else Color.Gray.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = posicionEnum.name,
+                                color = if (jugador != null) Color.Black else Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     // Nombre del jugador asignado

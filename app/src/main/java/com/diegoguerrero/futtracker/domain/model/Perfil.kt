@@ -5,6 +5,7 @@ data class Perfil(
     val nombre: String = "Mi Jugador",
     val fotoUri: String? = null,
     val posicionFavorita: Posicion = Posicion.DC,
+    val posiciones: Set<Posicion> = setOf(posicionFavorita),
     val nivel: Int = 4,
     val sincronizadoConJugadores: Boolean = true
 )

@@ -26,7 +26,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.diegoguerrero.futtracker.domain.model.*
 import com.diegoguerrero.futtracker.domain.usecase.GenerarAlineacionUseCase
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.style.TextAlign
 import com.diegoguerrero.futtracker.ui.components.CampoFutbol
+import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
+import com.diegoguerrero.futtracker.ui.components.BadgePosicion
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
@@ -44,6 +49,8 @@ fun SorteosScreen(
     var totalJugadoresSeleccionados by remember { mutableStateOf(10) } // 10, 12, 14
     var equipoClaro by remember { mutableStateOf<List<Jugador>>(emptyList()) }
     var equipoOscuro by remember { mutableStateOf<List<Jugador>>(emptyList()) }
+    var asignacionesClaro by remember { mutableStateOf<List<Pair<Posicion, Jugador>>>(emptyList()) }
+    var asignacionesOscuro by remember { mutableStateOf<List<Pair<Posicion, Jugador>>>(emptyList()) }
     var sorteoRealizado by remember { mutableStateOf(false) }
 
     // Formaciones y mapas tácticos sugeridos tras sorteo
@@ -185,6 +192,8 @@ fun SorteosScreen(
 
         val asigClaro = useCase(claro, fClaro)
         val asigOscuro = useCase(oscuro, fOscuro)
+        asignacionesClaro = asigClaro
+        asignacionesOscuro = asigOscuro
 
         val coordsClaro = obtenerCoordenadas(fClaro)
         val coordsOscuro = obtenerCoordenadas(fOscuro)
@@ -211,89 +220,165 @@ fun SorteosScreen(
 
         try {
             val width = 1080
-            val height = 1500
+            val height = 1860
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(bitmap)
 
             // Fondo
-            val bgPaint = Paint().apply { color = android.graphics.Color.parseColor("#121614") }
+            val bgPaint = Paint().apply { color = android.graphics.Color.parseColor("#090A0F") }
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
 
             // Header fondo
-            val headerPaint = Paint().apply { color = android.graphics.Color.parseColor("#1C2420") }
-            canvas.drawRect(0f, 0f, width.toFloat(), 180f, headerPaint)
+            val headerPaint = Paint().apply { color = android.graphics.Color.parseColor("#13151E") }
+            canvas.drawRect(0f, 0f, width.toFloat(), 170f, headerPaint)
 
             // Título
             val titlePaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#C6FF00")
-                textSize = 52f
+                color = android.graphics.Color.parseColor("#D4FF00")
+                textSize = 48f
                 isFakeBoldText = true
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
             }
-            canvas.drawText("FutTracker - Sorteo de Equipos", width / 2f, 95f, titlePaint)
+            canvas.drawText("FutTracker - Sorteo y Alineaciones", width / 2f, 85f, titlePaint)
 
             val subtitlePaint = Paint().apply {
                 color = android.graphics.Color.WHITE
-                textSize = 28f
+                textSize = 26f
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
             }
-            canvas.drawText("Modalidad: ${when (totalJugadoresSeleccionados) { 10 -> "Futsal"; 12 -> "Fut 6"; else -> "Fut 7" }}", width / 2f, 145f, subtitlePaint)
+            val modalidadNombre = when (totalJugadoresSeleccionados) { 10 -> "Futsal"; 12 -> "Fut 6"; else -> "Fut 7" }
+            canvas.drawText("Modalidad: $modalidadNombre", width / 2f, 135f, subtitlePaint)
+
+            val cardPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#13151E")
+                style = Paint.Style.FILL
+            }
+
+            val cardBorderPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#222634")
+                style = Paint.Style.STROKE
+                strokeWidth = 3f
+                isAntiAlias = true
+            }
 
             val sectionTitlePaint = Paint().apply {
-                textSize = 38f
+                textSize = 34f
                 isFakeBoldText = true
                 isAntiAlias = true
             }
 
             val playerTextPaint = Paint().apply {
-                textSize = 30f
+                textSize = 26f
                 color = android.graphics.Color.WHITE
                 isAntiAlias = true
             }
 
-            val cardPaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#1E2722")
-                style = Paint.Style.FILL
+            fun dibujarMiniCampo(rect: RectF, formacion: Formacion, asignaciones: List<Pair<Posicion, Jugador>>, colorFicha: Int, colorTextoFicha: Int) {
+                val fieldPaint = Paint().apply {
+                    color = android.graphics.Color.parseColor("#10251B")
+                    style = Paint.Style.FILL
+                    isAntiAlias = true
+                }
+                val borderLinePaint = Paint().apply {
+                    color = android.graphics.Color.parseColor("#2A4E3B")
+                    style = Paint.Style.STROKE
+                    strokeWidth = 2.5f
+                    isAntiAlias = true
+                }
+                canvas.drawRoundRect(rect, 14f, 14f, fieldPaint)
+                canvas.drawRoundRect(rect, 14f, 14f, borderLinePaint)
+                canvas.drawLine(rect.left, rect.centerY(), rect.right, rect.centerY(), borderLinePaint)
+                canvas.drawCircle(rect.centerX(), rect.centerY(), rect.width() * 0.16f, borderLinePaint)
+
+                val coords = obtenerCoordenadas(formacion)
+                val dotPaint = Paint().apply {
+                    color = colorFicha
+                    style = Paint.Style.FILL
+                    isAntiAlias = true
+                }
+                val labelPaint = Paint().apply {
+                    color = colorTextoFicha
+                    textSize = 17f
+                    isFakeBoldText = true
+                    textAlign = Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+                val namePaint = Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    textSize = 15f
+                    isFakeBoldText = true
+                    textAlign = Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+
+                val asignadosIds = mutableSetOf<String>()
+                coords.forEach { (posReq, coordPair) ->
+                    val asig = asignaciones.firstOrNull { it.first == posReq && it.second.id !in asignadosIds }
+                    val jug = asig?.second
+                    jug?.let { asignadosIds.add(it.id) }
+
+                    val cx = rect.left + coordPair.first * rect.width()
+                    val cy = rect.top + coordPair.second * rect.height()
+
+                    canvas.drawCircle(cx, cy, 20f, dotPaint)
+                    canvas.drawText(posReq.name, cx, cy + 6f, labelPaint)
+                    if (jug != null) {
+                        val nomCorto = if (jug.nombre.length > 8) jug.nombre.take(7) + "…" else jug.nombre
+                        canvas.drawText(nomCorto, cx, cy + 32f, namePaint)
+                    }
+                }
             }
 
-            // Tarjeta Equipo Claro
-            val rectClaro = RectF(50f, 220f, width - 50f, 750f)
-            canvas.drawRoundRect(rectClaro, 24f, 24f, cardPaint)
+            // --- Tarjeta Equipo Claro ---
+            val rectClaro = RectF(40f, 195f, width - 40f, 985f)
+            canvas.drawRoundRect(rectClaro, 20f, 20f, cardPaint)
+            canvas.drawRoundRect(rectClaro, 20f, 20f, cardBorderPaint)
 
-            sectionTitlePaint.color = android.graphics.Color.parseColor("#C6FF00")
-            canvas.drawText("⚪ EQUIPO CLARO  (Alineación: ${formacionSugeridaClaro?.nombre})", 90f, 290f, sectionTitlePaint)
+            sectionTitlePaint.color = android.graphics.Color.parseColor("#D4FF00")
+            canvas.drawText("⚪ EQUIPO CLARO  (Alineación: ${formacionSugeridaClaro?.nombre})", 70f, 255f, sectionTitlePaint)
 
-            var yClaro = 360f
-            equipoClaro.forEachIndexed { i, j ->
-                val posStr = if (j.posicionesPrimarias.isNotEmpty()) j.posicionesPrimarias.first().name else "-"
-                canvas.drawText("${i + 1}. ${j.nombre}  [$posStr]", 100f, yClaro, playerTextPaint)
-                yClaro += 60f
+            var yClaro = 320f
+            val listaClaro = if (asignacionesClaro.isNotEmpty()) asignacionesClaro else equipoClaro.map { Posicion.DC to it }
+            listaClaro.forEachIndexed { i, (pos, j) ->
+                canvas.drawText("${i + 1}. [${pos.name}] ${j.nombre}", 70f, yClaro, playerTextPaint)
+                yClaro += 55f
             }
 
-            // Tarjeta Equipo Oscuro
-            val rectOscuro = RectF(50f, 800f, width - 50f, 1330f)
-            canvas.drawRoundRect(rectOscuro, 24f, 24f, cardPaint)
+            formacionSugeridaClaro?.let { f ->
+                val rectPitchClaro = RectF(540f, 290f, width - 65f, 955f)
+                dibujarMiniCampo(rectPitchClaro, f, listaClaro, android.graphics.Color.parseColor("#D4FF00"), android.graphics.Color.BLACK)
+            }
+
+            // --- Tarjeta Equipo Oscuro ---
+            val rectOscuro = RectF(40f, 1015f, width - 40f, 1805f)
+            canvas.drawRoundRect(rectOscuro, 20f, 20f, cardPaint)
+            canvas.drawRoundRect(rectOscuro, 20f, 20f, cardBorderPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#80D8FF")
-            canvas.drawText("⚫ EQUIPO OSCURO  (Alineación: ${formacionSugeridaOscuro?.nombre})", 90f, 870f, sectionTitlePaint)
+            canvas.drawText("⚫ EQUIPO OSCURO  (Alineación: ${formacionSugeridaOscuro?.nombre})", 70f, 1075f, sectionTitlePaint)
 
-            var yOscuro = 940f
-            equipoOscuro.forEachIndexed { i, j ->
-                val posStr = if (j.posicionesPrimarias.isNotEmpty()) j.posicionesPrimarias.first().name else "-"
-                canvas.drawText("${i + 1}. ${j.nombre}  [$posStr]", 100f, yOscuro, playerTextPaint)
-                yOscuro += 60f
+            var yOscuro = 1140f
+            val listaOscuro = if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro else equipoOscuro.map { Posicion.DC to it }
+            listaOscuro.forEachIndexed { i, (pos, j) ->
+                canvas.drawText("${i + 1}. [${pos.name}] ${j.nombre}", 70f, yOscuro, playerTextPaint)
+                yOscuro += 55f
+            }
+
+            formacionSugeridaOscuro?.let { f ->
+                val rectPitchOscuro = RectF(540f, 1110f, width - 65f, 1775f)
+                dibujarMiniCampo(rectPitchOscuro, f, listaOscuro, android.graphics.Color.WHITE, android.graphics.Color.BLACK)
             }
 
             // Pie
             val footerPaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#888888")
+                color = android.graphics.Color.parseColor("#94A3B8")
                 textSize = 24f
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
             }
-            canvas.drawText("Generado con FutTracker ⚽", width / 2f, 1420f, footerPaint)
+            canvas.drawText("Generado con FutTracker ⚽", width / 2f, 1838f, footerPaint)
 
             // Guardar en cache
             val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
@@ -302,12 +387,28 @@ fun SorteosScreen(
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
             fos.close()
 
+            // Texto para compartir
+            val textoCompartir = buildString {
+                appendLine("⚽ *FutTracker - Sorteo y Alineaciones*")
+                appendLine("Modalidad: $modalidadNombre")
+                appendLine()
+                appendLine("⚪ *EQUIPO CLARO* (${formacionSugeridaClaro?.nombre})")
+                listaClaro.forEach { (pos, j) ->
+                    appendLine("• [${pos.name}] ${j.nombre}")
+                }
+                appendLine()
+                appendLine("⚫ *EQUIPO OSCURO* (${formacionSugeridaOscuro?.nombre})")
+                listaOscuro.forEach { (pos, j) ->
+                    appendLine("• [${pos.name}] ${j.nombre}")
+                }
+            }
+
             // Compartir por Intent
             val imageUri = FileProvider.getUriForFile(context, "com.diegoguerrero.futtracker.fileprovider", imageFile)
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, imageUri)
-                putExtra(Intent.EXTRA_TEXT, "🎲 *Sorteo y alineaciones generadas con FutTracker* ⚽")
+                putExtra(Intent.EXTRA_TEXT, textoCompartir)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
@@ -328,13 +429,13 @@ fun SorteosScreen(
             TopAppBar(
                 title = { Text("Sorteo de equipos", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = LimeVolt,
+                    titleContentColor = Color.Black
                 ),
                 actions = {
                     if (sorteoRealizado) {
                         IconButton(onClick = { compartirAlineacionesPNG() }) {
-                            Icon(Icons.Default.Share, contentDescription = "Compartir alineaciones PNG", tint = LimeVolt)
+                            Icon(Icons.Default.Share, contentDescription = "Compartir alineaciones", tint = Color.Black)
                         }
                     }
                 }
@@ -365,7 +466,15 @@ fun SorteosScreen(
                                 jugadores.take(cantidad).forEach { idsConvocados.add(it.id) }
                                 sorteoRealizado = false
                             },
-                            label = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
+                            label = {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -459,8 +568,9 @@ fun SorteosScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 220.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        .heightIn(max = 240.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     filtrados.forEach { j ->
                                         val seleccionado = j.id in idsConvocados
@@ -472,17 +582,8 @@ fun SorteosScreen(
                                                     else idsConvocados.add(j.id)
                                                 }
                                                 .padding(vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(j.nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                                val posLabel = if (j.posicionesPrimarias.isNotEmpty()) {
-                                                    j.posicionesPrimarias.joinToString(", ") { it.name }
-                                                } else "Sin posición"
-                                                Text(posLabel, fontSize = 10.sp, color = TextSecondary)
-                                            }
-
                                             Checkbox(
                                                 checked = seleccionado,
                                                 onCheckedChange = { check ->
@@ -491,8 +592,52 @@ fun SorteosScreen(
                                                     } else {
                                                         idsConvocados.remove(j.id)
                                                     }
-                                                }
+                                                },
+                                                colors = CheckboxDefaults.colors(
+                                                    checkedColor = LimeVolt,
+                                                    checkmarkColor = Color.Black
+                                                )
                                             )
+
+                                            Spacer(modifier = Modifier.width(4.dp))
+
+                                            JugadorAvatar(
+                                                fotoUri = j.fotoUri,
+                                                nombre = j.nombre,
+                                                tamano = 36.dp
+                                            )
+
+                                            Spacer(modifier = Modifier.width(10.dp))
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(j.nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                val totalPos = j.posicionesPrimarias + j.posicionesSecundarias
+                                                if (totalPos.isEmpty()) {
+                                                    Text("Sin posición", fontSize = 10.sp, color = TextSecondary)
+                                                } else {
+                                                    Row(
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        j.posicionesPrimarias.forEach { pos ->
+                                                            BadgePosicion(label = pos.name, esPrimaria = true)
+                                                        }
+                                                        j.posicionesSecundarias.forEach { pos ->
+                                                            BadgePosicion(label = pos.name, esPrimaria = false)
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            if (j.esFavorito) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = "Favorito",
+                                                    tint = Color(0xFFFFD700),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -599,7 +744,7 @@ fun SorteosScreen(
                             ) {
                                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("PNG a WhatsApp", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Compartir", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 

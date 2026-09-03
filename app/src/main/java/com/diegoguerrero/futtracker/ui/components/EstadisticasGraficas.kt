@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -49,7 +50,7 @@ fun GraficoResultados(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Balance de Resultados",
+                text = "Balance de resultados",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
@@ -63,7 +64,6 @@ fun GraficoResultados(
                     fontSize = 13.sp
                 )
             } else {
-                // Barra segmentada de porcentaje
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -154,7 +154,6 @@ fun GraficoGolesAsistencias(
     partidos: List<Partido>,
     modifier: Modifier = Modifier
 ) {
-    // Tomamos hasta los últimos 7 partidos ordenados cronológicamente
     val partidosRecientes = partidos.sortedBy { it.fecha }.takeLast(7)
 
     Card(
@@ -169,7 +168,7 @@ fun GraficoGolesAsistencias(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Goles y Asistencias",
+                    text = "Goles y asistencias",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
@@ -225,7 +224,6 @@ fun GraficoGolesAsistencias(
                         val slotWidth = canvasWidth / n
                         val barWidth = (slotWidth * 0.28f).coerceAtMost(16.dp.toPx())
 
-                        // Líneas de guía horizontal
                         val guideLineCount = 3
                         for (i in 0..guideLineCount) {
                             val y = canvasHeight * (i.toFloat() / guideLineCount)
@@ -242,7 +240,6 @@ fun GraficoGolesAsistencias(
                             val golHeight = (p.goles.toFloat() / maxVal) * canvasHeight
                             val asisHeight = (p.asistencias.toFloat() / maxVal) * canvasHeight
 
-                            // Barra Goles
                             if (golHeight > 0) {
                                 drawRoundRect(
                                     color = LimeVolt,
@@ -258,7 +255,6 @@ fun GraficoGolesAsistencias(
                                 )
                             }
 
-                            // Barra Asistencias
                             if (asisHeight > 0) {
                                 drawRoundRect(
                                     color = AsistenciaColor,
@@ -276,7 +272,6 @@ fun GraficoGolesAsistencias(
                         }
                     }
 
-                    // Etiquetas de fecha debajo de las barras
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -294,6 +289,133 @@ fun GraficoGolesAsistencias(
                                     fontSize = 9.sp,
                                     maxLines = 1
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val ColorDiestra = LimeVolt
+private val ColorZurda = Color(0xFF38BDF8)
+private val ColorCabeza = Color(0xFFFB923C)
+private val ColorTacon = Color(0xFFA855F7)
+private val ColorChilena = Color(0xFFEC4899)
+private val ColorOtro = Color(0xFF94A3B8)
+
+@Composable
+fun GraficoTiposGoles(
+    partidos: List<Partido>,
+    modifier: Modifier = Modifier
+) {
+    val diestra = partidos.sumOf { it.golesDiestra }
+    val zurda = partidos.sumOf { it.golesZurda }
+    val cabeza = partidos.sumOf { it.golesCabeza }
+    val tacon = partidos.sumOf { it.golesTacon }
+    val chilena = partidos.sumOf { it.golesChilena }
+    val otro = partidos.sumOf { it.golesOtro }
+    val total = diestra + zurda + cabeza + tacon + chilena + otro
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tipos de goles",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (total > 0) {
+                    Text(
+                        text = "$total goles",
+                        color = LimeVolt,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (total == 0) {
+                Text(
+                    text = "No hay goles registrados en este período",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                ) {
+                    if (diestra > 0) Box(modifier = Modifier.weight(diestra.toFloat()).fillMaxHeight().background(ColorDiestra))
+                    if (zurda > 0) Box(modifier = Modifier.weight(zurda.toFloat()).fillMaxHeight().background(ColorZurda))
+                    if (cabeza > 0) Box(modifier = Modifier.weight(cabeza.toFloat()).fillMaxHeight().background(ColorCabeza))
+                    if (tacon > 0) Box(modifier = Modifier.weight(tacon.toFloat()).fillMaxHeight().background(ColorTacon))
+                    if (chilena > 0) Box(modifier = Modifier.weight(chilena.toFloat()).fillMaxHeight().background(ColorChilena))
+                    if (otro > 0) Box(modifier = Modifier.weight(otro.toFloat()).fillMaxHeight().background(ColorOtro))
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                val items = listOf(
+                    Triple("Diestra", diestra, ColorDiestra),
+                    Triple("Zurda", zurda, ColorZurda),
+                    Triple("Cabeza", cabeza, ColorCabeza),
+                    Triple("Tacón", tacon, ColorTacon),
+                    Triple("Chilena", chilena, ColorChilena),
+                    Triple("Otro", otro, ColorOtro)
+                ).filter { it.second > 0 }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items.chunked(3).forEach { fila ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            fila.forEach { (nombre, cantidad, color) ->
+                                val pct = (cantidad.toFloat() / total * 100).toInt()
+                                Surface(
+                                    color = DarkCard.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(color)
+                                            )
+                                            Spacer(modifier = Modifier.width(5.dp))
+                                            Text(nombre, fontSize = 11.sp, color = Color.White)
+                                        }
+                                        Text("$cantidad ($pct%)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = color)
+                                    }
+                                }
+                            }
+                            // Rellenar celdas vacías si la última fila tiene menos de 3 elementos
+                            if (fila.size < 3) {
+                                repeat(3 - fila.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
                     }

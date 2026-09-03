@@ -24,8 +24,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
+import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
+import com.diegoguerrero.futtracker.ui.theme.LimeVolt
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,17 +82,18 @@ fun JugadoresScreen(
             TopAppBar(
                 title = { Text("Plantilla", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = LimeVolt,
+                    titleContentColor = Color.Black
                 )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { mostrarDialogoCrear = true },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = LimeVolt,
+                contentColor = Color.Black
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir Jugador", tint = Color.White)
+                Icon(Icons.Default.Add, contentDescription = "Añadir Jugador", tint = Color.Black)
             }
         }
     ) { paddingValues ->
@@ -284,20 +295,11 @@ private fun JugadorItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = obtenerIniciales(jugador.nombre),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
+                JugadorAvatar(
+                    fotoUri = jugador.fotoUri,
+                    nombre = jugador.nombre,
+                    tamano = 44.dp
+                )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -389,9 +391,28 @@ private fun DialogoJugador(
     onGuardar: (Jugador) -> Unit
 ) {
     var nombre by remember { mutableStateOf(jugadorExistente?.nombre ?: "") }
+    var fotoUri by remember { mutableStateOf(jugadorExistente?.fotoUri) }
     var posPrimarias by remember { mutableStateOf(jugadorExistente?.posicionesPrimarias ?: setOf()) }
     var posSecundarias by remember { mutableStateOf(jugadorExistente?.posicionesSecundarias ?: setOf()) }
     var nivel by remember { mutableStateOf(jugadorExistente?.nivel ?: 3) }
+
+    val context = LocalContext.current
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            runCatching {
+                val inputStream = context.contentResolver.openInputStream(selectedUri)
+                val playersDir = File(context.filesDir, "players").apply { mkdirs() }
+                val targetFile = File(playersDir, "player_${System.currentTimeMillis()}.jpg")
+                val outputStream = FileOutputStream(targetFile)
+                inputStream?.copyTo(outputStream)
+                inputStream?.close()
+                outputStream.close()
+                fotoUri = targetFile.absolutePath
+            }
+        }
+    }
 
     var expPrincipal by remember { mutableStateOf(false) }
     var expSecundaria by remember { mutableStateOf(false) }
@@ -401,6 +422,35 @@ private fun DialogoJugador(
         title = { Text(if (jugadorExistente == null) "Nuevo Jugador" else "Editar Jugador") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Selector / Visualizador de Foto
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        JugadorAvatar(
+                            fotoUri = fotoUri,
+                            nombre = nombre.ifBlank { "?" },
+                            tamano = 68.dp,
+                            fontSize = 22.sp
+                        )
+                        FilledIconButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.size(26.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = LimeVolt,
+                                contentColor = Color.Black
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.CameraAlt,
+                                contentDescription = "Añadir foto",
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
@@ -420,7 +470,14 @@ private fun DialogoJugador(
                             FilterChip(
                                 selected = nivel == lvl,
                                 onClick = { nivel = lvl },
-                                label = { Text("★ $lvl", fontSize = 11.sp) },
+                                label = {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("★ $lvl", fontSize = 11.sp, textAlign = TextAlign.Center)
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -495,11 +552,13 @@ private fun DialogoJugador(
                     if (nombre.isNotBlank() && posPrimarias.isNotEmpty()) {
                         val jugadorGuardar = jugadorExistente?.copy(
                             nombre = nombre.trim(),
+                            fotoUri = fotoUri,
                             posicionesPrimarias = posPrimarias,
                             posicionesSecundarias = posSecundarias,
                             nivel = nivel
                         ) ?: Jugador(
                             nombre = nombre.trim(),
+                            fotoUri = fotoUri,
                             posicionesPrimarias = posPrimarias,
                             posicionesSecundarias = posSecundarias,
                             nivel = nivel

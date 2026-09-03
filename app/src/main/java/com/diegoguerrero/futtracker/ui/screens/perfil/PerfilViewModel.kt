@@ -16,7 +16,7 @@ import java.time.ZoneId
 import java.util.*
 import javax.inject.Inject
 
-enum class TipoFiltroPerfil { TEMPORADA, ANIO_NATURAL, FECHA_PERSONALIZADA }
+enum class TipoFiltroPerfil { TOTAL, TEMPORADA, ANIO_NATURAL, FECHA_PERSONALIZADA }
 
 @HiltViewModel
 class PerfilViewModel @Inject constructor(
@@ -50,6 +50,28 @@ class PerfilViewModel @Inject constructor(
     private val _temporadaSeleccionada = MutableStateFlow(calcularTemporadaActual())
     val temporadaSeleccionada: StateFlow<String> = _temporadaSeleccionada.asStateFlow()
 
+    val temporadasConDatos: StateFlow<List<String>> = todosPartidos.map { partidos ->
+        val actual = calcularTemporadaActual()
+        val temporadasDePartidos = partidos.map { obtenerTemporada(it.fecha) }
+        (listOf(actual) + temporadasDePartidos).distinct().sortedDescending()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = listOf(calcularTemporadaActual())
+    )
+
+    val aniosConDatos: StateFlow<List<Int>> = todosPartidos.map { partidos ->
+        val actual = LocalDate.now().year
+        val aniosDePartidos = partidos.map {
+            Calendar.getInstance().apply { timeInMillis = it.fecha }.get(Calendar.YEAR)
+        }
+        (listOf(actual) + aniosDePartidos).distinct().sortedDescending()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = listOf(LocalDate.now().year)
+    )
+
     private val _fechaInicio = MutableStateFlow(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
     val fechaInicio: StateFlow<Long> = _fechaInicio.asStateFlow()
 
@@ -79,7 +101,8 @@ class PerfilViewModel @Inject constructor(
         todosPartidos,
         filtroConfig
     ) { partidos, config ->
-        val (desde, hasta) = when (config.tipo) {
+        when (config.tipo) {
+            TipoFiltroPerfil.TOTAL -> partidos
             TipoFiltroPerfil.TEMPORADA -> {
                 val anioInicio = runCatching { config.temporada.split("/")[0].toInt() }.getOrDefault(2024)
                 val calInicio = Calendar.getInstance().apply {
@@ -88,7 +111,7 @@ class PerfilViewModel @Inject constructor(
                 val calFin = Calendar.getInstance().apply {
                     set(anioInicio + 1, Calendar.AUGUST, 31, 23, 59, 59)
                 }.timeInMillis
-                calInicio to calFin
+                partidos.filter { it.fecha in calInicio..calFin }
             }
             TipoFiltroPerfil.ANIO_NATURAL -> {
                 val calInicio = Calendar.getInstance().apply {
@@ -97,14 +120,12 @@ class PerfilViewModel @Inject constructor(
                 val calFin = Calendar.getInstance().apply {
                     set(config.anio, Calendar.DECEMBER, 31, 23, 59, 59)
                 }.timeInMillis
-                calInicio to calFin
+                partidos.filter { it.fecha in calInicio..calFin }
             }
             TipoFiltroPerfil.FECHA_PERSONALIZADA -> {
-                config.inicio to config.fin
+                partidos.filter { it.fecha in config.inicio..config.fin }
             }
         }
-
-        partidos.filter { it.fecha in desde..hasta }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -133,20 +154,23 @@ class PerfilViewModel @Inject constructor(
             perfilRepository.guardarPerfil(nuevoPerfil)
 
             if (nuevoPerfil.sincronizadoConJugadores) {
-                // Sincronizar jugador propio en la tabla de jugadores
                 val jugadoresActuales = jugadorRepository.obtenerJugadores().first()
                 val usuarioExistente = jugadoresActuales.find { it.esUsuarioPropio }
 
+                val posicionesAsignar = nuevoPerfil.posiciones.ifEmpty { setOf(nuevoPerfil.posicionFavorita) }
+
                 val jugadorActualizado = usuarioExistente?.copy(
                     nombre = nuevoPerfil.nombre,
+                    fotoUri = nuevoPerfil.fotoUri,
                     nivel = nuevoPerfil.nivel,
-                    posicionesPrimarias = setOf(nuevoPerfil.posicionFavorita),
+                    posicionesPrimarias = posicionesAsignar,
                     esUsuarioPropio = true
                 ) ?: Jugador(
                     id = "usuario_propio_id",
                     nombre = nuevoPerfil.nombre,
+                    fotoUri = nuevoPerfil.fotoUri,
                     nivel = nuevoPerfil.nivel,
-                    posicionesPrimarias = setOf(nuevoPerfil.posicionFavorita),
+                    posicionesPrimarias = posicionesAsignar,
                     esUsuarioPropio = true
                 )
 
@@ -163,6 +187,17 @@ class PerfilViewModel @Inject constructor(
         val now = LocalDate.now()
         val year = now.year
         return if (now.monthValue >= 9) {
+            "$year/${year + 1}"
+        } else {
+            "${year - 1}/$year"
+        }
+    }
+
+    private fun obtenerTemporada(fechaMillis: Long): String {
+        val cal = Calendar.getInstance().apply { timeInMillis = fechaMillis }
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH)
+        return if (month >= Calendar.SEPTEMBER) {
             "$year/${year + 1}"
         } else {
             "${year - 1}/$year"

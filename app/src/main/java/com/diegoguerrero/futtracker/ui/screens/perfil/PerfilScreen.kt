@@ -28,11 +28,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Perfil
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.ui.components.GraficoGolesAsistencias
 import com.diegoguerrero.futtracker.ui.components.GraficoResultados
+import com.diegoguerrero.futtracker.ui.components.GraficoTiposGoles
 import com.diegoguerrero.futtracker.ui.screens.jugadores.obtenerIniciales
 import com.diegoguerrero.futtracker.ui.theme.*
 import java.io.File
@@ -50,6 +53,8 @@ fun PerfilScreen(
     anioSeleccionado: Int,
     fechaInicio: Long,
     fechaFin: Long,
+    temporadasDisponibles: List<String> = emptyList(),
+    aniosDisponibles: List<Int> = emptyList(),
     onGuardarPerfil: (Perfil) -> Unit,
     onCambiarFiltro: (TipoFiltroPerfil) -> Unit,
     onCambiarTemporada: (String) -> Unit,
@@ -90,14 +95,14 @@ fun PerfilScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi Perfil", fontWeight = FontWeight.Bold) },
+                title = { Text("Mi perfil", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = LimeVolt,
+                    titleContentColor = Color.Black
                 ),
                 actions = {
                     IconButton(onClick = { mostrarDialogoEditar = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = LimeVolt)
+                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = Color.Black)
                     }
                 }
             )
@@ -180,17 +185,25 @@ fun PerfilScreen(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        Surface(
-                            color = LimeVolt.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(6.dp)
+                        val posicionesPerfil = perfil.posiciones.ifEmpty { setOf(perfil.posicionFavorita) }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Posición: ${perfil.posicionFavorita.name}",
-                                color = LimeVolt,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+                            posicionesPerfil.forEach { pos ->
+                                Surface(
+                                    color = LimeVolt.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = pos.name,
+                                        color = LimeVolt,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -218,34 +231,39 @@ fun PerfilScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        FilterChip(
-                            selected = filtroTipo == TipoFiltroPerfil.TEMPORADA,
-                            onClick = { onCambiarFiltro(TipoFiltroPerfil.TEMPORADA) },
-                            label = { Text("Temporada", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = filtroTipo == TipoFiltroPerfil.ANIO_NATURAL,
-                            onClick = { onCambiarFiltro(TipoFiltroPerfil.ANIO_NATURAL) },
-                            label = { Text("Año natural", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterChip(
-                            selected = filtroTipo == TipoFiltroPerfil.FECHA_PERSONALIZADA,
-                            onClick = { onCambiarFiltro(TipoFiltroPerfil.FECHA_PERSONALIZADA) },
-                            label = { Text("Por fecha", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f)
-                        )
+                        listOf(
+                            TipoFiltroPerfil.TOTAL to "Total",
+                            TipoFiltroPerfil.TEMPORADA to "Temporada",
+                            TipoFiltroPerfil.ANIO_NATURAL to "Año",
+                            TipoFiltroPerfil.FECHA_PERSONALIZADA to "Por fecha"
+                        ).forEach { (tipo, label) ->
+                            FilterChip(
+                                selected = filtroTipo == tipo,
+                                onClick = { onCambiarFiltro(tipo) },
+                                label = {
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 11.sp,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
 
                     // Sub-filtros dinámicos
                     when (filtroTipo) {
+                        TipoFiltroPerfil.TOTAL -> {}
                         TipoFiltroPerfil.TEMPORADA -> {
-                            val temporadas = listOf("2023/2024", "2024/2025", "2025/2026", "2026/2027")
+                            val listaTemporadas = temporadasDisponibles.ifEmpty { listOf(temporadaSeleccionada) }
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(temporadas) { temp ->
+                                items(listaTemporadas) { temp ->
                                     FilterChip(
                                         selected = temporadaSeleccionada == temp,
                                         onClick = { onCambiarTemporada(temp) },
@@ -255,9 +273,9 @@ fun PerfilScreen(
                             }
                         }
                         TipoFiltroPerfil.ANIO_NATURAL -> {
-                            val anios = listOf(2023, 2024, 2025, 2026)
+                            val listaAnios = aniosDisponibles.ifEmpty { listOf(anioSeleccionado) }
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(anios) { anio ->
+                                items(listaAnios) { anio ->
                                     FilterChip(
                                         selected = anioSeleccionado == anio,
                                         onClick = { onCambiarAnio(anio) },
@@ -352,6 +370,11 @@ fun PerfilScreen(
             item {
                 GraficoResultados(partidos = partidosFiltrados)
             }
+
+            // Gráfica de Tipos de Goles
+            item {
+                GraficoTiposGoles(partidos = partidosFiltrados)
+            }
         }
     }
 
@@ -376,19 +399,39 @@ private fun MetricaCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.height(96.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = DarkCard)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = titulo, fontSize = 11.sp, color = TextSecondary)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = valor, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = color)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitulo, fontSize = 10.sp, color = TextSecondary, maxLines = 1)
+            Text(
+                text = titulo,
+                fontSize = 11.sp,
+                color = TextSecondary,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+            Text(
+                text = valor,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = color,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = subtitulo,
+                fontSize = 10.sp,
+                color = TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -401,31 +444,40 @@ private fun DialogoEditarPerfil(
     onGuardar: (Perfil) -> Unit
 ) {
     var nombre by remember { mutableStateOf(perfilActual.nombre) }
-    var posicionFavorita by remember { mutableStateOf(perfilActual.posicionFavorita) }
+    var posiciones by remember {
+        mutableStateOf(perfilActual.posiciones.ifEmpty { setOf(perfilActual.posicionFavorita) })
+    }
     var nivel by remember { mutableStateOf(perfilActual.nivel) }
     var sincronizado by remember { mutableStateOf(perfilActual.sincronizadoConJugadores) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar Perfil", fontWeight = FontWeight.Bold) },
+        title = { Text("Editar perfil", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Mi Nombre / Apodo") },
+                    label = { Text("Mi nombre / Apodo") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Column {
-                    Text("Mi posición habitual", color = TextSecondary, fontSize = 12.sp)
+                    Text("Mis posiciones habituales", color = TextSecondary, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(6.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(Posicion.entries.toTypedArray()) { pos ->
+                            val isSelected = pos in posiciones
                             FilterChip(
-                                selected = posicionFavorita == pos,
-                                onClick = { posicionFavorita = pos },
+                                selected = isSelected,
+                                onClick = {
+                                    posiciones = if (isSelected) {
+                                        if (posiciones.size > 1) posiciones - pos else posiciones
+                                    } else {
+                                        posiciones + pos
+                                    }
+                                },
                                 label = { Text(pos.name, fontSize = 11.sp) }
                             )
                         }
@@ -443,7 +495,14 @@ private fun DialogoEditarPerfil(
                             FilterChip(
                                 selected = nivel == lvl,
                                 onClick = { nivel = lvl },
-                                label = { Text("★ $lvl", fontSize = 12.sp) },
+                                label = {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("★ $lvl", fontSize = 12.sp, textAlign = TextAlign.Center)
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -473,11 +532,12 @@ private fun DialogoEditarPerfil(
         confirmButton = {
             Button(
                 onClick = {
-                    if (nombre.isNotBlank()) {
+                    if (nombre.isNotBlank() && posiciones.isNotEmpty()) {
                         onGuardar(
                             perfilActual.copy(
                                 nombre = nombre.trim(),
-                                posicionFavorita = posicionFavorita,
+                                posiciones = posiciones,
+                                posicionFavorita = posiciones.first(),
                                 nivel = nivel,
                                 sincronizadoConJugadores = sincronizado
                             )

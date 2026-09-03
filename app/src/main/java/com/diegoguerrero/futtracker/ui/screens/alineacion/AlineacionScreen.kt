@@ -32,6 +32,9 @@ import com.diegoguerrero.futtracker.ui.components.CampoFutbol
 import com.diegoguerrero.futtracker.ui.theme.*
 import kotlinx.coroutines.launch
 
+import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
+import com.diegoguerrero.futtracker.ui.components.BadgePosicion
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlineacionScreen(
@@ -110,12 +113,24 @@ fun AlineacionScreen(
 
     val numRequerido = tipoFutbol.nJugadoresCampo
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkBackground)
-            .padding(16.dp)
-    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Alineaciones", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = LimeVolt,
+                    titleContentColor = Color.Black
+                )
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DarkBackground)
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -384,7 +399,17 @@ fun AlineacionScreen(
                         )
                     )
 
-                    // Nombre y posiciones debajo
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    JugadorAvatar(
+                        fotoUri = jugador.fotoUri,
+                        nombre = jugador.nombre,
+                        tamano = 38.dp
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Nombre y posiciones debajo con principales sombreadas
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = jugador.nombre,
@@ -393,24 +418,28 @@ fun AlineacionScreen(
                             fontWeight = FontWeight.SemiBold
                         )
 
-                        val posTexto = buildString {
-                            if (jugador.posicionesPrimarias.isNotEmpty()) {
-                                append(jugador.posicionesPrimarias.joinToString(", ") { it.name })
-                            }
-                            if (jugador.posicionesSecundarias.isNotEmpty()) {
-                                if (jugador.posicionesPrimarias.isNotEmpty()) append(" • ")
-                                append(jugador.posicionesSecundarias.joinToString(", ") { it.name })
-                            }
-                            if (jugador.posicionesPrimarias.isEmpty() && jugador.posicionesSecundarias.isEmpty()) {
-                                append("Sin posición asignada")
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        val totalPos = jugador.posicionesPrimarias + jugador.posicionesSecundarias
+                        if (totalPos.isEmpty()) {
+                            Text(
+                                text = "Sin posición asignada",
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                jugador.posicionesPrimarias.forEach { pos ->
+                                    BadgePosicion(label = pos.name, esPrimaria = true)
+                                }
+                                jugador.posicionesSecundarias.forEach { pos ->
+                                    BadgePosicion(label = pos.name, esPrimaria = false)
+                                }
                             }
                         }
-
-                        Text(
-                            text = posTexto,
-                            color = TextSecondary,
-                            fontSize = 11.sp
-                        )
                     }
 
                     if (jugador.esFavorito) {
@@ -425,4 +454,5 @@ fun AlineacionScreen(
             }
         }
     }
+}
 }

@@ -9,6 +9,7 @@ import com.diegoguerrero.futtracker.domain.model.Posicion
 data class JugadorEntity(
     @PrimaryKey val id: String,
     val nombre: String,
+    val fotoUri: String? = null,
     val posicionesPrimarias: String,
     val posicionesSecundarias: String,
     val esFavorito: Boolean = false,
@@ -19,6 +20,7 @@ data class JugadorEntity(
         return Jugador(
             id = id,
             nombre = nombre,
+            fotoUri = fotoUri,
             posicionesPrimarias = posicionesPrimarias.toPosicionSet(),
             posicionesSecundarias = posicionesSecundarias.toPosicionSet(),
             esFavorito = esFavorito,
@@ -32,6 +34,7 @@ fun Jugador.toEntity(): JugadorEntity {
     return JugadorEntity(
         id = id,
         nombre = nombre,
+        fotoUri = fotoUri,
         posicionesPrimarias = posicionesPrimarias.joinToString(",") { it.name },
         posicionesSecundarias = posicionesSecundarias.joinToString(",") { it.name },
         esFavorito = esFavorito,

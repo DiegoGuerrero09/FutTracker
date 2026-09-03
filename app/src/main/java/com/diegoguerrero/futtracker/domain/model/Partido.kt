@@ -11,10 +11,19 @@ data class Partido(
     val golesAFavor: Int = 0,
     val golesEnContra: Int = 0,
     val posicionJugada: Posicion = Posicion.DC,
+    val posicionesJugadas: Set<Posicion> = setOf(posicionJugada),
     val goles: Int = 0,
     val asistencias: Int = 0,
     val notas: String = "",
-    val jugadoresIds: List<String> = emptyList()
+    val jugadoresIds: List<String> = emptyList(),
+    val jugadoresMiEquipo: List<String> = emptyList(),
+    val jugadoresEquipoRival: List<String> = emptyList(),
+    val golesZurda: Int = 0,
+    val golesDiestra: Int = 0,
+    val golesCabeza: Int = 0,
+    val golesOtro: Int = 0,
+    val golesChilena: Int = 0,
+    val golesTacon: Int = 0
 ) {
     val resultado: String
         get() = "$golesAFavor - $golesEnContra"

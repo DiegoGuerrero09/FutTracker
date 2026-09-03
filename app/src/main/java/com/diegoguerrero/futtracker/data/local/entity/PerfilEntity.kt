@@ -11,15 +11,26 @@ data class PerfilEntity(
     val nombre: String,
     val fotoUri: String?,
     val posicionFavorita: String,
+    val posiciones: String = "",
     val nivel: Int,
     val sincronizadoConJugadores: Boolean
 ) {
     fun toDomain(): Perfil {
+        val posFav = runCatching { Posicion.valueOf(posicionFavorita) }.getOrDefault(Posicion.DC)
+        val posSet = if (posiciones.isBlank()) {
+            setOf(posFav)
+        } else {
+            posiciones.split(",")
+                .mapNotNull { name -> runCatching { Posicion.valueOf(name.trim()) }.getOrNull() }
+                .toSet().ifEmpty { setOf(posFav) }
+        }
+
         return Perfil(
             id = id,
             nombre = nombre,
             fotoUri = fotoUri,
-            posicionFavorita = runCatching { Posicion.valueOf(posicionFavorita) }.getOrDefault(Posicion.DC),
+            posicionFavorita = posFav,
+            posiciones = posSet,
             nivel = nivel,
             sincronizadoConJugadores = sincronizadoConJugadores
         )
@@ -27,11 +38,13 @@ data class PerfilEntity(
 }
 
 fun Perfil.toEntity(): PerfilEntity {
+    val posFav = posiciones.firstOrNull() ?: posicionFavorita
     return PerfilEntity(
         id = id,
         nombre = nombre,
         fotoUri = fotoUri,
-        posicionFavorita = posicionFavorita.name,
+        posicionFavorita = posFav.name,
+        posiciones = posiciones.joinToString(",") { it.name },
         nivel = nivel,
         sincronizadoConJugadores = sincronizadoConJugadores
     )

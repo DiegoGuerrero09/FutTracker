@@ -116,6 +116,8 @@ fun MainAppLayout(
                 val anio by perfilViewModel.anioSeleccionado.collectAsStateWithLifecycle()
                 val fechaInicio by perfilViewModel.fechaInicio.collectAsStateWithLifecycle()
                 val fechaFin by perfilViewModel.fechaFin.collectAsStateWithLifecycle()
+                val temporadasConDatos by perfilViewModel.temporadasConDatos.collectAsStateWithLifecycle()
+                val aniosConDatos by perfilViewModel.aniosConDatos.collectAsStateWithLifecycle()
 
                 PerfilScreen(
                     perfil = perfil,
@@ -125,6 +127,8 @@ fun MainAppLayout(
                     anioSeleccionado = anio,
                     fechaInicio = fechaInicio,
                     fechaFin = fechaFin,
+                    temporadasDisponibles = temporadasConDatos,
+                    aniosDisponibles = aniosConDatos,
                     onGuardarPerfil = { perfilViewModel.guardarPerfil(it) },
                     onCambiarFiltro = { perfilViewModel.setFiltroTipo(it) },
                     onCambiarTemporada = { perfilViewModel.setTemporada(it) },
