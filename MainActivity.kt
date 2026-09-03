@@ -1,0 +1,54 @@
+package com.diegoguerrero.futtracker
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.diegoguerrero.futtracker.ui.navigation.BottomNavigationBar
+import com.diegoguerrero.futtracker.ui.navigation.Screen
+import com.diegoguerrero.futtracker.ui.screens.alineacion.AlineacionScreen
+import com.diegoguerrero.futtracker.ui.theme.DarkBackground
+import com.diegoguerrero.futtracker.ui.theme.FutTrackerTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            FutTrackerTheme {
+                MainAppLayout()
+            }
+        }
+    }
+}
+
+@Composable
+fun MainAppLayout() {
+    val navController = rememberNavController()
+
+    Scaffold(
+        containerColor = DarkBackground,
+        bottomBar = { BottomNavigationBar(navController = navController) }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Alineacion.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Alineacion.route) {
+                AlineacionScreen()
+            }
+            composable(Screen.Partidos.route) {
+                // TODO: Insertar Pantalla de Partidos
+            }
+            composable(Screen.Estadisticas.route) {
+                // TODO: Insertar Pantalla de Estadísticas
+            }
+        }
+    }
+}
