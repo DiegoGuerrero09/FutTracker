@@ -237,6 +237,10 @@ private fun JugadorItem(
     onToggleFavorito: () -> Unit,
     onEliminar: () -> Unit
 ) {
+    // Lógica para aplicar elipsis visual o resumen si tiene 6 o más posiciones totales
+    val totalPosiciones = jugador.posicionesPrimarias.union(jugador.posicionesSecundarias)
+    val mostrarElipsis = totalPosiciones.size >= 6
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -286,11 +290,19 @@ private fun JugadorItem(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        jugador.posicionesPrimarias.forEach { pos ->
-                            BadgePosicion(label = pos.name, esPrimaria = true)
-                        }
-                        jugador.posicionesSecundarias.forEach { pos ->
-                            BadgePosicion(label = pos.name, esPrimaria = false)
+                        if (mostrarElipsis) {
+                            val primerasVisibles = totalPosiciones.take(4)
+                            primerasVisibles.forEach { pos ->
+                                BadgePosicion(label = pos.name, esPrimaria = pos in jugador.posicionesPrimarias)
+                            }
+                            BadgePosicion(label = "+${totalPosiciones.size - 4}...", esPrimaria = false)
+                        } else {
+                            jugador.posicionesPrimarias.forEach { pos ->
+                                BadgePosicion(label = pos.name, esPrimaria = true)
+                            }
+                            jugador.posicionesSecundarias.forEach { pos ->
+                                BadgePosicion(label = pos.name, esPrimaria = false)
+                            }
                         }
                     }
                 }
@@ -377,7 +389,7 @@ private fun DialogoJugador(
                     onExpandedChange = { expPrincipal = !expPrincipal }
                 ) {
                     OutlinedTextField(
-                        value = posPrimarias.joinToString(transform = { it.name }).ifEmpty { "Seleccionar posición" }, // <--- MODIFICADO AQUÍ
+                        value = posPrimarias.joinToString(transform = { it.name }).ifEmpty { "Seleccionar posición" },
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Posiciones Primarias") },
