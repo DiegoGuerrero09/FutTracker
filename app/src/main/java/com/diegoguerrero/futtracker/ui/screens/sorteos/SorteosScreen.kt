@@ -240,7 +240,7 @@ fun SorteosScreen(
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
             }
-            canvas.drawText("FutTracker - Sorteo y Alineaciones", width / 2f, 85f, titlePaint)
+            canvas.drawText("FutTracker - Sorteo y alineaciones", width / 2f, 85f, titlePaint)
 
             val subtitlePaint = Paint().apply {
                 color = android.graphics.Color.WHITE
@@ -417,7 +417,7 @@ fun SorteosScreen(
                 context.startActivity(intent)
             } catch (e: Exception) {
                 intent.setPackage(null)
-                context.startActivity(Intent.createChooser(intent, "Compartir Alineaciones en WhatsApp"))
+                context.startActivity(Intent.createChooser(intent, "Compartir alineaciones en WhatsApp"))
             }
         } catch (e: Exception) {
             // Manejo de excepción
@@ -758,12 +758,12 @@ fun SorteosScreen(
                             Tab(
                                 selected = tabEquipoAlineacion == 0,
                                 onClick = { tabEquipoAlineacion = 0 },
-                                text = { Text("Equipo Claro (${formacionSugeridaClaro?.nombre})", fontSize = 12.sp) }
+                                text = { Text("Equipo claro (${formacionSugeridaClaro?.nombre})", fontSize = 12.sp) }
                             )
                             Tab(
                                 selected = tabEquipoAlineacion == 1,
                                 onClick = { tabEquipoAlineacion = 1 },
-                                text = { Text("Equipo Oscuro (${formacionSugeridaOscuro?.nombre})", fontSize = 12.sp) }
+                                text = { Text("Equipo oscuro (${formacionSugeridaOscuro?.nombre})", fontSize = 12.sp) }
                             )
                         }
 

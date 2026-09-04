@@ -9,8 +9,8 @@ val DarkCardBorder = Color(0xFF222634)
 val PitchGreen = Color(0xFF101D16)
 val PitchLines = Color(0xFF1E3A2B)
 
-val LimeVolt = Color(0xFFD4FF00)
-val LimeVoltHover = Color(0xFFB8DC00)
+val LimeVolt = Color(0xFFBCE324)
+val LimeVoltHover = Color(0xFF9FC41C)
 val TextPrimary = Color(0xFFF1F5F9)
 val TextSecondary = Color(0xFF94A3B8)
 

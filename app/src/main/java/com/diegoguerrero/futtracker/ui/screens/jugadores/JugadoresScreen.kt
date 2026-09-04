@@ -93,7 +93,7 @@ fun JugadoresScreen(
                 containerColor = LimeVolt,
                 contentColor = Color.Black
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir Jugador", tint = Color.Black)
+                Icon(Icons.Default.Add, contentDescription = "Añadir jugador", tint = Color.Black)
             }
         }
     ) { paddingValues ->
@@ -419,7 +419,7 @@ private fun DialogoJugador(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (jugadorExistente == null) "Nuevo Jugador" else "Editar Jugador") },
+        title = { Text(if (jugadorExistente == null) "Nuevo jugador" else "Editar jugador") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Selector / Visualizador de Foto
@@ -492,7 +492,7 @@ private fun DialogoJugador(
                         value = posPrimarias.joinToString(transform = { it.name }).ifEmpty { "Seleccionar posición" },
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Posiciones Primarias") },
+                        label = { Text("Posiciones primarias") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expPrincipal) },
                         modifier = Modifier
                             .menuAnchor()
@@ -523,7 +523,7 @@ private fun DialogoJugador(
                         value = posSecundarias.joinToString(transform = { it.name }).ifEmpty { "Ninguna (Opcional)" },
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Posiciones Secundarias") },
+                        label = { Text("Posiciones secundarias") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expSecundaria) },
                         modifier = Modifier
                             .menuAnchor()

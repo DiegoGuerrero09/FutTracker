@@ -306,7 +306,7 @@ private val ColorChilena = Color(0xFFEC4899)
 private val ColorOtro = Color(0xFF94A3B8)
 
 @Composable
-fun GraficoTiposGoles(
+fun GraficoResumenGoles(
     partidos: List<Partido>,
     modifier: Modifier = Modifier
 ) {
@@ -330,7 +330,7 @@ fun GraficoTiposGoles(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tipos de goles",
+                    text = "Resumen de goles",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold

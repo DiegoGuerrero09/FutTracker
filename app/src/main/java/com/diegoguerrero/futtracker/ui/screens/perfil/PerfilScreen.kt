@@ -35,7 +35,7 @@ import com.diegoguerrero.futtracker.domain.model.Perfil
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.ui.components.GraficoGolesAsistencias
 import com.diegoguerrero.futtracker.ui.components.GraficoResultados
-import com.diegoguerrero.futtracker.ui.components.GraficoTiposGoles
+import com.diegoguerrero.futtracker.ui.components.GraficoResumenGoles
 import com.diegoguerrero.futtracker.ui.screens.jugadores.obtenerIniciales
 import com.diegoguerrero.futtracker.ui.theme.*
 import java.io.File
@@ -371,9 +371,9 @@ fun PerfilScreen(
                 GraficoResultados(partidos = partidosFiltrados)
             }
 
-            // Gráfica de Tipos de Goles
+            // Gráfica de Resumen de Goles
             item {
-                GraficoTiposGoles(partidos = partidosFiltrados)
+                GraficoResumenGoles(partidos = partidosFiltrados)
             }
         }
     }

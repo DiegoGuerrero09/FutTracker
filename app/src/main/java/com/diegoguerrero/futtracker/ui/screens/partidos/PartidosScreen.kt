@@ -64,7 +64,7 @@ fun PartidosScreen(
                 containerColor = LimeVolt,
                 contentColor = Color.Black
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Registrar Partido", tint = Color.Black)
+                Icon(Icons.Default.Add, contentDescription = "Registrar partido", tint = Color.Black)
             }
         }
     ) { paddingValues ->
@@ -524,7 +524,7 @@ fun DialogoPartido(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = if (partidoExistente == null) "Nuevo Partido" else "Editar Partido",
+                text = if (partidoExistente == null) "Nuevo partido" else "Editar partido",
                 fontWeight = FontWeight.Bold
             )
         },
