@@ -42,7 +42,8 @@ fun PartidosScreen(
     jugadores: List<Jugador>,
     onAgregarPartido: (Partido) -> Unit,
     onActualizarPartido: (Partido) -> Unit,
-    onEliminarPartido: (Partido) -> Unit
+    onEliminarPartido: (Partido) -> Unit,
+    mostrarTopBar: Boolean = true
 ) {
     var mostrarDialogoCrear by remember { mutableStateOf(false) }
     var partidoAEditar by remember { mutableStateOf<Partido?>(null) }
@@ -50,13 +51,12 @@ fun PartidosScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Partidos", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LimeVolt,
-                    titleContentColor = Color.Black
+            if (mostrarTopBar) {
+                TopAppBar(
+                    title = { Text("Partidos", fontWeight = FontWeight.Bold, color = Color.White) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkCard)
                 )
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -219,8 +219,8 @@ private fun PartidoItem(
 
     val modalidadTexto = when (partido.modoJuego) {
         TipoFutbol.FUTSAL -> "Futsal"
-        TipoFutbol.FUT_6 -> "Fut 6"
-        TipoFutbol.FUT_7 -> "Fut 7"
+        TipoFutbol.FUT_6 -> "Fútbol 6"
+        TipoFutbol.FUT_7 -> "Fútbol 7"
     }
 
     Card(
@@ -257,6 +257,21 @@ private fun PartidoItem(
                             text = modalidadTexto,
                             color = Color.White,
                             fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Surface(
+                        color = LimeVolt.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = "${partido.duracionMinutos} min",
+                            color = LimeVolt,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -501,18 +516,40 @@ fun DialogoPartido(
     var golesChilena by remember { mutableStateOf(partidoExistente?.golesChilena ?: 0) }
     var golesTacon by remember { mutableStateOf(partidoExistente?.golesTacon ?: 0) }
     var golesFueraArea by remember { mutableStateOf(partidoExistente?.golesFueraArea ?: 0) }
+    var duracionMinutos by remember { mutableStateOf(partidoExistente?.duracionMinutos ?: 60) }
 
     var notas by remember { mutableStateOf(partidoExistente?.notas ?: "") }
 
     val jugadoresMiEquipo = remember {
         mutableStateListOf<String>().apply {
+            val usuario = jugadoresDisponibles.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
             if (partidoExistente != null) {
-                addAll(partidoExistente.jugadoresMiEquipo.ifEmpty { partidoExistente.jugadoresIds })
+                val existentes = partidoExistente.jugadoresMiEquipo.ifEmpty { partidoExistente.jugadoresIds }
+                addAll(existentes)
+                if (usuario != null) {
+                    if (usuario.id !in this) {
+                        add(0, usuario.id)
+                    } else if (firstOrNull() != usuario.id) {
+                        remove(usuario.id)
+                        add(0, usuario.id)
+                    }
+                }
             } else {
-                val usuario = jugadoresDisponibles.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
                 if (usuario != null) {
                     add(usuario.id)
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(jugadoresDisponibles) {
+        val usuario = jugadoresDisponibles.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+        if (usuario != null) {
+            if (usuario.id !in jugadoresMiEquipo) {
+                jugadoresMiEquipo.add(0, usuario.id)
+            } else if (jugadoresMiEquipo.firstOrNull() != usuario.id) {
+                jugadoresMiEquipo.remove(usuario.id)
+                jugadoresMiEquipo.add(0, usuario.id)
             }
         }
     }
@@ -594,8 +631,8 @@ fun DialogoPartido(
                     ) {
                         listOf(
                             TipoFutbol.FUTSAL to "Futsal",
-                            TipoFutbol.FUT_6 to "Fut 6",
-                            TipoFutbol.FUT_7 to "Fut 7"
+                            TipoFutbol.FUT_6 to "Fútbol 6",
+                            TipoFutbol.FUT_7 to "Fútbol 7"
                         ).forEach { (tipo, label) ->
                             FilterChip(
                                 selected = modoJuego == tipo,
@@ -614,9 +651,35 @@ fun DialogoPartido(
                     }
                 }
 
+                // Duración del partido (60, 90, 120 min, 60 por defecto)
+                Column {
+                    Text("Duración", color = TextSecondary, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(60, 90, 120).forEach { dur ->
+                            FilterChip(
+                                selected = duracionMinutos == dur,
+                                onClick = { duracionMinutos = dur },
+                                label = {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("$dur min", fontSize = 12.sp, textAlign = TextAlign.Center)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
                 // Resultado del partido (alineación simétrica y guión perfectamente centrado con los botones)
                 Column {
-                    Text("Resultado (marcador)", color = TextSecondary, fontSize = 13.sp)
+                    Text("Resultado (Marcador)", color = TextSecondary, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -629,10 +692,10 @@ fun DialogoPartido(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 FilledTonalIconButton(
                                     onClick = { golesAFavor = (golesAFavor - 1).coerceAtLeast(0) },
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(28.dp),
                                     enabled = golesAFavor > 0
                                 ) {
-                                    Text("-", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text("-", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                                 Text(
                                     text = "$golesAFavor",
@@ -643,9 +706,9 @@ fun DialogoPartido(
                                 )
                                 FilledTonalIconButton(
                                     onClick = { golesAFavor++ },
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(28.dp)
                                 ) {
-                                    Text("+", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text("+", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                             }
                         }
@@ -662,10 +725,10 @@ fun DialogoPartido(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 FilledTonalIconButton(
                                     onClick = { golesEnContra = (golesEnContra - 1).coerceAtLeast(0) },
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(28.dp),
                                     enabled = golesEnContra > 0
                                 ) {
-                                    Text("-", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text("-", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                                 Text(
                                     text = "$golesEnContra",
@@ -676,9 +739,9 @@ fun DialogoPartido(
                                 )
                                 FilledTonalIconButton(
                                     onClick = { golesEnContra++ },
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(28.dp)
                                 ) {
-                                    Text("+", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text("+", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                             }
                         }
@@ -751,10 +814,10 @@ fun DialogoPartido(
                         }
                     }
 
-                    // Detalle de goles: Parte del cuerpo (conteo base)
+                    // Detalle de goles: Parte del cuerpo (conteo base en 2x2)
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Parte del cuerpo (suman al total de goles):",
+                        text = "Parte del cuerpo:",
                         color = TextSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -780,46 +843,50 @@ fun DialogoPartido(
                         }
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        partesCuerpo.forEach { (nombre, cantidad, update) ->
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { update(1) },
-                                color = if (cantidad > 0) LimeVolt.copy(alpha = 0.2f) else DarkCard,
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, if (cantidad > 0) LimeVolt else DarkCardBorder)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        partesCuerpo.chunked(2).forEach { fila ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = nombre,
-                                        fontSize = 11.sp,
-                                        color = if (cantidad > 0) LimeVolt else Color.White,
-                                        fontWeight = if (cantidad > 0) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                    if (cantidad > 0) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                fila.forEach { (nombre, cantidad, update) ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { update(1) },
+                                        color = if (cantidad > 0) LimeVolt.copy(alpha = 0.2f) else DarkCard,
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, if (cantidad > 0) LimeVolt else DarkCardBorder)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             Text(
-                                                text = "$cantidad",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = LimeVolt
+                                                text = nombre,
+                                                fontSize = 12.sp,
+                                                color = if (cantidad > 0) LimeVolt else Color.White,
+                                                fontWeight = if (cantidad > 0) FontWeight.Bold else FontWeight.Normal
                                             )
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(16.dp)
-                                                    .clickable { update(-1) },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text("-", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            if (cantidad > 0) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = "$cantidad",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = LimeVolt
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clickable { update(-1) },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text("-", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -828,10 +895,10 @@ fun DialogoPartido(
                         }
                     }
 
-                    // Atributos extra acumulativos (no excluyentes con la parte del cuerpo)
+                    // Atributos extra (3 en vertical para que quepa bien el texto de Fuera área)
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Atributos extra (acumulativos en los goles):",
+                        text = "Atributos extra:",
                         color = TextSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -850,27 +917,24 @@ fun DialogoPartido(
                         }
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         atributosExtra.forEach { (nombre, cantidad, update) ->
                             Surface(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .fillMaxWidth()
                                     .clickable { update(1) },
                                 color = if (cantidad > 0) LimeVolt.copy(alpha = 0.2f) else DarkCard,
                                 shape = RoundedCornerShape(8.dp),
                                 border = BorderStroke(1.dp, if (cantidad > 0) LimeVolt else DarkCardBorder)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = nombre,
-                                        fontSize = 10.sp,
+                                        fontSize = 12.sp,
                                         color = if (cantidad > 0) LimeVolt else Color.White,
                                         fontWeight = if (cantidad > 0) FontWeight.Bold else FontWeight.Normal
                                     )
@@ -878,18 +942,18 @@ fun DialogoPartido(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 text = "$cantidad",
-                                                fontSize = 11.sp,
+                                                fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = LimeVolt
                                             )
-                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Box(
                                                 modifier = Modifier
-                                                    .size(16.dp)
+                                                    .size(20.dp)
                                                     .clickable { update(-1) },
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text("-", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                Text("-", color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -907,7 +971,11 @@ fun DialogoPartido(
                             val matchFav = !filtroSoloFavoritos || j.esFavorito
                             val matchPos = filtroPosicion == null || (j.posicionesPrimarias.contains(filtroPosicion) || j.posicionesSecundarias.contains(filtroPosicion))
                             matchText && matchFav && matchPos
-                        }
+                        }.sortedWith(
+                            compareByDescending<Jugador> { it.esUsuarioPropio }
+                                .thenByDescending { it.esFavorito }
+                                .thenBy { it.nombre.lowercase() }
+                        )
                     }
 
                     Column {
@@ -1073,7 +1141,8 @@ fun DialogoPartido(
                         golesCabeza = golesCabeza,
                         golesOtro = golesOtro,
                         golesChilena = golesChilena,
-                        golesTacon = golesTacon
+                        golesTacon = golesTacon,
+                        duracionMinutos = duracionMinutos
                     )
                     onGuardar(p)
                 },
@@ -1105,26 +1174,26 @@ private fun StepperInput(
         ) {
             FilledTonalIconButton(
                 onClick = { onValueChange(value - 1) },
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
                 enabled = value > 0
             ) {
-                Text("-", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("-", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
 
             Text(
                 text = "$value",
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(36.dp)
+                modifier = Modifier.width(32.dp)
             )
 
             FilledTonalIconButton(
                 onClick = { onValueChange(value + 1) },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(28.dp)
             ) {
-                Text("+", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("+", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }

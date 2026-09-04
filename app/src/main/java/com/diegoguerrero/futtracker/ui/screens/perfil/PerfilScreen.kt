@@ -35,6 +35,7 @@ import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
+import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import kotlinx.coroutines.Dispatchers
@@ -43,25 +44,75 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.UploadFile
+import com.diegoguerrero.futtracker.ui.components.DialogoVisorFotoConZoom
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerfilScreen(
     perfil: Perfil,
     onGuardarPerfil: (Perfil) -> Unit,
-    onExportarDatos: suspend () -> String
+    onExportarDatos: suspend () -> String,
+    onRestaurarDatos: suspend (String) -> Result<Pair<Int, Int>>
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var mostrarDialogoEditar by remember { mutableStateOf(false) }
     var uriParaRecortar by remember { mutableStateOf<Uri?>(null) }
     var exportando by remember { mutableStateOf(false) }
+    var restaurando by remember { mutableStateOf(false) }
+    var mostrarZoomPerfil by remember { mutableStateOf(false) }
 
     // Selector de foto desde galería -> pasa por recortador interactivo
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { uriParaRecortar = it }
+    }
+
+    // Launcher para cargar archivo JSON de copia de seguridad
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    restaurando = true
+                    val jsonStr = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            stream.bufferedReader(Charsets.UTF_8).readText()
+                        }
+                    }
+                    if (jsonStr.isNullOrBlank()) {
+                        Toast.makeText(context, "El archivo seleccionado está vacío", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val resultado = onRestaurarDatos(jsonStr)
+                        resultado.fold(
+                            onSuccess = { (jugadoresCount, partidosCount) ->
+                                Toast.makeText(
+                                    context,
+                                    "Copia restaurada: $jugadoresCount jugadores y $partidosCount partidos",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            },
+                            onFailure = { e ->
+                                Toast.makeText(
+                                    context,
+                                    "Error al restaurar: ${e.localizedMessage}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error al leer archivo: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    restaurando = false
+                }
+            }
+        }
     }
 
     // Launcher para guardar archivo JSON con SAF
@@ -102,14 +153,13 @@ fun PerfilScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi perfil", fontWeight = FontWeight.Bold) },
+                title = { Text("Perfil", fontWeight = FontWeight.Bold, color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LimeVolt,
-                    titleContentColor = Color.Black
+                    containerColor = DarkCard
                 ),
                 actions = {
                     IconButton(onClick = { mostrarDialogoEditar = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = Color.Black)
+                        Icon(Icons.Default.Edit, contentDescription = "Editar perfil", tint = LimeVolt)
                     }
                 }
             )
@@ -150,7 +200,8 @@ fun PerfilScreen(
                                     contentDescription = "Foto de perfil",
                                     modifier = Modifier
                                         .size(96.dp)
-                                        .clip(CircleShape),
+                                        .clip(CircleShape)
+                                        .clickable { mostrarZoomPerfil = true },
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
@@ -214,17 +265,8 @@ fun PerfilScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = "Nivel: " + "★".repeat(perfil.nivel) + "☆".repeat(5 - perfil.nivel),
-                            color = LimeVolt,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-
                         if (perfil.sincronizadoConJugadores) {
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "✓ Sincronizado en la plantilla de jugadores",
                                 color = TextSecondary,
@@ -309,10 +351,39 @@ fun PerfilScreen(
                                 Text("Compartir", color = Color.White, fontSize = 12.sp)
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = { openDocumentLauncher.launch("application/json") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DarkBackground,
+                                contentColor = LimeVolt
+                            ),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f)),
+                            enabled = !exportando && !restaurando
+                        ) {
+                            Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (restaurando) "Cargando copia..." else "Cargar copia de seguridad (JSON)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (mostrarZoomPerfil && perfil.fotoUri != null) {
+        DialogoVisorFotoConZoom(
+            fotoUri = perfil.fotoUri,
+            nombre = perfil.nombre,
+            onDismiss = { mostrarZoomPerfil = false }
+        )
     }
 
     if (mostrarDialogoEditar) {
@@ -338,7 +409,6 @@ private fun DialogoEditarPerfil(
     var posiciones by remember {
         mutableStateOf(perfilActual.posiciones.ifEmpty { setOf(perfilActual.posicionFavorita) })
     }
-    var nivel by remember { mutableStateOf(perfilActual.nivel) }
     var posicionFavorita by remember { mutableStateOf(perfilActual.posicionFavorita) }
     var sincronizado by remember { mutableStateOf(perfilActual.sincronizadoConJugadores) }
 
@@ -398,21 +468,6 @@ private fun DialogoEditarPerfil(
                     }
                 }
 
-                Text("Nivel (1 a 5 estrellas):", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    (1..5).forEach { lvl ->
-                        FilterChip(
-                            selected = nivel == lvl,
-                            onClick = { nivel = lvl },
-                            label = { Text("★ $lvl", fontSize = 11.sp) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -434,7 +489,6 @@ private fun DialogoEditarPerfil(
                             nombre = nombre.trim(),
                             posicionFavorita = posicionFavorita,
                             posiciones = posiciones,
-                            nivel = nivel,
                             sincronizadoConJugadores = sincronizado
                         )
                     )

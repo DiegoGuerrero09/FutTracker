@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +27,7 @@ import com.diegoguerrero.futtracker.domain.model.ComparativaCaraACara
 import com.diegoguerrero.futtracker.domain.model.DuoEstadisticas
 import com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorCruzadas
 import com.diegoguerrero.futtracker.domain.model.Jugador
+import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.theme.*
@@ -44,7 +46,7 @@ fun EnfrentamientosScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Enfrentamientos",
+                        text = "Versus",
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -93,6 +95,9 @@ fun EnfrentamientosScreen(
                         uiState = uiState,
                         onFiltroTextoChange = { viewModel.setFiltroTexto(it) },
                         onFiltroHistorialChange = { viewModel.setFiltroHistorial(it) },
+                        onToggleFavorito = { viewModel.toggleFiltroSoloFavoritos() },
+                        onPosicionChange = { viewModel.setFiltroPosicion(it) },
+                        onSoloPosicionPrincipalChange = { viewModel.setFiltroSoloPosicionPrincipal(it) },
                         onSeleccionarJugador = { viewModel.seleccionarJugadorDetalle(it) }
                     )
                 }
@@ -124,6 +129,9 @@ fun SeccionHistorialCompanerosRivales(
     uiState: EnfrentamientosUiState,
     onFiltroTextoChange: (String) -> Unit,
     onFiltroHistorialChange: (FiltroHistorial) -> Unit,
+    onToggleFavorito: () -> Unit,
+    onPosicionChange: (Posicion?) -> Unit,
+    onSoloPosicionPrincipalChange: (Boolean) -> Unit,
     onSeleccionarJugador: (EstadisticasJugadorCruzadas) -> Unit
 ) {
     LazyColumn(
@@ -155,7 +163,7 @@ fun SeccionHistorialCompanerosRivales(
                 )
                 CardDestacado(
                     modifier = Modifier.weight(1f),
-                    titulo = "Gafe",
+                    titulo = "La lacra",
                     subtitulo = "Más derrotas juntos",
                     icono = "💔",
                     colorBorde = RedLoss,
@@ -173,7 +181,7 @@ fun SeccionHistorialCompanerosRivales(
                     titulo = "Rival favorito",
                     subtitulo = "Más victorias contra él",
                     icono = "🎯",
-                    colorBorde = GreenWin,
+                    colorBorde = BlueCompanero,
                     estadistica = uiState.destacados.rivalMasGana,
                     esCompanero = false
                 )
@@ -239,6 +247,65 @@ fun SeccionHistorialCompanerosRivales(
                         )
                     }
                 }
+
+                // Filtros de favoritos y posición
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = uiState.filtroSoloFavoritos,
+                            onClick = onToggleFavorito,
+                            label = { Text("Favoritos", fontSize = 11.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFD700),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        )
+                    }
+                    item {
+                        FilterChip(
+                            selected = uiState.filtroPosicion == null,
+                            onClick = { onPosicionChange(null) },
+                            label = { Text("Todas", fontSize = 11.sp) }
+                        )
+                    }
+                    items(Posicion.entries.toTypedArray()) { pos ->
+                        FilterChip(
+                            selected = uiState.filtroPosicion == pos,
+                            onClick = {
+                                onPosicionChange(if (uiState.filtroPosicion == pos) null else pos)
+                            },
+                            label = { Text(pos.name, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                if (uiState.filtroPosicion != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterChip(
+                            selected = !uiState.filtroSoloPosicionPrincipal,
+                            onClick = { onSoloPosicionPrincipalChange(false) },
+                            label = { Text("Ambas posiciones", fontSize = 11.sp) }
+                        )
+                        FilterChip(
+                            selected = uiState.filtroSoloPosicionPrincipal,
+                            onClick = { onSoloPosicionPrincipalChange(true) },
+                            label = { Text("Solo posición principal", fontSize = 11.sp) }
+                        )
+                    }
+                }
             }
         }
 
@@ -287,7 +354,7 @@ fun CardDestacado(
     esCompanero: Boolean
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.height(100.dp),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, colorBorde.copy(alpha = 0.5f))
@@ -345,7 +412,7 @@ fun CardDestacado(
                         val pct = if (partidos > 0) ((victorias.toFloat() / partidos) * 100).toInt() else 0
 
                         Text(
-                            text = "$partidos part • $victorias V - $derrotas D ($pct%)",
+                            text = "$partidos PJ • $victorias V - $derrotas D ($pct%)",
                             fontSize = 10.sp,
                             color = colorBorde,
                             fontWeight = FontWeight.Bold
@@ -353,12 +420,19 @@ fun CardDestacado(
                     }
                 }
             } else {
-                Text(
-                    text = "Sin datos aún",
-                    fontSize = 11.sp,
-                    color = TextSecondary.copy(alpha = 0.6f),
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "Sin datos aún",
+                        fontSize = 11.sp,
+                        color = TextSecondary.copy(alpha = 0.6f),
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
+                }
             }
         }
     }
@@ -410,7 +484,8 @@ fun CardJugadorHistorial(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (item.partidosComoCompanero > 0) {
                         Surface(
@@ -420,9 +495,10 @@ fun CardJugadorHistorial(
                             Text(
                                 text = "Compañero: ${item.partidosComoCompanero}p (${item.victoriasComoCompanero}V/${item.empatesComoCompanero}E/${item.derrotasComoCompanero}D)",
                                 color = BlueCompanero,
-                                fontSize = 10.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight.SemiBold
+                                fontSize = 8.5.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
                         }
                     }
@@ -434,9 +510,10 @@ fun CardJugadorHistorial(
                             Text(
                                 text = "Rival: ${item.partidosComoRival}p (${item.victoriasComoRival}V/${item.empatesComoRival}E/${item.derrotasComoRival}D)",
                                 color = OrangeDraw,
-                                fontSize = 10.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight.SemiBold
+                                fontSize = 8.5.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
                         }
                     }
@@ -479,7 +556,8 @@ fun DialogoDetalleJugadorCruzado(
                     tamano = 64.dp,
                     fontSize = 20.sp,
                     bordeColor = LimeVolt,
-                    bordeAncho = 2.dp
+                    bordeAncho = 2.dp,
+                    permitirZoom = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -595,7 +673,7 @@ fun DialogoDetalleJugadorCruzado(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Tus victorias vs sus victorias:", fontSize = 12.sp, color = TextSecondary)
+                            Text("Balance:", fontSize = 12.sp, color = TextSecondary)
                             Text(
                                 "${detalle.victoriasComoRival}V - ${detalle.empatesComoRival}E - ${detalle.derrotasComoRival}D",
                                 fontSize = 12.sp,
@@ -663,6 +741,13 @@ fun SeccionCaraACara(
 
     val jugadorA = uiState.todosLosJugadores.find { it.id == uiState.jugadorAId }
     val jugadorB = uiState.todosLosJugadores.find { it.id == uiState.jugadorBId }
+    val jugadoresOrdenados = remember(uiState.todosLosJugadores) {
+        uiState.todosLosJugadores.sortedWith(
+            compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+                .thenByDescending { it.esFavorito }
+                .thenBy { it.nombre.lowercase() }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -712,10 +797,11 @@ fun SeccionCaraACara(
                                 tamano = 32.dp,
                                 fontSize = 11.sp
                             )
+                            val esYoA = jugadorA?.let { it.esUsuarioPropio || it.id == "usuario_propio_id" } ?: false
                             Text(
-                                text = jugadorA?.nombre ?: "Seleccionar A",
+                                text = if (jugadorA == null) "Seleccionar A" else if (esYoA) "${jugadorA.nombre} (Tú)" else jugadorA.nombre,
                                 fontSize = 12.sp,
-                                color = Color.White,
+                                color = if (esYoA) LimeVolt else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -729,9 +815,16 @@ fun SeccionCaraACara(
                         onDismissRequest = { expandidoA = false },
                         modifier = Modifier.background(DarkCard)
                     ) {
-                        uiState.todosLosJugadores.forEach { j ->
+                        jugadoresOrdenados.forEach { j ->
+                            val esYo = j.esUsuarioPropio || j.id == "usuario_propio_id"
                             DropdownMenuItem(
-                                text = { Text(j.nombre, color = Color.White) },
+                                text = {
+                                    Text(
+                                        text = if (esYo) "${j.nombre} (Tú)" else j.nombre,
+                                        color = if (esYo) LimeVolt else Color.White,
+                                        fontWeight = if (esYo) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
                                 leadingIcon = {
                                     JugadorAvatar(fotoUri = j.fotoUri, nombre = j.nombre, tamano = 24.dp, fontSize = 9.sp)
                                 },
@@ -767,10 +860,11 @@ fun SeccionCaraACara(
                                 tamano = 32.dp,
                                 fontSize = 11.sp
                             )
+                            val esYoB = jugadorB?.let { it.esUsuarioPropio || it.id == "usuario_propio_id" } ?: false
                             Text(
-                                text = jugadorB?.nombre ?: "Seleccionar B",
+                                text = if (jugadorB == null) "Seleccionar B" else if (esYoB) "${jugadorB.nombre} (Tú)" else jugadorB.nombre,
                                 fontSize = 12.sp,
-                                color = Color.White,
+                                color = if (esYoB) LimeVolt else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -784,9 +878,16 @@ fun SeccionCaraACara(
                         onDismissRequest = { expandidoB = false },
                         modifier = Modifier.background(DarkCard)
                     ) {
-                        uiState.todosLosJugadores.forEach { j ->
+                        jugadoresOrdenados.forEach { j ->
+                            val esYo = j.esUsuarioPropio || j.id == "usuario_propio_id"
                             DropdownMenuItem(
-                                text = { Text(j.nombre, color = Color.White) },
+                                text = {
+                                    Text(
+                                        text = if (esYo) "${j.nombre} (Tú)" else j.nombre,
+                                        color = if (esYo) LimeVolt else Color.White,
+                                        fontWeight = if (esYo) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
                                 leadingIcon = {
                                     JugadorAvatar(fotoUri = j.fotoUri, nombre = j.nombre, tamano = 24.dp, fontSize = 9.sp)
                                 },
@@ -954,10 +1055,20 @@ fun SeccionDuos(duos: List<DuoEstadisticas>) {
     val duosFiltrados = remember(duos, mostrarSoloGanadores) {
         if (mostrarSoloGanadores) {
             duos.filter { it.partidosJuntos >= 1 }
-                .sortedWith(compareByDescending<DuoEstadisticas> { it.porcentajeVictorias }.thenByDescending { it.partidosJuntos })
+                .sortedWith(
+                    compareByDescending<DuoEstadisticas> { it.victorias }
+                        .thenByDescending { it.porcentajeVictorias }
+                        .thenByDescending { it.partidosJuntos }
+                )
+                .take(10)
         } else {
             duos.filter { it.partidosJuntos >= 1 }
-                .sortedWith(compareByDescending<DuoEstadisticas> { it.derrotas }.thenBy { it.porcentajeVictorias })
+                .sortedWith(
+                    compareByDescending<DuoEstadisticas> { it.derrotas }
+                        .thenBy { it.porcentajeVictorias }
+                        .thenByDescending { it.partidosJuntos }
+                )
+                .take(10)
         }
     }
 
@@ -987,7 +1098,7 @@ fun SeccionDuos(duos: List<DuoEstadisticas>) {
                 FilterChip(
                     selected = mostrarSoloGanadores,
                     onClick = { mostrarSoloGanadores = true },
-                    label = { Text("🏆 Dúos talismán (más victorias)", fontSize = 11.sp) },
+                    label = { Text("🏆 Con más victorias", fontSize = 11.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
                         selectedLabelColor = LimeVolt,

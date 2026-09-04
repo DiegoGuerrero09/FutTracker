@@ -162,10 +162,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
             val historial = mutableListOf<Partido>()
 
             for (p in partidos) {
-                val aEnMiEquipo = p.jugadoresMiEquipo.contains(jugadorIdA)
-                val aEnRival = p.jugadoresEquipoRival.contains(jugadorIdA)
-                val bEnMiEquipo = p.jugadoresMiEquipo.contains(jugadorIdB)
-                val bEnRival = p.jugadoresEquipoRival.contains(jugadorIdB)
+                val aEnMiEquipo = p.jugadoresMiEquipo.contains(jugadorIdA) || (jugadorA.esUsuarioPropio && p.jugadoresMiEquipo.contains("usuario_propio_id"))
+                val aEnRival = p.jugadoresEquipoRival.contains(jugadorIdA) || (jugadorA.esUsuarioPropio && p.jugadoresEquipoRival.contains("usuario_propio_id"))
+                val bEnMiEquipo = p.jugadoresMiEquipo.contains(jugadorIdB) || (jugadorB.esUsuarioPropio && p.jugadoresMiEquipo.contains("usuario_propio_id"))
+                val bEnRival = p.jugadoresEquipoRival.contains(jugadorIdB) || (jugadorB.esUsuarioPropio && p.jugadoresEquipoRival.contains("usuario_propio_id"))
 
                 // Enfrentados
                 if (aEnMiEquipo && bEnRival) {
@@ -223,7 +223,12 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
             enfrentamientosDao.getAllPartidos(),
             enfrentamientosDao.getAllJugadores()
         ) { partidosEntities, jugadoresEntities ->
-            val jugadoresMap = jugadoresEntities.map { it.toDomain() }.associateBy { it.id }
+            val jugadoresList = jugadoresEntities.map { it.toDomain() }
+            val usuarioPropio = jugadoresList.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+            val jugadoresMap = jugadoresList.associateBy { it.id }.toMutableMap()
+            if (usuarioPropio != null) {
+                jugadoresMap["usuario_propio_id"] = usuarioPropio
+            }
             val partidos = partidosEntities.map { it.toDomain() }
 
             class DuoAccumulator(
@@ -238,7 +243,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
             val duosMap = mutableMapOf<Pair<String, String>, DuoAccumulator>()
 
             fun procesarEquipo(jugadoresIds: List<String>, esVictoria: Boolean, esEmpate: Boolean, esDerrota: Boolean, gf: Int, gc: Int) {
-                val ids = jugadoresIds.distinct().sorted()
+                val normalizedIds = if (usuarioPropio != null) {
+                    jugadoresIds.map { if (it == "usuario_propio_id") usuarioPropio.id else it }
+                } else jugadoresIds
+                val ids = normalizedIds.distinct().sorted()
                 for (i in ids.indices) {
                     for (j in i + 1 until ids.size) {
                         val key = Pair(ids[i], ids[j])

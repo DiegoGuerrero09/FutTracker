@@ -2,8 +2,11 @@ package com.diegoguerrero.futtracker.ui.screens.estadisticas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Partido
+import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.TipoFutbol
+import com.diegoguerrero.futtracker.domain.repository.JugadorRepository
 import com.diegoguerrero.futtracker.domain.repository.PartidoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -11,7 +14,7 @@ import java.time.LocalDate
 import java.util.*
 import javax.inject.Inject
 
-enum class TipoFiltroEstadisticas { TOTAL, TEMPORADA, ANIO_NATURAL, FECHA_PERSONALIZADA }
+enum class TipoFiltroEstadisticas { TOTAL, ULTIMAS_4_SEMANAS, ULTIMOS_3_MESES, TEMPORADA, ANIO_NATURAL, FECHA_PERSONALIZADA }
 
 data class ResumenEstadisticas(
     val totalPartidos: Int = 0,
@@ -29,9 +32,37 @@ data class ResumenEstadisticas(
     val diferenciaGoles: Int = 0
 )
 
+data class EstadisticasJugadorGeneral(
+    val jugador: Jugador,
+    val partidosJugados: Int = 0,
+    val victorias: Int = 0,
+    val empates: Int = 0,
+    val derrotas: Int = 0,
+    val porcentajeVictorias: Int = 0,
+    val minutosJugados: Int = 0
+)
+
+enum class CriterioOrdenGeneral {
+    VICTORIAS,
+    DERROTAS,
+    EMPATES,
+    PARTIDOS,
+    PORCENTAJE,
+    MINUTOS,
+    NOMBRE
+}
+
+private data class FiltrosGeneralData(
+    val busqueda: String,
+    val soloFavoritos: Boolean,
+    val posicion: Posicion?,
+    val soloPosicionPrincipal: Boolean
+)
+
 @HiltViewModel
 class EstadisticasViewModel @Inject constructor(
-    private val partidoRepository: PartidoRepository
+    private val partidoRepository: PartidoRepository,
+    private val jugadorRepository: JugadorRepository
 ) : ViewModel() {
 
     val todosPartidos: StateFlow<List<Partido>> = partidoRepository.obtenerPartidos()
@@ -102,6 +133,14 @@ class EstadisticasViewModel @Inject constructor(
 
         lista = when (tipoTiempo) {
             TipoFiltroEstadisticas.TOTAL -> lista
+            TipoFiltroEstadisticas.ULTIMAS_4_SEMANAS -> {
+                val calInicio = System.currentTimeMillis() - 28L * 24 * 60 * 60 * 1000
+                lista.filter { it.fecha >= calInicio }
+            }
+            TipoFiltroEstadisticas.ULTIMOS_3_MESES -> {
+                val calInicio = System.currentTimeMillis() - 90L * 24 * 60 * 60 * 1000
+                lista.filter { it.fecha >= calInicio }
+            }
             TipoFiltroEstadisticas.TEMPORADA -> {
                 val anioInicio = runCatching { temporada.split("/")[0].toInt() }.getOrDefault(2024)
                 val calInicio = Calendar.getInstance().apply {
@@ -224,5 +263,157 @@ class EstadisticasViewModel @Inject constructor(
         val startYear = if (month >= Calendar.SEPTEMBER) year else year - 1
         val endTwoDigits = String.format(Locale.getDefault(), "%02d", (startYear + 1) % 100)
         return "$startYear/$endTwoDigits"
+    }
+
+    // --- Pestaña General (Ranking por Jugador) ---
+
+    val todosJugadores: StateFlow<List<Jugador>> = jugadorRepository.obtenerJugadores()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    private val _busquedaGeneral = MutableStateFlow("")
+    val busquedaGeneral: StateFlow<String> = _busquedaGeneral.asStateFlow()
+
+    private val _soloFavoritosGeneral = MutableStateFlow(false)
+    val soloFavoritosGeneral: StateFlow<Boolean> = _soloFavoritosGeneral.asStateFlow()
+
+    private val _posicionGeneral = MutableStateFlow<Posicion?>(null)
+    val posicionGeneral: StateFlow<Posicion?> = _posicionGeneral.asStateFlow()
+
+    private val _soloPosicionPrincipalGeneral = MutableStateFlow(false)
+    val soloPosicionPrincipalGeneral: StateFlow<Boolean> = _soloPosicionPrincipalGeneral.asStateFlow()
+
+    private val _criterioOrdenGeneral = MutableStateFlow(CriterioOrdenGeneral.VICTORIAS)
+    val criterioOrdenGeneral: StateFlow<CriterioOrdenGeneral> = _criterioOrdenGeneral.asStateFlow()
+
+    private val _ordenAscendenteGeneral = MutableStateFlow(false)
+    val ordenAscendenteGeneral: StateFlow<Boolean> = _ordenAscendenteGeneral.asStateFlow()
+
+    val jugadoresEstadisticasGeneral: StateFlow<List<EstadisticasJugadorGeneral>> = combine(
+        todosJugadores,
+        todosPartidos,
+        combine(
+            _busquedaGeneral,
+            _soloFavoritosGeneral,
+            _posicionGeneral,
+            _soloPosicionPrincipalGeneral
+        ) { q, fav, pos, soloPrin ->
+            FiltrosGeneralData(q, fav, pos, soloPrin)
+        },
+        combine(
+            _criterioOrdenGeneral,
+            _ordenAscendenteGeneral
+        ) { crit, asc ->
+            Pair(crit, asc)
+        }
+    ) { jugadores, partidos, filtros, orden ->
+        val calculados = jugadores.map { j ->
+            var v = 0
+            var e = 0
+            var d = 0
+            var min = 0
+            for (p in partidos) {
+                val enMiEquipo = p.jugadoresMiEquipo.contains(j.id)
+                val enRival = p.jugadoresEquipoRival.contains(j.id)
+                val participo = enMiEquipo || enRival || (p.jugadoresMiEquipo.isEmpty() && p.jugadoresEquipoRival.isEmpty() && p.jugadoresIds.contains(j.id))
+                if (participo) {
+                    min += p.duracionMinutos
+                }
+                if (enMiEquipo) {
+                    if (p.esVictoria) v++
+                    else if (p.esEmpate) e++
+                    else if (p.esDerrota) d++
+                } else if (enRival) {
+                    if (p.esDerrota) v++
+                    else if (p.esEmpate) e++
+                    else if (p.esVictoria) d++
+                } else if (p.jugadoresMiEquipo.isEmpty() && p.jugadoresEquipoRival.isEmpty() && p.jugadoresIds.contains(j.id)) {
+                    if (p.esVictoria) v++
+                    else if (p.esEmpate) e++
+                    else if (p.esDerrota) d++
+                }
+            }
+            val pj = v + e + d
+            val pct = if (pj > 0) (v * 100 / pj) else 0
+            EstadisticasJugadorGeneral(
+                jugador = j,
+                partidosJugados = pj,
+                victorias = v,
+                empates = e,
+                derrotas = d,
+                porcentajeVictorias = pct,
+                minutosJugados = min
+            )
+        }
+
+        val filtrados = calculados.filter { item ->
+            val coincideBusqueda = filtros.busqueda.isBlank() || item.jugador.nombre.contains(filtros.busqueda, ignoreCase = true)
+            val coincideFav = !filtros.soloFavoritos || item.jugador.esFavorito
+            val coincidePos = when {
+                filtros.posicion == null -> true
+                filtros.soloPosicionPrincipal -> item.jugador.posicionesPrimarias.contains(filtros.posicion)
+                else -> item.jugador.posicionesPrimarias.contains(filtros.posicion) || item.jugador.posicionesSecundarias.contains(filtros.posicion)
+            }
+            coincideBusqueda && coincideFav && coincidePos
+        }
+
+        val (criterio, asc) = orden
+        val ordenados = when (criterio) {
+            CriterioOrdenGeneral.VICTORIAS -> if (asc) filtrados.sortedWith(compareBy({ it.victorias }, { it.porcentajeVictorias }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.victorias }.thenByDescending { it.porcentajeVictorias }.thenBy { it.jugador.nombre })
+            CriterioOrdenGeneral.DERROTAS -> if (asc) filtrados.sortedWith(compareBy({ it.derrotas }, { it.partidosJugados }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.derrotas }.thenByDescending { it.partidosJugados }.thenBy { it.jugador.nombre })
+            CriterioOrdenGeneral.EMPATES -> if (asc) filtrados.sortedWith(compareBy({ it.empates }, { it.partidosJugados }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.empates }.thenByDescending { it.partidosJugados }.thenBy { it.jugador.nombre })
+            CriterioOrdenGeneral.PARTIDOS -> if (asc) filtrados.sortedWith(compareBy({ it.partidosJugados }, { it.victorias }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.partidosJugados }.thenByDescending { it.victorias }.thenBy { it.jugador.nombre })
+            CriterioOrdenGeneral.PORCENTAJE -> if (asc) filtrados.sortedWith(compareBy({ it.porcentajeVictorias }, { it.victorias }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.porcentajeVictorias }.thenByDescending { it.victorias }.thenBy { it.jugador.nombre })
+            CriterioOrdenGeneral.MINUTOS -> if (asc) filtrados.sortedWith(compareBy({ it.minutosJugados }, { it.partidosJugados }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.minutosJugados }.thenByDescending { it.partidosJugados }.thenBy { it.jugador.nombre })
+            CriterioOrdenGeneral.NOMBRE -> if (asc) filtrados.sortedBy { it.jugador.nombre.lowercase() }
+                else filtrados.sortedByDescending { it.jugador.nombre.lowercase() }
+        }
+
+        ordenados
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun setBusquedaGeneral(texto: String) {
+        _busquedaGeneral.value = texto
+    }
+
+    fun toggleSoloFavoritosGeneral() {
+        _soloFavoritosGeneral.value = !_soloFavoritosGeneral.value
+    }
+
+    fun setPosicionGeneral(pos: Posicion?) {
+        _posicionGeneral.value = pos
+    }
+
+    fun setSoloPosicionPrincipalGeneral(soloPrincipal: Boolean) {
+        _soloPosicionPrincipalGeneral.value = soloPrincipal
+    }
+
+    fun setCriterioOrdenGeneral(criterio: CriterioOrdenGeneral) {
+        if (_criterioOrdenGeneral.value == criterio) {
+            _ordenAscendenteGeneral.value = !_ordenAscendenteGeneral.value
+        } else {
+            _criterioOrdenGeneral.value = criterio
+            _ordenAscendenteGeneral.value = when (criterio) {
+                CriterioOrdenGeneral.NOMBRE -> true
+                else -> false
+            }
+        }
+    }
+
+    fun toggleOrdenAscendenteGeneral() {
+        _ordenAscendenteGeneral.value = !_ordenAscendenteGeneral.value
     }
 }

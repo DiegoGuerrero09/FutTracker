@@ -1,5 +1,6 @@
 package com.diegoguerrero.futtracker.ui.screens.jugadores
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -34,6 +35,8 @@ import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
+import com.diegoguerrero.futtracker.ui.theme.DarkCard
+import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import java.io.File
@@ -46,7 +49,8 @@ fun JugadoresScreen(
     onAgregarJugador: (Jugador) -> Unit,
     onActualizarJugador: (Jugador) -> Unit,
     onEliminarJugador: (Jugador) -> Unit,
-    onToggleFavorito: (Jugador) -> Unit
+    onToggleFavorito: (Jugador) -> Unit,
+    mostrarTopBar: Boolean = true
 ) {
     var mostrarDialogoCrear by remember { mutableStateOf(false) }
     var jugadorAEditar by remember { mutableStateOf<Jugador?>(null) }
@@ -74,20 +78,20 @@ fun JugadoresScreen(
 
             coincideBusqueda && coincidePosicion && coincideFavorito
         }.sortedWith(
-            compareByDescending<Jugador> { it.esFavorito }
-                .thenBy { it.nombre }
+            compareByDescending<Jugador> { it.esUsuarioPropio }
+                .thenByDescending { it.esFavorito }
+                .thenBy { it.nombre.lowercase() }
         )
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Plantilla", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LimeVolt,
-                    titleContentColor = Color.Black
+            if (mostrarTopBar) {
+                TopAppBar(
+                    title = { Text("Plantilla", fontWeight = FontWeight.Bold, color = Color.White) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkCard)
                 )
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -172,7 +176,7 @@ fun JugadoresScreen(
                     FilterChip(
                         selected = !soloPosicionPrincipalFilter,
                         onClick = { soloPosicionPrincipalFilter = false },
-                        label = { Text("primarias y secundarias", fontSize = 11.sp) }
+                        label = { Text("Ambas posiciones", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = soloPosicionPrincipalFilter,
@@ -283,7 +287,8 @@ private fun JugadorItem(
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(1.dp, DarkCardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -300,15 +305,19 @@ private fun JugadorItem(
                 JugadorAvatar(
                     fotoUri = jugador.fotoUri,
                     nombre = jugador.nombre,
-                    tamano = 44.dp
+                    tamano = 44.dp,
+                    permitirZoom = true
                 )
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Text(
                         text = jugador.nombre,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White,
                         lineHeight = 20.sp
                     )
 
@@ -362,12 +371,12 @@ private fun BadgePosicion(label: String, esPrimaria: Boolean) {
     val bgColor = if (esPrimaria) {
         LimeVolt.copy(alpha = 0.25f)
     } else {
-        Color.Black.copy(alpha = 0.65f)
+        Color(0xFF334155)
     }
     val textColor = if (esPrimaria) {
         LimeVolt
     } else {
-        TextSecondary.copy(alpha = 0.65f)
+        Color(0xFFCBD5E1)
     }
 
     Surface(
@@ -396,9 +405,7 @@ private fun DialogoJugador(
     var fotoUri by remember { mutableStateOf(jugadorExistente?.fotoUri) }
     var posPrimarias by remember { mutableStateOf(jugadorExistente?.posicionesPrimarias ?: setOf()) }
     var posSecundarias by remember { mutableStateOf(jugadorExistente?.posicionesSecundarias ?: setOf()) }
-    var nivel by remember { mutableStateOf(jugadorExistente?.nivel ?: 3) }
 
-    val context = LocalContext.current
     var uriParaRecortar by remember { mutableStateOf<Uri?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -462,31 +469,6 @@ private fun DialogoJugador(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                Column {
-                    Text("Nivel del jugador (1 al 5)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        (1..5).forEach { lvl ->
-                            FilterChip(
-                                selected = nivel == lvl,
-                                onClick = { nivel = lvl },
-                                label = {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("★ $lvl", fontSize = 11.sp, textAlign = TextAlign.Center)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
 
                 ExposedDropdownMenuBox(
                     expanded = expPrincipal,
@@ -558,14 +540,12 @@ private fun DialogoJugador(
                             nombre = nombre.trim(),
                             fotoUri = fotoUri,
                             posicionesPrimarias = posPrimarias,
-                            posicionesSecundarias = posSecundarias,
-                            nivel = nivel
+                            posicionesSecundarias = posSecundarias
                         ) ?: Jugador(
                             nombre = nombre.trim(),
                             fotoUri = fotoUri,
                             posicionesPrimarias = posPrimarias,
-                            posicionesSecundarias = posSecundarias,
-                            nivel = nivel
+                            posicionesSecundarias = posSecundarias
                         )
                         onGuardar(jugadorGuardar)
                     }

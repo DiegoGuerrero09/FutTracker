@@ -143,7 +143,7 @@ fun CampoTactico(
                                 }
                             }
 
-                            val swapThreshold = with(density) { 44.dp.toPx() }
+                            val swapThreshold = with(density) { 56.dp.toPx() }
                             if (targetIdx != null && minDistance <= swapThreshold) {
                                 onJugadorIntercambiado(index, targetIdx!!)
                             }
@@ -161,7 +161,7 @@ fun CampoTactico(
 
             Box(
                 modifier = Modifier
-                    .offset(x = posX - (iconWidth / 2), y = posY - 20.dp)
+                    .offset(x = posX - (iconWidth / 2), y = posY - 25.dp)
                     .then(
                         if (isDragging) {
                             Modifier
@@ -198,7 +198,7 @@ fun CampoTactico(
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
                                 .offset(x = 2.dp, y = 2.dp)
-                                .size(width = 17.dp, height = 13.dp)
+                                .size(width = 19.dp, height = 15.5.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -206,7 +206,8 @@ fun CampoTactico(
                                     color = if (jugadorAsignado != null) Color.Black else Color.White,
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.offset(y = (-1.5).dp)
                                 )
                             }
                         }

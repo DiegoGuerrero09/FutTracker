@@ -68,6 +68,7 @@ fun MainAppLayout(
 ) {
     val navController = rememberNavController()
     val jugadores by jugadoresViewModel.jugadores.collectAsStateWithLifecycle()
+    val partidos by partidosViewModel.partidos.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = DarkBackground,
@@ -75,9 +76,22 @@ fun MainAppLayout(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Alineacion.route,
+            startDestination = Screen.Datos.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Screen.Datos.route) {
+                com.diegoguerrero.futtracker.ui.screens.datos.DatosScreen(
+                    jugadores = jugadores,
+                    partidos = partidos,
+                    onAgregarJugador = { jugadoresViewModel.agregarJugador(it) },
+                    onActualizarJugador = { jugadoresViewModel.actualizarJugador(it) },
+                    onEliminarJugador = { jugadoresViewModel.eliminarJugador(it) },
+                    onToggleFavorito = { jugadoresViewModel.toggleFavorito(it) },
+                    onAgregarPartido = { partidosViewModel.agregarPartido(it) },
+                    onActualizarPartido = { partidosViewModel.actualizarPartido(it) },
+                    onEliminarPartido = { partidosViewModel.eliminarPartido(it) }
+                )
+            }
             composable(Screen.Alineacion.route) {
                 AlineacionScreen(plantillaCompleta = jugadores)
             }
@@ -102,7 +116,6 @@ fun MainAppLayout(
                 )
             }
             composable(Screen.Partidos.route) {
-                val partidos by partidosViewModel.partidos.collectAsStateWithLifecycle()
                 PartidosScreen(
                     partidos = partidos,
                     jugadores = jugadores,
@@ -114,6 +127,11 @@ fun MainAppLayout(
             composable(Screen.Estadisticas.route) {
                 com.diegoguerrero.futtracker.ui.screens.estadisticas.EstadisticasScreen()
             }
+            composable(Screen.Versus.route) {
+                com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosScreen(
+                    viewModel = enfrentamientosViewModel
+                )
+            }
             composable(Screen.Enfrentamientos.route) {
                 com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosScreen(
                     viewModel = enfrentamientosViewModel
@@ -124,7 +142,8 @@ fun MainAppLayout(
                 PerfilScreen(
                     perfil = perfil,
                     onGuardarPerfil = { perfilViewModel.guardarPerfil(it) },
-                    onExportarDatos = { perfilViewModel.exportarDatosJson() }
+                    onExportarDatos = { perfilViewModel.exportarDatosJson() },
+                    onRestaurarDatos = { perfilViewModel.restaurarCopiaSeguridad(it) }
                 )
             }
         }

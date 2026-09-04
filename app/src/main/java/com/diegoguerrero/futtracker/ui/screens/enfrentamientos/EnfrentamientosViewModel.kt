@@ -3,6 +3,8 @@ package com.diegoguerrero.futtracker.ui.screens.enfrentamientos
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorCruzadas
+import com.diegoguerrero.futtracker.domain.model.Jugador
+import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.repository.EnfrentamientosRepository
 import com.diegoguerrero.futtracker.domain.repository.JugadorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +22,9 @@ class EnfrentamientosViewModel @Inject constructor(
     private val _seccionActual = MutableStateFlow(SeccionEnfrentamientos.HISTORIAL)
     private val _filtroTexto = MutableStateFlow("")
     private val _filtroHistorial = MutableStateFlow(FiltroHistorial.TODOS)
+    private val _filtroSoloFavoritos = MutableStateFlow(false)
+    private val _filtroPosicion = MutableStateFlow<Posicion?>(null)
+    private val _filtroSoloPosicionPrincipal = MutableStateFlow(false)
     private val _jugadorDetalle = MutableStateFlow<EstadisticasJugadorCruzadas?>(null)
     private val _jugadorAId = MutableStateFlow<String?>(null)
     private val _jugadorBId = MutableStateFlow<String?>(null)
@@ -34,7 +39,13 @@ class EnfrentamientosViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val todosJugadores = jugadorRepository.obtenerJugadores()
-        .map { lista -> lista.filter { !it.esUsuarioPropio && it.id != "usuario_propio_id" } }
+        .map { lista ->
+            lista.sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+                    .thenByDescending { it.esFavorito }
+                    .thenBy { it.nombre.lowercase() }
+            )
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -52,6 +63,9 @@ class EnfrentamientosViewModel @Inject constructor(
         combine(_seccionActual, _filtroTexto, _filtroHistorial) { sec, texto, filtro ->
             Triple(sec, texto, filtro)
         },
+        combine(_filtroSoloFavoritos, _filtroPosicion, _filtroSoloPosicionPrincipal) { fav, pos, soloPrin ->
+            Triple(fav, pos, soloPrin)
+        },
         combine(historial, destacados, duos) { hist, dest, d ->
             Triple(hist, dest, d)
         },
@@ -61,7 +75,7 @@ class EnfrentamientosViewModel @Inject constructor(
         combine(_jugadorAId, _jugadorBId) { a, b ->
             Pair(a, b)
         }
-    ) { (sec, texto, filtro), (hist, dest, d), (jug, det, comp), (idA, idB) ->
+    ) { (sec, texto, filtro), (soloFav, pos, soloPrin), (hist, dest, d), (jug, det, comp), (idA, idB) ->
         val historialFiltrado = hist.filter { item ->
             val coincideTexto = texto.isBlank() || item.jugador.nombre.contains(texto, ignoreCase = true)
             val coincideFiltro = when (filtro) {
@@ -69,7 +83,13 @@ class EnfrentamientosViewModel @Inject constructor(
                 FiltroHistorial.COMPANEROS -> item.partidosComoCompanero > 0
                 FiltroHistorial.RIVALES -> item.partidosComoRival > 0
             }
-            coincideTexto && coincideFiltro
+            val coincideFav = !soloFav || item.jugador.esFavorito
+            val coincidePos = when {
+                pos == null -> true
+                soloPrin -> item.jugador.posicionesPrimarias.contains(pos)
+                else -> item.jugador.posicionesPrimarias.contains(pos) || item.jugador.posicionesSecundarias.contains(pos)
+            }
+            coincideTexto && coincideFiltro && coincideFav && coincidePos
         }
 
         // Auto-seleccionar primer y segundo jugador para cara a cara si están vacíos
@@ -84,6 +104,9 @@ class EnfrentamientosViewModel @Inject constructor(
             todosLosJugadores = jug,
             filtroTexto = texto,
             filtroHistorial = filtro,
+            filtroSoloFavoritos = soloFav,
+            filtroPosicion = pos,
+            filtroSoloPosicionPrincipal = soloPrin,
             jugadorDetalle = det,
             jugadorAId = finalA,
             jugadorBId = finalB,
@@ -116,6 +139,18 @@ class EnfrentamientosViewModel @Inject constructor(
 
     fun setFiltroHistorial(filtro: FiltroHistorial) {
         _filtroHistorial.value = filtro
+    }
+
+    fun toggleFiltroSoloFavoritos() {
+        _filtroSoloFavoritos.value = !_filtroSoloFavoritos.value
+    }
+
+    fun setFiltroPosicion(pos: Posicion?) {
+        _filtroPosicion.value = pos
+    }
+
+    fun setFiltroSoloPosicionPrincipal(soloPrincipal: Boolean) {
+        _filtroSoloPosicionPrincipal.value = soloPrincipal
     }
 
     fun seleccionarJugadorDetalle(item: EstadisticasJugadorCruzadas?) {

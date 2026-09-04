@@ -16,16 +16,7 @@ private val DarkColorScheme = darkColorScheme(
     outline = DarkCardBorder
 )
 
-private val DarkTypography = androidx.compose.material3.Typography().run {
-    copy(
-        titleLarge = titleLarge.copy(color = LimeVolt),
-        titleMedium = titleMedium.copy(color = LimeVolt),
-        titleSmall = titleSmall.copy(color = LimeVolt),
-        headlineLarge = headlineLarge.copy(color = LimeVolt),
-        headlineMedium = headlineMedium.copy(color = LimeVolt),
-        headlineSmall = headlineSmall.copy(color = LimeVolt)
-    )
-}
+private val DarkTypography = androidx.compose.material3.Typography()
 
 @Composable
 fun FutTrackerTheme(content: @Composable () -> Unit) {

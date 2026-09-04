@@ -25,7 +25,8 @@ data class Partido(
     val golesOtro: Int = 0,
     val golesChilena: Int = 0,
     val golesTacon: Int = 0,
-    val golesFueraArea: Int = 0
+    val golesFueraArea: Int = 0,
+    val duracionMinutos: Int = 60
 ) {
     val resultado: String
         get() = "$golesAFavor - $golesEnContra"

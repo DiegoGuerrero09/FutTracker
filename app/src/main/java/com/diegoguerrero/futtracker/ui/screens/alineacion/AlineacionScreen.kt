@@ -53,17 +53,24 @@ fun AlineacionScreen(
         plantillaCompleta.distinctBy { it.id }
     }
 
-    val plantillaOrdenada = remember(plantillaUnica, searchQuery, soloFavoritos, posicionFiltro) {
+    var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
+
+    val plantillaOrdenada = remember(plantillaUnica, searchQuery, soloFavoritos, posicionFiltro, soloPosicionPrincipalFilter) {
         plantillaUnica.filter { jugador ->
             val coincideBusqueda = searchQuery.isBlank() || jugador.nombre.contains(searchQuery, ignoreCase = true)
             val coincideFav = !soloFavoritos || jugador.esFavorito
             val coincidePos = posicionFiltro == null ||
-                posicionFiltro in jugador.posicionesPrimarias ||
-                posicionFiltro in jugador.posicionesSecundarias
+                if (soloPosicionPrincipalFilter) {
+                    posicionFiltro in jugador.posicionesPrimarias
+                } else {
+                    posicionFiltro in jugador.posicionesPrimarias ||
+                    posicionFiltro in jugador.posicionesSecundarias
+                }
             coincideBusqueda && coincideFav && coincidePos
         }.sortedWith(
-            compareByDescending<Jugador> { it.esFavorito }
-                .thenBy { it.nombre }
+            compareByDescending<Jugador> { it.esUsuarioPropio }
+                .thenByDescending { it.esFavorito }
+                .thenBy { it.nombre.lowercase() }
         )
     }
 
@@ -116,10 +123,9 @@ fun AlineacionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Alineaciones", fontWeight = FontWeight.Bold) },
+                title = { Text("Pizarra", fontWeight = FontWeight.Bold, color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LimeVolt,
-                    titleContentColor = Color.Black
+                    containerColor = DarkCard
                 )
             )
         }
@@ -143,12 +149,12 @@ fun AlineacionScreen(
             FilterChip(
                 selected = tipoFutbol == TipoFutbol.FUT_6,
                 onClick = { tipoFutbol = TipoFutbol.FUT_6 },
-                label = { Text("Fut 6", fontSize = 12.sp) }
+                label = { Text("Fútbol 6", fontSize = 12.sp) }
             )
             FilterChip(
                 selected = tipoFutbol == TipoFutbol.FUT_7,
                 onClick = { tipoFutbol = TipoFutbol.FUT_7 },
-                label = { Text("Fut 7", fontSize = 12.sp) }
+                label = { Text("Fútbol 7", fontSize = 12.sp) }
             )
         }
 
@@ -251,17 +257,6 @@ fun AlineacionScreen(
                             val temp = nuevoMapa[key1]
                             nuevoMapa[key1] = nuevoMapa[key2]
                             nuevoMapa[key2] = temp
-                            alineacionMapaCampo = nuevoMapa
-                        },
-                        onJugadorMovido = { key, newNormX, newNormY ->
-                            val nuevoMapa = mutableMapOf<Pair<Posicion, Pair<Float, Float>>, Jugador?>()
-                            mapaAlineacion.forEach { (k, v) ->
-                                if (k == key) {
-                                    nuevoMapa[Pair(k.first, Pair(newNormX, newNormY))] = v
-                                } else {
-                                    nuevoMapa[k] = v
-                                }
-                            }
                             alineacionMapaCampo = nuevoMapa
                         }
                     )
@@ -376,6 +371,26 @@ fun AlineacionScreen(
                             )
                         }
                     }
+                    if (posicionFiltro != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = !soloPosicionPrincipalFilter,
+                                onClick = { soloPosicionPrincipalFilter = false },
+                                label = { Text("Ambas posiciones", fontSize = 11.sp) }
+                            )
+                            FilterChip(
+                                selected = soloPosicionPrincipalFilter,
+                                onClick = { soloPosicionPrincipalFilter = true },
+                                label = { Text("Solo posición principal", fontSize = 11.sp) }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -422,13 +437,17 @@ fun AlineacionScreen(
                     JugadorAvatar(
                         fotoUri = jugador.fotoUri,
                         nombre = jugador.nombre,
-                        tamano = 38.dp
+                        tamano = 38.dp,
+                        permitirZoom = true
                     )
 
                     Spacer(modifier = Modifier.width(10.dp))
 
                     // Nombre y posiciones debajo con principales sombreadas
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Text(
                             text = jugador.nombre,
                             color = Color.White,

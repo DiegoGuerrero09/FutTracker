@@ -118,9 +118,9 @@ fun CampoFutbol(
             val isDragging = draggingKey == posConCoords
 
             val xDp = with(density) { posX.toDp() } - (iconWidth / 2)
-            val yDp = with(density) { posY.toDp() } - 20.dp
+            val yDp = with(density) { posY.toDp() } - 25.dp
 
-            val dragModifier = if (onJugadorIntercambiado != null || onJugadorMovido != null) {
+            val dragModifier = if (onJugadorIntercambiado != null) {
                 Modifier.pointerInput(posConCoords, width, height) {
                     detectDragGestures(
                         onDragStart = {
@@ -151,13 +151,9 @@ fun CampoFutbol(
                                 }
                             }
 
-                            val swapThreshold = with(density) { 44.dp.toPx() }
+                            val swapThreshold = with(density) { 56.dp.toPx() }
                             if (targetKey != null && minDistance <= swapThreshold && onJugadorIntercambiado != null) {
                                 onJugadorIntercambiado(posConCoords, targetKey!!)
-                            } else if (onJugadorMovido != null) {
-                                val newNormX = (finalX / width).coerceIn(0.08f, 0.92f)
-                                val newNormY = (finalY / height).coerceIn(0.08f, 0.92f)
-                                onJugadorMovido(posConCoords, newNormX, newNormY)
                             }
 
                             draggingKey = null
@@ -212,7 +208,7 @@ fun CampoFutbol(
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
                                 .offset(x = 2.dp, y = 2.dp)
-                                .size(width = 17.dp, height = 13.dp)
+                                .size(width = 19.dp, height = 15.5.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -220,7 +216,8 @@ fun CampoFutbol(
                                     color = if (jugador != null) Color.Black else Color.White,
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.offset(y = (-1.5).dp)
                                 )
                             }
                         }

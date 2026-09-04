@@ -66,6 +66,7 @@ fun SorteosScreen(
     var searchQuery by remember { mutableStateOf("") }
     var soloFavoritos by remember { mutableStateOf(false) }
     var selectedPosicionFilter by remember { mutableStateOf<Posicion?>(null) }
+    var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
 
     // Tab para visualizar la alineación del equipo claro u oscuro
     var tabEquipoAlineacion by remember { mutableStateOf(0) } // 0: Claro, 1: Oscuro
@@ -91,86 +92,18 @@ fun SorteosScreen(
         }
     }
 
-    fun realizarSorteo(equilibrado: Boolean) {
+    fun realizarSorteo(equilibradoPorPosiciones: Boolean) {
         val listaConvocados = jugadores.filter { it.id in idsConvocados }
         if (listaConvocados.size != totalJugadoresSeleccionados) return
 
         val mitad = totalJugadoresSeleccionados / 2
 
-        val (claro, oscuro) = if (equilibrado) {
-            val porteros = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.PORTERO }.shuffled().sortedByDescending { it.nivel }
-            val defensas = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.DEFENSA }.shuffled().sortedByDescending { it.nivel }
-            val medios = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.MEDIO }.shuffled().sortedByDescending { it.nivel }
-            val delanteros = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.DELANTERO }.shuffled().sortedByDescending { it.nivel }
-            val otros = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.OTRO }.shuffled().sortedByDescending { it.nivel }
-
-            val clarosTemp = mutableListOf<Jugador>()
-            val oscurosTemp = mutableListOf<Jugador>()
-
-            val grupos = listOf(porteros, defensas, medios, delanteros, otros)
-
-            for (grupo in grupos) {
-                for (jugador in grupo) {
-                    val cabeEnClaro = clarosTemp.size < mitad
-                    val cabeEnOscuro = oscurosTemp.size < mitad
-
-                    if (cabeEnClaro && cabeEnOscuro) {
-                        val zona = jugador.zonaPrincipal()
-                        val cantZonaClaro = clarosTemp.count { it.zonaPrincipal() == zona }
-                        val cantZonaOscuro = oscurosTemp.count { it.zonaPrincipal() == zona }
-
-                        if (cantZonaClaro < cantZonaOscuro) {
-                            clarosTemp.add(jugador)
-                        } else if (cantZonaOscuro < cantZonaClaro) {
-                            oscurosTemp.add(jugador)
-                        } else {
-                            val nivelClaro = clarosTemp.sumOf { it.nivel }
-                            val nivelOscuro = oscurosTemp.sumOf { it.nivel }
-                            if (nivelClaro < nivelOscuro) {
-                                clarosTemp.add(jugador)
-                            } else if (nivelOscuro < nivelClaro) {
-                                oscurosTemp.add(jugador)
-                            } else {
-                                if (listOf(true, false).random()) clarosTemp.add(jugador) else oscurosTemp.add(jugador)
-                            }
-                        }
-                    } else if (cabeEnClaro) {
-                        clarosTemp.add(jugador)
-                    } else if (cabeEnOscuro) {
-                        oscurosTemp.add(jugador)
-                    }
-                }
-            }
-
-            var huboMejora = true
-            while (huboMejora) {
-                huboMejora = false
-                val diffActual = kotlin.math.abs(clarosTemp.sumOf { it.nivel } - oscurosTemp.sumOf { it.nivel })
-                if (diffActual <= 1) break
-
-                for (i in clarosTemp.indices) {
-                    for (j in oscurosTemp.indices) {
-                        val jc = clarosTemp[i]
-                        val jo = oscurosTemp[j]
-                        if (jc.zonaPrincipal() == jo.zonaPrincipal()) {
-                            val nuevoClaro = clarosTemp.sumOf { it.nivel } - jc.nivel + jo.nivel
-                            val nuevoOscuro = oscurosTemp.sumOf { it.nivel } - jo.nivel + jc.nivel
-                            val nuevaDiff = kotlin.math.abs(nuevoClaro - nuevoOscuro)
-                            if (nuevaDiff < diffActual) {
-                                clarosTemp[i] = jo
-                                oscurosTemp[j] = jc
-                                huboMejora = true
-                                break
-                            }
-                        }
-                    }
-                    if (huboMejora) break
-                }
-            }
-
-            Pair(clarosTemp.shuffled(), oscurosTemp.shuffled())
+        val (claro, oscuro) = if (!equilibradoPorPosiciones) {
+            // Completamente aleatorio sin tener en cuenta posiciones
+            val shuffled = listaConvocados.shuffled()
+            Pair(shuffled.take(mitad), shuffled.drop(mitad))
         } else {
-            // Sorteo aleatorio que ignora el nivel pero respeta estrictamente las posiciones
+            // Equilibrado teniendo en cuenta posiciones
             val porteros = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.PORTERO }.shuffled()
             val defensas = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.DEFENSA }.shuffled()
             val medios = listaConvocados.filter { it.zonaPrincipal() == ZonaTactica.MEDIO }.shuffled()
@@ -244,6 +177,32 @@ fun SorteosScreen(
         sorteoRealizado = true
     }
 
+    fun cambiarFormacionClaro(nuevaFormacion: Formacion) {
+        formacionSugeridaClaro = nuevaFormacion
+        val asigClaro = useCase(equipoClaro, nuevaFormacion)
+        asignacionesClaro = asigClaro
+        val coordsClaro = obtenerCoordenadas(nuevaFormacion)
+        val asignadosClaroIds = mutableSetOf<String>()
+        mapaCampoClaro = coordsClaro.associateWith { (pos, _) ->
+            val asig = asigClaro.firstOrNull { it.first == pos && it.second.id !in asignadosClaroIds }?.second
+            asig?.let { asignadosClaroIds.add(it.id) }
+            asig
+        }
+    }
+
+    fun cambiarFormacionOscuro(nuevaFormacion: Formacion) {
+        formacionSugeridaOscuro = nuevaFormacion
+        val asigOscuro = useCase(equipoOscuro, nuevaFormacion)
+        asignacionesOscuro = asigOscuro
+        val coordsOscuro = obtenerCoordenadas(nuevaFormacion)
+        val asignadosOscuroIds = mutableSetOf<String>()
+        mapaCampoOscuro = coordsOscuro.associateWith { (pos, _) ->
+            val asig = asigOscuro.firstOrNull { it.first == pos && it.second.id !in asignadosOscuroIds }?.second
+            asig?.let { asignadosOscuroIds.add(it.id) }
+            asig
+        }
+    }
+
     fun compartirAlineacionesPNG() {
         if (!sorteoRealizado || formacionSugeridaClaro == null || formacionSugeridaOscuro == null) return
 
@@ -277,7 +236,7 @@ fun SorteosScreen(
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
             }
-            val modalidadNombre = when (totalJugadoresSeleccionados) { 10 -> "Futsal"; 12 -> "Fut 6"; else -> "Fut 7" }
+            val modalidadNombre = when (totalJugadoresSeleccionados) { 10 -> "Futsal"; 12 -> "Fútbol 6"; else -> "Fútbol 7" }
             canvas.drawText("Modalidad: $modalidadNombre", width / 2f, 135f, subtitlePaint)
 
             val cardPaint = Paint().apply {
@@ -393,8 +352,12 @@ fun SorteosScreen(
                     }
 
                     if (jug != null) {
-                        val nomCorto = if (jug.nombre.length > 8) jug.nombre.take(7) + "…" else jug.nombre
-                        canvas.drawText(nomCorto, cx, cy + 34f, namePaint)
+                        val originalTextSize = namePaint.textSize
+                        if (jug.nombre.length > 9) {
+                            namePaint.textSize = 11f
+                        }
+                        canvas.drawText(jug.nombre, cx, cy + 39f, namePaint)
+                        namePaint.textSize = originalTextSize
                     }
                 }
             }
@@ -495,15 +458,14 @@ fun SorteosScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sorteo de equipos", fontWeight = FontWeight.Bold) },
+                title = { Text("Sorteo de equipos", fontWeight = FontWeight.Bold, color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LimeVolt,
-                    titleContentColor = Color.Black
+                    containerColor = DarkCard
                 ),
                 actions = {
                     if (sorteoRealizado) {
                         IconButton(onClick = { compartirAlineacionesPNG() }) {
-                            Icon(Icons.Default.Share, contentDescription = "Compartir alineaciones", tint = Color.Black)
+                            Icon(Icons.Default.Share, contentDescription = "Compartir alineaciones", tint = LimeVolt)
                         }
                     }
                 }
@@ -525,12 +487,11 @@ fun SorteosScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf(10 to "Futsal", 12 to "Fut 6", 14 to "Fut 7").forEach { (cantidad, label) ->
+                    listOf(10 to "Futsal", 12 to "Fútbol 6", 14 to "Fútbol 7").forEach { (cantidad, label) ->
                         FilterChip(
                             selected = totalJugadoresSeleccionados == cantidad,
                             onClick = { 
                                 totalJugadoresSeleccionados = cantidad
-                                idsConvocados.clear()
                                 sorteoRealizado = false
                             },
                             label = {
@@ -624,14 +585,44 @@ fun SorteosScreen(
                                 }
                             }
 
+                            if (selectedPosicionFilter != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    FilterChip(
+                                        selected = !soloPosicionPrincipalFilter,
+                                        onClick = { soloPosicionPrincipalFilter = false },
+                                        label = { Text("Ambas posiciones", fontSize = 11.sp) }
+                                    )
+                                    FilterChip(
+                                        selected = soloPosicionPrincipalFilter,
+                                        onClick = { soloPosicionPrincipalFilter = true },
+                                        label = { Text("Solo posición principal", fontSize = 11.sp) }
+                                    )
+                                }
+                            }
+
                             val filtrados = jugadores.filter { jugador ->
                                 val coincideBusqueda = searchQuery.isBlank() || jugador.nombre.contains(searchQuery, ignoreCase = true)
                                 val coincideFav = !soloFavoritos || jugador.esFavorito
                                 val coincidePos = selectedPosicionFilter == null ||
-                                    selectedPosicionFilter in jugador.posicionesPrimarias ||
-                                    selectedPosicionFilter in jugador.posicionesSecundarias
+                                    if (soloPosicionPrincipalFilter) {
+                                        selectedPosicionFilter in jugador.posicionesPrimarias
+                                    } else {
+                                        selectedPosicionFilter in jugador.posicionesPrimarias ||
+                                        selectedPosicionFilter in jugador.posicionesSecundarias
+                                    }
                                 coincideBusqueda && coincideFav && coincidePos
-                            }
+                            }.sortedWith(
+                                compareByDescending<Jugador> { it.esUsuarioPropio }
+                                    .thenByDescending { it.id in idsConvocados }
+                                    .thenByDescending { it.esFavorito }
+                                    .thenBy { it.nombre.lowercase() }
+                            )
 
                             if (filtrados.isEmpty()) {
                                 Text("No hay jugadores encontrados.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -680,12 +671,16 @@ fun SorteosScreen(
                                             JugadorAvatar(
                                                 fotoUri = j.fotoUri,
                                                 nombre = j.nombre,
-                                                tamano = 36.dp
+                                                tamano = 36.dp,
+                                                permitirZoom = true
                                             )
 
                                             Spacer(modifier = Modifier.width(10.dp))
 
-                                            Column(modifier = Modifier.weight(1f)) {
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
                                                 Text(j.nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 val totalPos = j.posicionesPrimarias + j.posicionesSecundarias
@@ -730,7 +725,7 @@ fun SorteosScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { realizarSorteo(equilibrado = false) },
+                        onClick = { realizarSorteo(equilibradoPorPosiciones = false) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = DarkCard, contentColor = Color.White),
                         enabled = idsConvocados.size == totalJugadoresSeleccionados
@@ -742,7 +737,7 @@ fun SorteosScreen(
 
                     // Botón Equilibrado con texto en negro
                     Button(
-                        onClick = { realizarSorteo(equilibrado = true) },
+                        onClick = { realizarSorteo(equilibradoPorPosiciones = true) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = LimeVolt, contentColor = Color.Black),
                         enabled = idsConvocados.size == totalJugadoresSeleccionados
@@ -843,6 +838,36 @@ fun SorteosScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
+                        // Selector para modificar la formación sugerida
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Cambiar formación:", fontSize = 11.sp, color = TextSecondary)
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                val formacionActual = if (tabEquipoAlineacion == 0) formacionSugeridaClaro else formacionSugeridaOscuro
+                                items(formacionesModalidad) { f ->
+                                    FilterChip(
+                                        selected = formacionActual?.id == f.id,
+                                        onClick = {
+                                            if (tabEquipoAlineacion == 0) {
+                                                cambiarFormacionClaro(f)
+                                            } else {
+                                                cambiarFormacionOscuro(f)
+                                            }
+                                        },
+                                        label = { Text(f.nombre, fontSize = 11.sp) }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         val mapaActual = if (tabEquipoAlineacion == 0) mapaCampoClaro else mapaCampoOscuro
                         mapaActual?.let { mapa ->
                             CampoFutbol(
@@ -862,33 +887,6 @@ fun SorteosScreen(
                                         mapaCampoOscuro = mapaCampoOscuro?.toMutableMap()?.apply {
                                             put(pos1, j2)
                                             put(pos2, j1)
-                                        }
-                                    }
-                                },
-                                onJugadorMovido = { pos, deltaX, deltaY ->
-                                    if (tabEquipoAlineacion == 0) {
-                                        mapaCampoClaro = mapaCampoClaro?.let { m ->
-                                            val j = m[pos]
-                                            val newPos = pos.copy(second = Pair(
-                                                (pos.second.first + deltaX).coerceIn(0.05f, 0.95f),
-                                                (pos.second.second + deltaY).coerceIn(0.05f, 0.95f)
-                                            ))
-                                            m.toMutableMap().apply {
-                                                remove(pos)
-                                                put(newPos, j)
-                                            }
-                                        }
-                                    } else {
-                                        mapaCampoOscuro = mapaCampoOscuro?.let { m ->
-                                            val j = m[pos]
-                                            val newPos = pos.copy(second = Pair(
-                                                (pos.second.first + deltaX).coerceIn(0.05f, 0.95f),
-                                                (pos.second.second + deltaY).coerceIn(0.05f, 0.95f)
-                                            ))
-                                            m.toMutableMap().apply {
-                                                remove(pos)
-                                                put(newPos, j)
-                                            }
                                         }
                                     }
                                 }

@@ -4,13 +4,17 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,8 +40,12 @@ fun JugadorAvatar(
     tamano: Dp = 40.dp,
     fontSize: TextUnit = 14.sp,
     bordeColor: Color = Color.Transparent,
-    bordeAncho: Dp = 0.dp
+    bordeAncho: Dp = 0.dp,
+    permitirZoom: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
+    var mostrarZoom by remember { mutableStateOf(false) }
+
     val bitmap = remember(fotoUri) {
         fotoUri?.let { path ->
             runCatching {
@@ -49,13 +57,27 @@ fun JugadorAvatar(
         }
     }
 
-    val modBorde = if (bordeAncho > 0.dp) {
+    val puedeClick = onClick != null || (permitirZoom && bitmap != null)
+
+    val modClickable = if (puedeClick) {
+        modifier.clickable {
+            if (onClick != null) {
+                onClick()
+            } else if (permitirZoom && bitmap != null) {
+                mostrarZoom = true
+            }
+        }
+    } else {
         modifier
+    }
+
+    val modBorde = if (bordeAncho > 0.dp) {
+        modClickable
             .size(tamano)
             .border(bordeAncho, bordeColor, CircleShape)
             .clip(CircleShape)
     } else {
-        modifier
+        modClickable
             .size(tamano)
             .clip(CircleShape)
     }
@@ -81,6 +103,14 @@ fun JugadorAvatar(
             )
         }
     }
+
+    if (mostrarZoom && fotoUri != null) {
+        DialogoVisorFotoConZoom(
+            fotoUri = fotoUri,
+            nombre = nombre,
+            onDismiss = { mostrarZoom = false }
+        )
+    }
 }
 
 @Composable
@@ -88,12 +118,12 @@ fun BadgePosicion(label: String, esPrimaria: Boolean) {
     val bgColor = if (esPrimaria) {
         LimeVolt.copy(alpha = 0.25f)
     } else {
-        Color.Black.copy(alpha = 0.55f)
+        Color(0xFF334155)
     }
     val textColor = if (esPrimaria) {
         LimeVolt
     } else {
-        TextSecondary.copy(alpha = 0.65f)
+        Color(0xFFCBD5E1)
     }
 
     androidx.compose.material3.Surface(
