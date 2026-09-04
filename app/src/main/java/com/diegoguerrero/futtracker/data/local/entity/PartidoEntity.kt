@@ -17,6 +17,7 @@ data class PartidoEntity(
     val posicionesJugadas: String = "",
     val goles: Int,
     val asistencias: Int,
+    val tirosAlPalo: Int = 0,
     val notas: String,
     val jugadoresIds: String = "",
     val jugadoresMiEquipo: String = "",
@@ -26,7 +27,8 @@ data class PartidoEntity(
     val golesCabeza: Int = 0,
     val golesOtro: Int = 0,
     val golesChilena: Int = 0,
-    val golesTacon: Int = 0
+    val golesTacon: Int = 0,
+    val golesFueraArea: Int = 0
 ) {
     fun toDomain(): Partido {
         val posJugada = runCatching { Posicion.valueOf(posicionJugada) }.getOrDefault(Posicion.DC)
@@ -52,6 +54,7 @@ data class PartidoEntity(
             posicionesJugadas = posJugadas,
             goles = goles,
             asistencias = asistencias,
+            tirosAlPalo = tirosAlPalo,
             notas = notas,
             jugadoresIds = idsGeneral,
             jugadoresMiEquipo = idsMiEquipo,
@@ -61,7 +64,8 @@ data class PartidoEntity(
             golesCabeza = golesCabeza,
             golesOtro = golesOtro,
             golesChilena = golesChilena,
-            golesTacon = golesTacon
+            golesTacon = golesTacon,
+            golesFueraArea = golesFueraArea
         )
     }
 }
@@ -80,6 +84,7 @@ fun Partido.toEntity(): PartidoEntity {
         posicionesJugadas = posJugadasStr,
         goles = goles,
         asistencias = asistencias,
+        tirosAlPalo = tirosAlPalo,
         notas = notas,
         jugadoresIds = (jugadoresMiEquipo + jugadoresEquipoRival).distinct().joinToString(","),
         jugadoresMiEquipo = jugadoresMiEquipo.joinToString(","),
@@ -89,6 +94,7 @@ fun Partido.toEntity(): PartidoEntity {
         golesCabeza = golesCabeza,
         golesOtro = golesOtro,
         golesChilena = golesChilena,
-        golesTacon = golesTacon
+        golesTacon = golesTacon,
+        golesFueraArea = golesFueraArea
     )
 }

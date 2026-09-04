@@ -32,8 +32,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
+import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
+import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import java.io.File
 import java.io.FileOutputStream
 
@@ -170,7 +172,7 @@ fun JugadoresScreen(
                     FilterChip(
                         selected = !soloPosicionPrincipalFilter,
                         onClick = { soloPosicionPrincipalFilter = false },
-                        label = { Text("Ambas posiciones", fontSize = 11.sp) }
+                        label = { Text("primarias y secundarias", fontSize = 11.sp) }
                     )
                     FilterChip(
                         selected = soloPosicionPrincipalFilter,
@@ -358,14 +360,14 @@ private fun JugadorItem(
 @Composable
 private fun BadgePosicion(label: String, esPrimaria: Boolean) {
     val bgColor = if (esPrimaria) {
-        MaterialTheme.colorScheme.primaryContainer
+        LimeVolt.copy(alpha = 0.25f)
     } else {
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+        Color.Black.copy(alpha = 0.65f)
     }
     val textColor = if (esPrimaria) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        LimeVolt
     } else {
-        MaterialTheme.colorScheme.onSecondaryContainer
+        TextSecondary.copy(alpha = 0.65f)
     }
 
     Surface(
@@ -397,21 +399,23 @@ private fun DialogoJugador(
     var nivel by remember { mutableStateOf(jugadorExistente?.nivel ?: 3) }
 
     val context = LocalContext.current
+    var uriParaRecortar by remember { mutableStateOf<Uri?>(null) }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { selectedUri ->
-            runCatching {
-                val inputStream = context.contentResolver.openInputStream(selectedUri)
-                val playersDir = File(context.filesDir, "players").apply { mkdirs() }
-                val targetFile = File(playersDir, "player_${System.currentTimeMillis()}.jpg")
-                val outputStream = FileOutputStream(targetFile)
-                inputStream?.copyTo(outputStream)
-                inputStream?.close()
-                outputStream.close()
-                fotoUri = targetFile.absolutePath
-            }
-        }
+        uri?.let { uriParaRecortar = it }
+    }
+
+    if (uriParaRecortar != null) {
+        DialogoRecorteFoto(
+            uriOriginal = uriParaRecortar!!,
+            onFotoRecortada = { pathGuardado ->
+                fotoUri = pathGuardado
+                uriParaRecortar = null
+            },
+            onDismiss = { uriParaRecortar = null }
+        )
     }
 
     var expPrincipal by remember { mutableStateOf(false) }

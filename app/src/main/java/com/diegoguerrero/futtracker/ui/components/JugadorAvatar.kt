@@ -88,12 +88,12 @@ fun BadgePosicion(label: String, esPrimaria: Boolean) {
     val bgColor = if (esPrimaria) {
         LimeVolt.copy(alpha = 0.25f)
     } else {
-        Color.White.copy(alpha = 0.08f)
+        Color.Black.copy(alpha = 0.55f)
     }
     val textColor = if (esPrimaria) {
         LimeVolt
     } else {
-        TextSecondary
+        TextSecondary.copy(alpha = 0.65f)
     }
 
     androidx.compose.material3.Surface(

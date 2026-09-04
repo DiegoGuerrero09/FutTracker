@@ -380,7 +380,7 @@ fun GraficoResumenGoles(
                 ).filter { it.second > 0 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items.chunked(3).forEach { fila ->
+                    items.chunked(2).forEach { fila ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -411,9 +411,9 @@ fun GraficoResumenGoles(
                                     }
                                 }
                             }
-                            // Rellenar celdas vacías si la última fila tiene menos de 3 elementos
-                            if (fila.size < 3) {
-                                repeat(3 - fila.size) {
+                            // Rellenar celda vacía si la fila tiene 1 elemento
+                            if (fila.size < 2) {
+                                repeat(2 - fila.size) {
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
                             }

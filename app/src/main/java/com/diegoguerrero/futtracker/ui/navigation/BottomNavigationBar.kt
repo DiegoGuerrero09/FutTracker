@@ -4,6 +4,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -15,10 +16,12 @@ import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 @Composable
 fun BottomNavigationBar(navController: NavController) {
     val items = listOf(
+        Screen.Jugadores,
         Screen.Alineacion,
         Screen.Sorteos,
-        Screen.Jugadores,
+        Screen.Estadisticas,
         Screen.Partidos,
+        Screen.Enfrentamientos,
         Screen.Perfil
     )
 
@@ -35,11 +38,12 @@ fun BottomNavigationBar(navController: NavController) {
                 icon = { Icon(screen.icon, contentDescription = screen.title) },
                 label = {
                     Text(
-                        text = if (screen == Screen.Alineacion) "Alineación" else screen.title,
-                        fontSize = 9.5.sp,
+                        text = screen.title,
+                        fontSize = 8.sp,
                         fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
                         maxLines = 1,
                         softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 },

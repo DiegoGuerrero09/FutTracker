@@ -14,6 +14,7 @@ data class Partido(
     val posicionesJugadas: Set<Posicion> = setOf(posicionJugada),
     val goles: Int = 0,
     val asistencias: Int = 0,
+    val tirosAlPalo: Int = 0,
     val notas: String = "",
     val jugadoresIds: List<String> = emptyList(),
     val jugadoresMiEquipo: List<String> = emptyList(),
@@ -23,7 +24,8 @@ data class Partido(
     val golesCabeza: Int = 0,
     val golesOtro: Int = 0,
     val golesChilena: Int = 0,
-    val golesTacon: Int = 0
+    val golesTacon: Int = 0,
+    val golesFueraArea: Int = 0
 ) {
     val resultado: String
         get() = "$golesAFavor - $golesEnContra"
@@ -39,4 +41,7 @@ data class Partido(
 
     val localDate: LocalDate
         get() = Instant.ofEpochMilli(fecha).atZone(ZoneId.systemDefault()).toLocalDate()
+
+    val totalGolesPorParteCuerpo: Int
+        get() = golesDiestra + golesZurda + golesCabeza + golesOtro
 }

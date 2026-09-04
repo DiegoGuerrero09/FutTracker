@@ -245,7 +245,25 @@ fun AlineacionScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     CampoFutbol(
                         alineacion = mapaAlineacion,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        onJugadorIntercambiado = { key1, key2 ->
+                            val nuevoMapa = mapaAlineacion.toMutableMap()
+                            val temp = nuevoMapa[key1]
+                            nuevoMapa[key1] = nuevoMapa[key2]
+                            nuevoMapa[key2] = temp
+                            alineacionMapaCampo = nuevoMapa
+                        },
+                        onJugadorMovido = { key, newNormX, newNormY ->
+                            val nuevoMapa = mutableMapOf<Pair<Posicion, Pair<Float, Float>>, Jugador?>()
+                            mapaAlineacion.forEach { (k, v) ->
+                                if (k == key) {
+                                    nuevoMapa[Pair(k.first, Pair(newNormX, newNormY))] = v
+                                } else {
+                                    nuevoMapa[k] = v
+                                }
+                            }
+                            alineacionMapaCampo = nuevoMapa
+                        }
                     )
                 }
             }

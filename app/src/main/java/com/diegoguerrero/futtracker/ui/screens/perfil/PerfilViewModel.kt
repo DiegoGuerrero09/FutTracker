@@ -3,7 +3,6 @@ package com.diegoguerrero.futtracker.ui.screens.perfil
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.diegoguerrero.futtracker.domain.model.Jugador
-import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Perfil
 import com.diegoguerrero.futtracker.domain.repository.JugadorRepository
 import com.diegoguerrero.futtracker.domain.repository.PartidoRepository
@@ -11,12 +10,9 @@ import com.diegoguerrero.futtracker.domain.repository.PerfilRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.ZoneId
-import java.util.*
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
-
-enum class TipoFiltroPerfil { TOTAL, TEMPORADA, ANIO_NATURAL, FECHA_PERSONALIZADA }
 
 @HiltViewModel
 class PerfilViewModel @Inject constructor(
@@ -32,122 +28,6 @@ class PerfilViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = Perfil()
         )
-
-    val todosPartidos: StateFlow<List<Partido>> = partidoRepository.obtenerPartidos()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    private val _filtroTipo = MutableStateFlow(TipoFiltroPerfil.TEMPORADA)
-    val filtroTipo: StateFlow<TipoFiltroPerfil> = _filtroTipo.asStateFlow()
-
-    private val _anioSeleccionado = MutableStateFlow(LocalDate.now().year)
-    val anioSeleccionado: StateFlow<Int> = _anioSeleccionado.asStateFlow()
-
-    // Temporada formateada como p.ej. "2024/2025"
-    private val _temporadaSeleccionada = MutableStateFlow(calcularTemporadaActual())
-    val temporadaSeleccionada: StateFlow<String> = _temporadaSeleccionada.asStateFlow()
-
-    val temporadasConDatos: StateFlow<List<String>> = todosPartidos.map { partidos ->
-        val actual = calcularTemporadaActual()
-        val temporadasDePartidos = partidos.map { obtenerTemporada(it.fecha) }
-        (listOf(actual) + temporadasDePartidos).distinct().sortedDescending()
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = listOf(calcularTemporadaActual())
-    )
-
-    val aniosConDatos: StateFlow<List<Int>> = todosPartidos.map { partidos ->
-        val actual = LocalDate.now().year
-        val aniosDePartidos = partidos.map {
-            Calendar.getInstance().apply { timeInMillis = it.fecha }.get(Calendar.YEAR)
-        }
-        (listOf(actual) + aniosDePartidos).distinct().sortedDescending()
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = listOf(LocalDate.now().year)
-    )
-
-    private val _fechaInicio = MutableStateFlow(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
-    val fechaInicio: StateFlow<Long> = _fechaInicio.asStateFlow()
-
-    private val _fechaFin = MutableStateFlow(System.currentTimeMillis())
-    val fechaFin: StateFlow<Long> = _fechaFin.asStateFlow()
-
-    private data class FiltroConfig(
-        val tipo: TipoFiltroPerfil,
-        val temporada: String,
-        val anio: Int,
-        val inicio: Long,
-        val fin: Long
-    )
-
-    private val filtroConfig: Flow<FiltroConfig> = combine(
-        filtroTipo,
-        temporadaSeleccionada,
-        anioSeleccionado,
-        fechaInicio,
-        fechaFin
-    ) { tipo, temporada, anio, inicio, fin ->
-        FiltroConfig(tipo, temporada, anio, inicio, fin)
-    }
-
-    // Partidos filtrados según el modo actual
-    val partidosFiltrados: StateFlow<List<Partido>> = combine(
-        todosPartidos,
-        filtroConfig
-    ) { partidos, config ->
-        when (config.tipo) {
-            TipoFiltroPerfil.TOTAL -> partidos
-            TipoFiltroPerfil.TEMPORADA -> {
-                val anioInicio = runCatching { config.temporada.split("/")[0].toInt() }.getOrDefault(2024)
-                val calInicio = Calendar.getInstance().apply {
-                    set(anioInicio, Calendar.SEPTEMBER, 1, 0, 0, 0)
-                }.timeInMillis
-                val calFin = Calendar.getInstance().apply {
-                    set(anioInicio + 1, Calendar.AUGUST, 31, 23, 59, 59)
-                }.timeInMillis
-                partidos.filter { it.fecha in calInicio..calFin }
-            }
-            TipoFiltroPerfil.ANIO_NATURAL -> {
-                val calInicio = Calendar.getInstance().apply {
-                    set(config.anio, Calendar.JANUARY, 1, 0, 0, 0)
-                }.timeInMillis
-                val calFin = Calendar.getInstance().apply {
-                    set(config.anio, Calendar.DECEMBER, 31, 23, 59, 59)
-                }.timeInMillis
-                partidos.filter { it.fecha in calInicio..calFin }
-            }
-            TipoFiltroPerfil.FECHA_PERSONALIZADA -> {
-                partidos.filter { it.fecha in config.inicio..config.fin }
-            }
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    fun setFiltroTipo(tipo: TipoFiltroPerfil) {
-        _filtroTipo.value = tipo
-    }
-
-    fun setAnio(anio: Int) {
-        _anioSeleccionado.value = anio
-    }
-
-    fun setTemporada(temporada: String) {
-        _temporadaSeleccionada.value = temporada
-    }
-
-    fun setRangoFechas(inicio: Long, fin: Long) {
-        _fechaInicio.value = inicio
-        _fechaFin.value = fin
-    }
 
     fun guardarPerfil(nuevoPerfil: Perfil) {
         viewModelScope.launch {
@@ -183,24 +63,69 @@ class PerfilViewModel @Inject constructor(
         }
     }
 
-    private fun calcularTemporadaActual(): String {
-        val now = LocalDate.now()
-        val year = now.year
-        return if (now.monthValue >= 9) {
-            "$year/${year + 1}"
-        } else {
-            "${year - 1}/$year"
-        }
-    }
+    suspend fun exportarDatosJson(): String {
+        val p = perfil.first()
+        val jugadores = jugadorRepository.obtenerJugadores().first()
+        val partidos = partidoRepository.obtenerPartidos().first()
 
-    private fun obtenerTemporada(fechaMillis: Long): String {
-        val cal = Calendar.getInstance().apply { timeInMillis = fechaMillis }
-        val year = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH)
-        return if (month >= Calendar.SEPTEMBER) {
-            "$year/${year + 1}"
-        } else {
-            "${year - 1}/$year"
+        val root = JSONObject()
+        root.put("version", 1)
+        root.put("app", "FutTracker")
+        root.put("fechaExportacion", System.currentTimeMillis())
+
+        val perfilObj = JSONObject().apply {
+            put("nombre", p.nombre)
+            put("posicionFavorita", p.posicionFavorita.name)
+            put("posiciones", JSONArray(p.posiciones.map { it.name }))
+            put("nivel", p.nivel)
+            put("sincronizadoConJugadores", p.sincronizadoConJugadores)
         }
+        root.put("perfil", perfilObj)
+
+        val jugadoresArr = JSONArray()
+        jugadores.forEach { j ->
+            val jObj = JSONObject().apply {
+                put("id", j.id)
+                put("nombre", j.nombre)
+                put("nivel", j.nivel)
+                put("esFavorito", j.esFavorito)
+                put("esUsuarioPropio", j.esUsuarioPropio)
+                put("posicionesPrimarias", JSONArray(j.posicionesPrimarias.map { it.name }))
+                put("posicionesSecundarias", JSONArray(j.posicionesSecundarias.map { it.name }))
+            }
+            jugadoresArr.put(jObj)
+        }
+        root.put("jugadores", jugadoresArr)
+
+        val partidosArr = JSONArray()
+        partidos.forEach { part ->
+            val pObj = JSONObject().apply {
+                put("id", part.id)
+                put("fecha", part.fecha)
+                put("modoJuego", part.modoJuego.name)
+                put("golesAFavor", part.golesAFavor)
+                put("golesEnContra", part.golesEnContra)
+                put("posicionJugada", part.posicionJugada.name)
+                put("posicionesJugadas", JSONArray(part.posicionesJugadas.map { it.name }))
+                put("goles", part.goles)
+                put("asistencias", part.asistencias)
+                put("tirosAlPalo", part.tirosAlPalo)
+                put("golesFueraArea", part.golesFueraArea)
+                put("notas", part.notas)
+                put("golesZurda", part.golesZurda)
+                put("golesDiestra", part.golesDiestra)
+                put("golesCabeza", part.golesCabeza)
+                put("golesOtro", part.golesOtro)
+                put("golesChilena", part.golesChilena)
+                put("golesTacon", part.golesTacon)
+                put("jugadoresMiEquipo", JSONArray(part.jugadoresMiEquipo))
+                put("jugadoresEquipoRival", JSONArray(part.jugadoresEquipoRival))
+                put("jugadoresIds", JSONArray(part.jugadoresIds))
+            }
+            partidosArr.put(pObj)
+        }
+        root.put("partidos", partidosArr)
+
+        return root.toString(2)
     }
 }

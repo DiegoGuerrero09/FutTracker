@@ -1,21 +1,23 @@
 package com.diegoguerrero.futtracker.ui.screens.perfil
 
-import android.app.DatePickerDialog
+import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,18 +30,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Perfil
 import com.diegoguerrero.futtracker.domain.model.Posicion
-import com.diegoguerrero.futtracker.ui.components.GraficoGolesAsistencias
-import com.diegoguerrero.futtracker.ui.components.GraficoResultados
-import com.diegoguerrero.futtracker.ui.components.GraficoResumenGoles
-import com.diegoguerrero.futtracker.ui.screens.jugadores.obtenerIniciales
-import com.diegoguerrero.futtracker.ui.theme.*
+import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
+import com.diegoguerrero.futtracker.ui.theme.DarkBackground
+import com.diegoguerrero.futtracker.ui.theme.DarkCard
+import com.diegoguerrero.futtracker.ui.theme.LimeVolt
+import com.diegoguerrero.futtracker.ui.theme.TextSecondary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -47,50 +48,56 @@ import java.util.*
 @Composable
 fun PerfilScreen(
     perfil: Perfil,
-    partidosFiltrados: List<Partido>,
-    filtroTipo: TipoFiltroPerfil,
-    temporadaSeleccionada: String,
-    anioSeleccionado: Int,
-    fechaInicio: Long,
-    fechaFin: Long,
-    temporadasDisponibles: List<String> = emptyList(),
-    aniosDisponibles: List<Int> = emptyList(),
     onGuardarPerfil: (Perfil) -> Unit,
-    onCambiarFiltro: (TipoFiltroPerfil) -> Unit,
-    onCambiarTemporada: (String) -> Unit,
-    onCambiarAnio: (Int) -> Unit,
-    onCambiarRangoFechas: (Long, Long) -> Unit
+    onExportarDatos: suspend () -> String
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var mostrarDialogoEditar by remember { mutableStateOf(false) }
+    var uriParaRecortar by remember { mutableStateOf<Uri?>(null) }
+    var exportando by remember { mutableStateOf(false) }
 
-    // Selector de foto desde galería
+    // Selector de foto desde galería -> pasa por recortador interactivo
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { selectedUri ->
-            runCatching {
-                val inputStream = context.contentResolver.openInputStream(selectedUri)
-                val profileDir = File(context.filesDir, "profile").apply { mkdirs() }
-                val targetFile = File(profileDir, "avatar_${System.currentTimeMillis()}.jpg")
-                val outputStream = FileOutputStream(targetFile)
-                inputStream?.copyTo(outputStream)
-                inputStream?.close()
-                outputStream.close()
+        uri?.let { uriParaRecortar = it }
+    }
 
-                onGuardarPerfil(perfil.copy(fotoUri = targetFile.absolutePath))
+    // Launcher para guardar archivo JSON con SAF
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    exportando = true
+                    val json = onExportarDatos()
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(json.toByteArray(Charsets.UTF_8))
+                        }
+                    }
+                    Toast.makeText(context, "Copia de seguridad guardada con éxito", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error al guardar el archivo: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    exportando = false
+                }
             }
         }
     }
 
-    val totalPartidos = partidosFiltrados.size
-    val totalGoles = partidosFiltrados.sumOf { it.goles }
-    val totalAsistencias = partidosFiltrados.sumOf { it.asistencias }
-    val promedioGoles = if (totalPartidos > 0) {
-        String.format(Locale.getDefault(), "%.2f", totalGoles.toFloat() / totalPartidos)
-    } else "0.0"
-
-    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    if (uriParaRecortar != null) {
+        DialogoRecorteFoto(
+            uriOriginal = uriParaRecortar!!,
+            onFotoRecortada = { pathGuardado ->
+                onGuardarPerfil(perfil.copy(fotoUri = pathGuardado))
+                uriParaRecortar = null
+            },
+            onDismiss = { uriParaRecortar = null }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -106,7 +113,8 @@ fun PerfilScreen(
                     }
                 }
             )
-        }
+        },
+        containerColor = DarkBackground
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -115,7 +123,7 @@ fun PerfilScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Tarjeta de perfil con foto
+            // Tarjeta de información principal
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -125,7 +133,7 @@ fun PerfilScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(18.dp),
+                            .padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(contentAlignment = Alignment.BottomEnd) {
@@ -141,14 +149,14 @@ fun PerfilScreen(
                                     bitmap = bitmap,
                                     contentDescription = "Foto de perfil",
                                     modifier = Modifier
-                                        .size(90.dp)
+                                        .size(96.dp)
                                         .clip(CircleShape),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Box(
                                     modifier = Modifier
-                                        .size(90.dp)
+                                        .size(96.dp)
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.primary),
                                     contentAlignment = Alignment.Center
@@ -164,26 +172,26 @@ fun PerfilScreen(
 
                             FilledIconButton(
                                 onClick = { photoPickerLauncher.launch("image/*") },
-                                modifier = Modifier.size(30.dp),
+                                modifier = Modifier.size(32.dp),
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = LimeVolt,
                                     contentColor = Color.Black
                                 )
                             ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = "Cambiar foto", modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.CameraAlt, contentDescription = "Cambiar foto", modifier = Modifier.size(17.dp))
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
                             text = perfil.nombre,
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         val posicionesPerfil = perfil.posiciones.ifEmpty { setOf(perfil.posicionFavorita) }
                         Row(
@@ -200,17 +208,25 @@ fun PerfilScreen(
                                         color = LimeVolt,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Nivel: " + "★".repeat(perfil.nivel) + "☆".repeat(5 - perfil.nivel),
+                            color = LimeVolt,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
 
                         if (perfil.sincronizadoConJugadores) {
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "✓ Añadido como jugador en plantilla",
+                                text = "✓ Sincronizado en la plantilla de jugadores",
                                 color = TextSecondary,
                                 fontSize = 12.sp
                             )
@@ -219,161 +235,82 @@ fun PerfilScreen(
                 }
             }
 
-            // Selector de filtro de estadísticas
+            // Módulo de Exportación y Copia de Seguridad
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Filtrar estadísticas:",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp)
                     ) {
-                        listOf(
-                            TipoFiltroPerfil.TOTAL to "Total",
-                            TipoFiltroPerfil.TEMPORADA to "Temporada",
-                            TipoFiltroPerfil.ANIO_NATURAL to "Año",
-                            TipoFiltroPerfil.FECHA_PERSONALIZADA to "Por fecha"
-                        ).forEach { (tipo, label) ->
-                            FilterChip(
-                                selected = filtroTipo == tipo,
-                                onClick = { onCambiarFiltro(tipo) },
-                                label = {
-                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = label,
-                                            fontSize = 11.sp,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1
-                                        )
+                        Text(
+                            text = "Copia de seguridad y exportación",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Exporta todos tus datos (perfil, jugadores, partidos y estadísticas) a un archivo JSON para conservarlos o restaurarlos en otro dispositivo.",
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val fechaFormato = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
+                                    val fileName = "futtracker_backup_$fechaFormato.json"
+                                    createDocumentLauncher.launch(fileName)
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = LimeVolt, contentColor = Color.Black),
+                                enabled = !exportando
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Guardar", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            exportando = true
+                                            val json = onExportarDatos()
+                                            val sendIntent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, json)
+                                                type = "application/json"
+                                            }
+                                            val shareIntent = Intent.createChooser(sendIntent, "Exportar datos FutTracker")
+                                            context.startActivity(shareIntent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error al compartir: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            exportando = false
+                                        }
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
-                    // Sub-filtros dinámicos
-                    when (filtroTipo) {
-                        TipoFiltroPerfil.TOTAL -> {}
-                        TipoFiltroPerfil.TEMPORADA -> {
-                            val listaTemporadas = temporadasDisponibles.ifEmpty { listOf(temporadaSeleccionada) }
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(listaTemporadas) { temp ->
-                                    FilterChip(
-                                        selected = temporadaSeleccionada == temp,
-                                        onClick = { onCambiarTemporada(temp) },
-                                        label = { Text(temp) }
-                                    )
-                                }
-                            }
-                        }
-                        TipoFiltroPerfil.ANIO_NATURAL -> {
-                            val listaAnios = aniosDisponibles.ifEmpty { listOf(anioSeleccionado) }
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(listaAnios) { anio ->
-                                    FilterChip(
-                                        selected = anioSeleccionado == anio,
-                                        onClick = { onCambiarAnio(anio) },
-                                        label = { Text("$anio") }
-                                    )
-                                }
-                            }
-                        }
-                        TipoFiltroPerfil.FECHA_PERSONALIZADA -> {
-                            val cal = Calendar.getInstance()
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.weight(1f),
+                                enabled = !exportando
                             ) {
-                                Button(
-                                    onClick = {
-                                        cal.timeInMillis = fechaInicio
-                                        DatePickerDialog(
-                                            context,
-                                            { _, y, m, d ->
-                                                val c = Calendar.getInstance().apply { set(y, m, d, 0, 0, 0) }
-                                                onCambiarRangoFechas(c.timeInMillis, fechaFin)
-                                            },
-                                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-                                        ).show()
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = DarkCard)
-                                ) {
-                                    Text("Desde: ${sdf.format(Date(fechaInicio))}", fontSize = 11.sp, color = Color.White)
-                                }
-
-                                Button(
-                                    onClick = {
-                                        cal.timeInMillis = fechaFin
-                                        DatePickerDialog(
-                                            context,
-                                            { _, y, m, d ->
-                                                val c = Calendar.getInstance().apply { set(y, m, d, 23, 59, 59) }
-                                                onCambiarRangoFechas(fechaInicio, c.timeInMillis)
-                                            },
-                                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-                                        ).show()
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = DarkCard)
-                                ) {
-                                    Text("Hasta: ${sdf.format(Date(fechaFin))}", fontSize = 11.sp, color = Color.White)
-                                }
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Compartir", color = Color.White, fontSize = 12.sp)
                             }
                         }
                     }
                 }
-            }
-
-            // Métricas numéricas
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    MetricaCard(
-                        titulo = "Partidos",
-                        valor = "$totalPartidos",
-                        subtitulo = "Jugados",
-                        color = LimeVolt,
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricaCard(
-                        titulo = "Goles",
-                        valor = "$totalGoles",
-                        subtitulo = "$promedioGoles / partido",
-                        color = Color(0xFF4CAF50),
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricaCard(
-                        titulo = "Asistencias",
-                        valor = "$totalAsistencias",
-                        subtitulo = "Totales",
-                        color = Color(0xFF29B6F6),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // Gráfica de Goles y Asistencias
-            item {
-                GraficoGolesAsistencias(partidos = partidosFiltrados)
-            }
-
-            // Gráfica de Balance de Resultados
-            item {
-                GraficoResultados(partidos = partidosFiltrados)
-            }
-
-            // Gráfica de Resumen de Goles
-            item {
-                GraficoResumenGoles(partidos = partidosFiltrados)
             }
         }
     }
@@ -390,52 +327,6 @@ fun PerfilScreen(
     }
 }
 
-@Composable
-private fun MetricaCard(
-    titulo: String,
-    valor: String,
-    subtitulo: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.height(96.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = titulo,
-                fontSize = 11.sp,
-                color = TextSecondary,
-                textAlign = TextAlign.Center,
-                maxLines = 1
-            )
-            Text(
-                text = valor,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = color,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = subtitulo,
-                fontSize = 10.sp,
-                color = TextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DialogoEditarPerfil(
@@ -448,83 +339,89 @@ private fun DialogoEditarPerfil(
         mutableStateOf(perfilActual.posiciones.ifEmpty { setOf(perfilActual.posicionFavorita) })
     }
     var nivel by remember { mutableStateOf(perfilActual.nivel) }
+    var posicionFavorita by remember { mutableStateOf(perfilActual.posicionFavorita) }
     var sincronizado by remember { mutableStateOf(perfilActual.sincronizadoConJugadores) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar perfil", fontWeight = FontWeight.Bold) },
+        title = { Text("Editar perfil") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Mi nombre / Apodo") },
+                    label = { Text("Nombre") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Column {
-                    Text("Mis posiciones habituales", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(Posicion.entries.toTypedArray()) { pos ->
-                            val isSelected = pos in posiciones
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    posiciones = if (isSelected) {
-                                        if (posiciones.size > 1) posiciones - pos else posiciones
-                                    } else {
-                                        posiciones + pos
-                                    }
-                                },
-                                label = { Text(pos.name, fontSize = 11.sp) }
-                            )
+                Text("Posiciones:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Posicion.entries.chunked(3).forEach { fila ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            fila.forEach { pos ->
+                                val isSelected = pos in posiciones
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        posiciones = if (isSelected) {
+                                            if (posiciones.size > 1) posiciones - pos else posiciones
+                                        } else {
+                                            posiciones + pos
+                                        }
+                                        if (posicionFavorita !in posiciones) {
+                                            posicionFavorita = posiciones.first()
+                                        }
+                                    },
+                                    label = { Text(pos.name, fontSize = 11.sp) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
 
-                Column {
-                    Text("Nivel como jugador (1 al 5)", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        (1..5).forEach { lvl ->
-                            FilterChip(
-                                selected = nivel == lvl,
-                                onClick = { nivel = lvl },
-                                label = {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("★ $lvl", fontSize = 12.sp, textAlign = TextAlign.Center)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                Text("Posición predilecta:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    posiciones.forEach { pos ->
+                        FilterChip(
+                            selected = posicionFavorita == pos,
+                            onClick = { posicionFavorita = pos },
+                            label = { Text(pos.name, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                Text("Nivel (1 a 5 estrellas):", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    (1..5).forEach { lvl ->
+                        FilterChip(
+                            selected = nivel == lvl,
+                            onClick = { nivel = lvl },
+                            label = { Text("★ $lvl", fontSize = 11.sp) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { sincronizado = !sincronizado },
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
+                    Text("Sincronizar en plantilla", fontSize = 13.sp)
+                    Switch(
                         checked = sincronizado,
-                        onCheckedChange = { sincronizado = it },
-                        colors = CheckboxDefaults.colors(checkedColor = LimeVolt, checkmarkColor = Color.Black)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Añadir / sincronizar mi usuario en la plantilla de jugadores",
-                        fontSize = 13.sp,
-                        color = Color.White
+                        onCheckedChange = { sincronizado = it }
                     )
                 }
             }
@@ -532,21 +429,19 @@ private fun DialogoEditarPerfil(
         confirmButton = {
             Button(
                 onClick = {
-                    if (nombre.isNotBlank() && posiciones.isNotEmpty()) {
-                        onGuardar(
-                            perfilActual.copy(
-                                nombre = nombre.trim(),
-                                posiciones = posiciones,
-                                posicionFavorita = posiciones.first(),
-                                nivel = nivel,
-                                sincronizadoConJugadores = sincronizado
-                            )
+                    onGuardar(
+                        perfilActual.copy(
+                            nombre = nombre.trim(),
+                            posicionFavorita = posicionFavorita,
+                            posiciones = posiciones,
+                            nivel = nivel,
+                            sincronizadoConJugadores = sincronizado
                         )
-                    }
+                    )
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = LimeVolt, contentColor = Color.Black)
+                enabled = nombre.isNotBlank() && posiciones.isNotEmpty()
             ) {
-                Text("Guardar", fontWeight = FontWeight.Bold)
+                Text("Guardar")
             }
         },
         dismissButton = {
@@ -555,4 +450,13 @@ private fun DialogoEditarPerfil(
             }
         }
     )
+}
+
+private fun obtenerIniciales(nombre: String): String {
+    val partes = nombre.trim().split("\\s+".toRegex())
+    return when {
+        partes.isEmpty() -> "??"
+        partes.size == 1 -> partes[0].take(2).uppercase()
+        else -> "${partes[0].take(1)}${partes[1].take(1)}".uppercase()
+    }
 }

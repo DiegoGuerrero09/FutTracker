@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
     private val jugadoresViewModel: JugadoresViewModel by viewModels()
     private val partidosViewModel: PartidosViewModel by viewModels()
     private val perfilViewModel: PerfilViewModel by viewModels()
+    private val enfrentamientosViewModel: com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +49,8 @@ class MainActivity : ComponentActivity() {
                         MainAppLayout(
                             jugadoresViewModel = jugadoresViewModel,
                             partidosViewModel = partidosViewModel,
-                            perfilViewModel = perfilViewModel
+                            perfilViewModel = perfilViewModel,
+                            enfrentamientosViewModel = enfrentamientosViewModel
                         )
                     }
                 }
@@ -61,7 +63,8 @@ class MainActivity : ComponentActivity() {
 fun MainAppLayout(
     jugadoresViewModel: JugadoresViewModel,
     partidosViewModel: PartidosViewModel,
-    perfilViewModel: PerfilViewModel
+    perfilViewModel: PerfilViewModel,
+    enfrentamientosViewModel: com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosViewModel
 ) {
     val navController = rememberNavController()
     val jugadores by jugadoresViewModel.jugadores.collectAsStateWithLifecycle()
@@ -108,32 +111,20 @@ fun MainAppLayout(
                     onEliminarPartido = { partidosViewModel.eliminarPartido(it) }
                 )
             }
+            composable(Screen.Estadisticas.route) {
+                com.diegoguerrero.futtracker.ui.screens.estadisticas.EstadisticasScreen()
+            }
+            composable(Screen.Enfrentamientos.route) {
+                com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosScreen(
+                    viewModel = enfrentamientosViewModel
+                )
+            }
             composable(Screen.Perfil.route) {
                 val perfil by perfilViewModel.perfil.collectAsStateWithLifecycle()
-                val partidosFiltrados by perfilViewModel.partidosFiltrados.collectAsStateWithLifecycle()
-                val filtroTipo by perfilViewModel.filtroTipo.collectAsStateWithLifecycle()
-                val temporada by perfilViewModel.temporadaSeleccionada.collectAsStateWithLifecycle()
-                val anio by perfilViewModel.anioSeleccionado.collectAsStateWithLifecycle()
-                val fechaInicio by perfilViewModel.fechaInicio.collectAsStateWithLifecycle()
-                val fechaFin by perfilViewModel.fechaFin.collectAsStateWithLifecycle()
-                val temporadasConDatos by perfilViewModel.temporadasConDatos.collectAsStateWithLifecycle()
-                val aniosConDatos by perfilViewModel.aniosConDatos.collectAsStateWithLifecycle()
-
                 PerfilScreen(
                     perfil = perfil,
-                    partidosFiltrados = partidosFiltrados,
-                    filtroTipo = filtroTipo,
-                    temporadaSeleccionada = temporada,
-                    anioSeleccionado = anio,
-                    fechaInicio = fechaInicio,
-                    fechaFin = fechaFin,
-                    temporadasDisponibles = temporadasConDatos,
-                    aniosDisponibles = aniosConDatos,
                     onGuardarPerfil = { perfilViewModel.guardarPerfil(it) },
-                    onCambiarFiltro = { perfilViewModel.setFiltroTipo(it) },
-                    onCambiarTemporada = { perfilViewModel.setTemporada(it) },
-                    onCambiarAnio = { perfilViewModel.setAnio(it) },
-                    onCambiarRangoFechas = { inicio, fin -> perfilViewModel.setRangoFechas(inicio, fin) }
+                    onExportarDatos = { perfilViewModel.exportarDatosJson() }
                 )
             }
         }

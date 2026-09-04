@@ -35,7 +35,8 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_1_2,
                 AppDatabase.MIGRATION_2_3,
                 AppDatabase.MIGRATION_3_4,
-                AppDatabase.MIGRATION_4_5
+                AppDatabase.MIGRATION_4_5,
+                AppDatabase.MIGRATION_5_6
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -75,5 +76,19 @@ object DatabaseModule {
     @Singleton
     fun providePerfilRepository(perfilDao: PerfilDao): PerfilRepository {
         return PerfilRepositoryImpl(perfilDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEnfrentamientosDao(database: AppDatabase): com.diegoguerrero.futtracker.data.local.dao.EnfrentamientosDao {
+        return database.enfrentamientosDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideEnfrentamientosRepository(
+        enfrentamientosDao: com.diegoguerrero.futtracker.data.local.dao.EnfrentamientosDao
+    ): com.diegoguerrero.futtracker.domain.repository.EnfrentamientosRepository {
+        return com.diegoguerrero.futtracker.data.repository.EnfrentamientosRepositoryImpl(enfrentamientosDao)
     }
 }
