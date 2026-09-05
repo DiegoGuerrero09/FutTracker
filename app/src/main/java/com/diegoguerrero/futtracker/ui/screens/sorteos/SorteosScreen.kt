@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.RectF
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -203,6 +204,16 @@ fun SorteosScreen(
         }
     }
 
+    fun volverASugeridaClaro() {
+        val f = useCase.sugerirMejorFormacion(equipoClaro, formacionesModalidad)
+        cambiarFormacionClaro(f)
+    }
+
+    fun volverASugeridaOscuro() {
+        val f = useCase.sugerirMejorFormacion(equipoOscuro, formacionesModalidad)
+        cambiarFormacionOscuro(f)
+    }
+
     fun compartirAlineacionesPNG() {
         if (!sorteoRealizado || formacionSugeridaClaro == null || formacionSugeridaOscuro == null) return
 
@@ -244,8 +255,15 @@ fun SorteosScreen(
                 style = Paint.Style.FILL
             }
 
-            val cardBorderPaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#222634")
+            val cardBorderClaroPaint = Paint().apply {
+                color = android.graphics.Color.WHITE
+                style = Paint.Style.STROKE
+                strokeWidth = 3f
+                isAntiAlias = true
+            }
+
+            val cardBorderOscuroPaint = Paint().apply {
+                color = android.graphics.Color.BLACK
                 style = Paint.Style.STROKE
                 strokeWidth = 3f
                 isAntiAlias = true
@@ -263,7 +281,7 @@ fun SorteosScreen(
                 isAntiAlias = true
             }
 
-            fun dibujarMiniCampo(rect: RectF, formacion: Formacion, asignaciones: List<Pair<Posicion, Jugador>>, colorFicha: Int, colorTextoFicha: Int) {
+            fun dibujarMiniCampo(rect: RectF, mapaCampo: Map<Pair<Posicion, Pair<Float, Float>>, Jugador?>, colorFicha: Int, colorTextoFicha: Int) {
                 val fieldPaint = Paint().apply {
                     color = android.graphics.Color.parseColor("#10251B")
                     style = Paint.Style.FILL
@@ -280,7 +298,6 @@ fun SorteosScreen(
                 canvas.drawLine(rect.left, rect.centerY(), rect.right, rect.centerY(), borderLinePaint)
                 canvas.drawCircle(rect.centerX(), rect.centerY(), rect.width() * 0.16f, borderLinePaint)
 
-                val coords = obtenerCoordenadas(formacion)
                 val dotPaint = Paint().apply {
                     color = colorFicha
                     style = Paint.Style.FILL
@@ -301,12 +318,9 @@ fun SorteosScreen(
                     isAntiAlias = true
                 }
 
-                val asignadosIds = mutableSetOf<String>()
-                coords.forEach { (posReq, coordPair) ->
-                    val asig = asignaciones.firstOrNull { it.first == posReq && it.second.id !in asignadosIds }
-                    val jug = asig?.second
-                    jug?.let { asignadosIds.add(it.id) }
-
+                mapaCampo.forEach { (posConCoord, jug) ->
+                    val posReq = posConCoord.first
+                    val coordPair = posConCoord.second
                     val cx = rect.left + coordPair.first * rect.width()
                     val cy = rect.top + coordPair.second * rect.height()
 
@@ -346,6 +360,20 @@ fun SorteosScreen(
                             color = colorFicha
                         }
                         canvas.drawCircle(cx, cy, 22f, strokePaint)
+
+                        val badgeBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = colorFicha
+                            style = Paint.Style.FILL
+                        }
+                        val badgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = colorTextoFicha
+                            textSize = 9.5f
+                            isFakeBoldText = true
+                            textAlign = Paint.Align.CENTER
+                        }
+                        val badgeRect = RectF(cx + 4f, cy + 4f, cx + 27f, cy + 20f)
+                        canvas.drawRoundRect(badgeRect, 3f, 3f, badgeBgPaint)
+                        canvas.drawText(posReq.name, badgeRect.centerX(), badgeRect.centerY() + 3.5f, badgeTextPaint)
                     } else {
                         canvas.drawCircle(cx, cy, 20f, dotPaint)
                         canvas.drawText(posReq.name, cx, cy + 6f, labelPaint)
@@ -353,10 +381,11 @@ fun SorteosScreen(
 
                     if (jug != null) {
                         val originalTextSize = namePaint.textSize
-                        if (jug.nombre.length > 9) {
+                        val nombreMostrado = jug.nombreConTu()
+                        if (nombreMostrado.length > 9) {
                             namePaint.textSize = 11f
                         }
-                        canvas.drawText(jug.nombre, cx, cy + 39f, namePaint)
+                        canvas.drawText(nombreMostrado, cx, cy + 39f, namePaint)
                         namePaint.textSize = originalTextSize
                     }
                 }
@@ -365,41 +394,49 @@ fun SorteosScreen(
             // --- Tarjeta Equipo Claro ---
             val rectClaro = RectF(40f, 195f, width - 40f, 985f)
             canvas.drawRoundRect(rectClaro, 20f, 20f, cardPaint)
-            canvas.drawRoundRect(rectClaro, 20f, 20f, cardBorderPaint)
+            canvas.drawRoundRect(rectClaro, 20f, 20f, cardBorderClaroPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#D4FF00")
             canvas.drawText("⚪ Equipo claro  (Alineación: ${formacionSugeridaClaro?.nombre})", 70f, 255f, sectionTitlePaint)
 
+            val listaClaro = mapaCampoClaro?.entries
+                ?.sortedBy { it.key.second.second }
+                ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro else equipoClaro.map { Posicion.DC to it })
+
             var yClaro = 320f
-            val listaClaro = if (asignacionesClaro.isNotEmpty()) asignacionesClaro else equipoClaro.map { Posicion.DC to it }
-            listaClaro.forEachIndexed { i, (_, j) ->
-                canvas.drawText("${i + 1}. ${j.nombre}", 70f, yClaro, playerTextPaint)
+            listaClaro.forEachIndexed { i, (pos, j) ->
+                canvas.drawText("${i + 1}. [${pos.name}] ${j.nombreConTu()}", 70f, yClaro, playerTextPaint)
                 yClaro += 55f
             }
 
-            formacionSugeridaClaro?.let { f ->
+            mapaCampoClaro?.let { mapa ->
                 val rectPitchClaro = RectF(540f, 290f, width - 65f, 955f)
-                dibujarMiniCampo(rectPitchClaro, f, listaClaro, android.graphics.Color.parseColor("#D4FF00"), android.graphics.Color.BLACK)
+                dibujarMiniCampo(rectPitchClaro, mapa, android.graphics.Color.WHITE, android.graphics.Color.BLACK)
             }
 
             // --- Tarjeta Equipo Oscuro ---
             val rectOscuro = RectF(40f, 1015f, width - 40f, 1805f)
             canvas.drawRoundRect(rectOscuro, 20f, 20f, cardPaint)
-            canvas.drawRoundRect(rectOscuro, 20f, 20f, cardBorderPaint)
+            canvas.drawRoundRect(rectOscuro, 20f, 20f, cardBorderOscuroPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#80D8FF")
             canvas.drawText("⚫ Equipo oscuro  (Alineación: ${formacionSugeridaOscuro?.nombre})", 70f, 1075f, sectionTitlePaint)
 
+            val listaOscuro = mapaCampoOscuro?.entries
+                ?.sortedBy { it.key.second.second }
+                ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro else equipoOscuro.map { Posicion.DC to it })
+
             var yOscuro = 1140f
-            val listaOscuro = if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro else equipoOscuro.map { Posicion.DC to it }
-            listaOscuro.forEachIndexed { i, (_, j) ->
-                canvas.drawText("${i + 1}. ${j.nombre}", 70f, yOscuro, playerTextPaint)
+            listaOscuro.forEachIndexed { i, (pos, j) ->
+                canvas.drawText("${i + 1}. [${pos.name}] ${j.nombreConTu()}", 70f, yOscuro, playerTextPaint)
                 yOscuro += 55f
             }
 
-            formacionSugeridaOscuro?.let { f ->
+            mapaCampoOscuro?.let { mapa ->
                 val rectPitchOscuro = RectF(540f, 1110f, width - 65f, 1775f)
-                dibujarMiniCampo(rectPitchOscuro, f, listaOscuro, android.graphics.Color.WHITE, android.graphics.Color.BLACK)
+                dibujarMiniCampo(rectPitchOscuro, mapa, android.graphics.Color.BLACK, android.graphics.Color.WHITE)
             }
 
             // Pie
@@ -424,13 +461,13 @@ fun SorteosScreen(
                 appendLine("Modalidad: $modalidadNombre")
                 appendLine()
                 appendLine("⚪ *EQUIPO CLARO* (${formacionSugeridaClaro?.nombre})")
-                listaClaro.forEach { (_, j) ->
-                    appendLine("• ${j.nombre}")
+                listaClaro.forEach { (pos, j) ->
+                    appendLine("• [${pos.name}] ${j.nombreConTu()}")
                 }
                 appendLine()
                 appendLine("⚫ *EQUIPO OSCURO* (${formacionSugeridaOscuro?.nombre})")
-                listaOscuro.forEach { (_, j) ->
-                    appendLine("• ${j.nombre}")
+                listaOscuro.forEach { (pos, j) ->
+                    appendLine("• [${pos.name}] ${j.nombreConTu()}")
                 }
             }
 
@@ -758,7 +795,8 @@ fun SorteosScreen(
                     ) {
                         Card(
                             modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE))
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE)),
+                            border = BorderStroke(1.5.dp, Color.White)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text("⚪ Equipo claro", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 13.sp)
@@ -766,15 +804,36 @@ fun SorteosScreen(
                                     Text("Formación: ${formacionSugeridaClaro?.nombre}", fontSize = 11.sp, color = Color.DarkGray)
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                equipoClaro.forEachIndexed { index, jugador ->
-                                    Text("${index + 1}. ${jugador.nombre}", fontSize = 12.sp, color = Color.DarkGray)
+                                val listaMostradaClaro = mapaCampoClaro?.entries
+                                    ?.sortedBy { it.key.second.second }
+                                    ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                                    ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro else equipoClaro.map { Posicion.DC to it })
+
+                                listaMostradaClaro.forEachIndexed { index, (pos, jugador) ->
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 1.5.dp)) {
+                                        Surface(
+                                            color = Color.Black.copy(alpha = 0.12f),
+                                            shape = RoundedCornerShape(3.dp),
+                                            modifier = Modifier.padding(end = 5.dp)
+                                        ) {
+                                            Text(
+                                                text = pos.name,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color.Black,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                        Text("${index + 1}. ${jugador.nombreConTu()}", fontSize = 12.sp, color = Color.DarkGray)
+                                    }
                                 }
                             }
                         }
 
                         Card(
                             modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2C3430))
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2C3430)),
+                            border = BorderStroke(1.5.dp, Color.Black)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text("⚫ Equipo oscuro", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
@@ -782,8 +841,28 @@ fun SorteosScreen(
                                     Text("Formación: ${formacionSugeridaOscuro?.nombre}", fontSize = 11.sp, color = LimeVolt)
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                equipoOscuro.forEachIndexed { index, jugador ->
-                                    Text("${index + 1}. ${jugador.nombre}", fontSize = 12.sp, color = Color.LightGray)
+                                val listaMostradaOscuro = mapaCampoOscuro?.entries
+                                    ?.sortedBy { it.key.second.second }
+                                    ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                                    ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro else equipoOscuro.map { Posicion.DC to it })
+
+                                listaMostradaOscuro.forEachIndexed { index, (pos, jugador) ->
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 1.5.dp)) {
+                                        Surface(
+                                            color = LimeVolt.copy(alpha = 0.2f),
+                                            shape = RoundedCornerShape(3.dp),
+                                            modifier = Modifier.padding(end = 5.dp)
+                                        ) {
+                                            Text(
+                                                text = pos.name,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = LimeVolt,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                        Text("${index + 1}. ${jugador.nombreConTu()}", fontSize = 12.sp, color = Color.LightGray)
+                                    }
                                 }
                             }
                         }
@@ -850,9 +929,28 @@ fun SorteosScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 val formacionActual = if (tabEquipoAlineacion == 0) formacionSugeridaClaro else formacionSugeridaOscuro
-                                items(formacionesModalidad) { f ->
+                                val fSugerida = if (tabEquipoAlineacion == 0) useCase.sugerirMejorFormacion(equipoClaro, formacionesModalidad) else useCase.sugerirMejorFormacion(equipoOscuro, formacionesModalidad)
+                                val esSugeridaSeleccionada = formacionActual?.id == fSugerida.id
+
+                                item {
                                     FilterChip(
-                                        selected = formacionActual?.id == f.id,
+                                        selected = esSugeridaSeleccionada,
+                                        onClick = {
+                                            if (tabEquipoAlineacion == 0) {
+                                                volverASugeridaClaro()
+                                            } else {
+                                                volverASugeridaOscuro()
+                                            }
+                                        },
+                                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = esSugeridaSeleccionada, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
+                                        label = { Text("⭐ Sugerida", fontSize = 11.sp) }
+                                    )
+                                }
+
+                                items(formacionesModalidad) { f ->
+                                    val sel = formacionActual?.id == f.id && !esSugeridaSeleccionada
+                                    FilterChip(
+                                        selected = sel,
                                         onClick = {
                                             if (tabEquipoAlineacion == 0) {
                                                 cambiarFormacionClaro(f)
@@ -860,6 +958,7 @@ fun SorteosScreen(
                                                 cambiarFormacionOscuro(f)
                                             }
                                         },
+                                        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
                                         label = { Text(f.nombre, fontSize = 11.sp) }
                                     )
                                 }
@@ -872,6 +971,7 @@ fun SorteosScreen(
                         mapaActual?.let { mapa ->
                             CampoFutbol(
                                 alineacion = mapa,
+                                colorBordeFicha = if (tabEquipoAlineacion == 0) Color.White else Color.Black,
                                 modifier = Modifier.fillMaxWidth(),
                                 onJugadorIntercambiado = { pos1, pos2 ->
                                     if (tabEquipoAlineacion == 0) {

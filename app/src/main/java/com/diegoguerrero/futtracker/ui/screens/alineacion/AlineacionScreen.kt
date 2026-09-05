@@ -1,5 +1,6 @@
 package com.diegoguerrero.futtracker.ui.screens.alineacion
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -137,25 +138,33 @@ fun AlineacionScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+        Text("Seleccione la modalidad:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(6.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterChip(
-                selected = tipoFutbol == TipoFutbol.FUTSAL,
-                onClick = { tipoFutbol = TipoFutbol.FUTSAL },
-                label = { Text("Futsal", fontSize = 12.sp) }
-            )
-            FilterChip(
-                selected = tipoFutbol == TipoFutbol.FUT_6,
-                onClick = { tipoFutbol = TipoFutbol.FUT_6 },
-                label = { Text("Fútbol 6", fontSize = 12.sp) }
-            )
-            FilterChip(
-                selected = tipoFutbol == TipoFutbol.FUT_7,
-                onClick = { tipoFutbol = TipoFutbol.FUT_7 },
-                label = { Text("Fútbol 7", fontSize = 12.sp) }
-            )
+            listOf(
+                TipoFutbol.FUTSAL to "Futsal",
+                TipoFutbol.FUT_6 to "Fútbol 6",
+                TipoFutbol.FUT_7 to "Fútbol 7"
+            ).forEach { (tipo, label) ->
+                FilterChip(
+                    selected = tipoFutbol == tipo,
+                    onClick = { tipoFutbol = tipo },
+                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = tipoFutbol == tipo, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
+                    label = {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -399,93 +408,104 @@ fun AlineacionScreen(
                 key = { it.id }
             ) { jugador ->
                 val isSelected = convocados.any { it.id == jugador.id }
-                Row(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            if (isSelected) {
-                                convocados.removeAll { it.id == jugador.id }
-                            } else if (convocados.size < numRequerido) {
-                                if (!convocados.any { it.id == jugador.id }) {
-                                    convocados.add(jugador)
-                                }
-                            }
-                        }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(vertical = 3.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (isSelected) LimeVolt.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f)
+                    )
                 ) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { checked ->
-                            if (checked) {
-                                if (convocados.size < numRequerido && !convocados.any { it.id == jugador.id }) {
-                                    convocados.add(jugador)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (isSelected) {
+                                    convocados.removeAll { it.id == jugador.id }
+                                } else if (convocados.size < numRequerido) {
+                                    if (!convocados.any { it.id == jugador.id }) {
+                                        convocados.add(jugador)
+                                    }
                                 }
-                            } else {
-                                convocados.removeAll { it.id == jugador.id }
                             }
-                        },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = LimeVolt,
-                            checkmarkColor = Color.Black,
-                            uncheckedColor = TextSecondary
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    JugadorAvatar(
-                        fotoUri = jugador.fotoUri,
-                        nombre = jugador.nombre,
-                        tamano = 38.dp,
-                        permitirZoom = true
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // Nombre y posiciones debajo con principales sombreadas
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = jugador.nombre,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    if (convocados.size < numRequerido && !convocados.any { it.id == jugador.id }) {
+                                        convocados.add(jugador)
+                                    }
+                                } else {
+                                    convocados.removeAll { it.id == jugador.id }
+                                }
+                            },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = LimeVolt,
+                                checkmarkColor = Color.Black,
+                                uncheckedColor = TextSecondary
+                            )
                         )
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
 
-                        val totalPos = jugador.posicionesPrimarias + jugador.posicionesSecundarias
-                        if (totalPos.isEmpty()) {
+                        JugadorAvatar(
+                            fotoUri = jugador.fotoUri,
+                            nombre = jugador.nombreConTu(),
+                            tamano = 38.dp,
+                            permitirZoom = true
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        // Nombre y posiciones debajo con principales sombreadas
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Text(
-                                text = "Sin posición asignada",
-                                color = TextSecondary,
-                                fontSize = 11.sp
+                                text = jugador.nombreConTu(),
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
-                        } else {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                jugador.posicionesPrimarias.forEach { pos ->
-                                    BadgePosicion(label = pos.name, esPrimaria = true)
-                                }
-                                jugador.posicionesSecundarias.forEach { pos ->
-                                    BadgePosicion(label = pos.name, esPrimaria = false)
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
+                            val totalPos = jugador.posicionesPrimarias + jugador.posicionesSecundarias
+                            if (totalPos.isEmpty()) {
+                                Text(
+                                    text = "Sin posición asignada",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            } else {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    jugador.posicionesPrimarias.forEach { pos ->
+                                        BadgePosicion(label = pos.name, esPrimaria = true)
+                                    }
+                                    jugador.posicionesSecundarias.forEach { pos ->
+                                        BadgePosicion(label = pos.name, esPrimaria = false)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (jugador.esFavorito) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Favorito",
-                            tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        if (jugador.esFavorito) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Favorito",
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

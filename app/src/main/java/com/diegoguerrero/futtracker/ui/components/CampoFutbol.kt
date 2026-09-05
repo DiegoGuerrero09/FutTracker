@@ -40,6 +40,7 @@ private val PitchGreen = Color(0xFF1B4D3E)
 fun CampoFutbol(
     alineacion: Map<Pair<Posicion, Pair<Float, Float>>, Jugador?>,
     modifier: Modifier = Modifier,
+    colorBordeFicha: Color? = null,
     onJugadorIntercambiado: ((Pair<Posicion, Pair<Float, Float>>, Pair<Posicion, Pair<Float, Float>>) -> Unit)? = null,
     onJugadorMovido: ((Pair<Posicion, Pair<Float, Float>>, Float, Float) -> Unit)? = null
 ) {
@@ -151,7 +152,7 @@ fun CampoFutbol(
                                 }
                             }
 
-                            val swapThreshold = with(density) { 56.dp.toPx() }
+                            val swapThreshold = with(density) { 75.dp.toPx() }
                             if (targetKey != null && minDistance <= swapThreshold && onJugadorIntercambiado != null) {
                                 onJugadorIntercambiado(posConCoords, targetKey!!)
                             }
@@ -189,6 +190,7 @@ fun CampoFutbol(
                     verticalArrangement = Arrangement.Top
                 ) {
                     val avatarTamano = 38.dp
+                    val fichaBorder = colorBordeFicha ?: if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f)
 
                     Box(
                         contentAlignment = Alignment.BottomEnd,
@@ -198,13 +200,13 @@ fun CampoFutbol(
                             fotoUri = jugador?.fotoUri,
                             nombre = jugador?.nombre ?: posicionEnum.name,
                             tamano = avatarTamano,
-                            bordeColor = if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f),
+                            bordeColor = fichaBorder,
                             bordeAncho = 1.5.dp
                         )
 
                         // Placa pequeña cuadrada en la esquina inferior para no tapar los rostros
                         Surface(
-                            color = if (jugador != null) LimeVolt else Color.Black.copy(alpha = 0.8f),
+                            color = if (jugador != null) fichaBorder else Color.Black.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
                                 .offset(x = 2.dp, y = 2.dp)
@@ -213,11 +215,11 @@ fun CampoFutbol(
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = posicionEnum.name,
-                                    color = if (jugador != null) Color.Black else Color.White,
+                                    color = if (fichaBorder == Color.Black) Color.White else (if (jugador != null) Color.Black else Color.White),
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.offset(y = (-1.5).dp)
+                                    modifier = Modifier.offset(y = (-2.5).dp)
                                 )
                             }
                         }

@@ -23,12 +23,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.TipoFutbol
+import com.diegoguerrero.futtracker.domain.model.nombreConTu
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
 import com.diegoguerrero.futtracker.ui.components.GraficoGolesAsistencias
 import com.diegoguerrero.futtracker.ui.components.GraficoResultados
 import com.diegoguerrero.futtracker.ui.components.GraficoResumenGoles
 import com.diegoguerrero.futtracker.ui.components.GraficoTirosAlPalo
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
+import com.diegoguerrero.futtracker.ui.theme.BlueCompanero
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
 import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
@@ -37,6 +39,7 @@ import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.OrangeDraw
 import com.diegoguerrero.futtracker.ui.theme.RedLoss
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
+import com.diegoguerrero.futtracker.ui.theme.obtenerColorPorcentaje
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -572,23 +575,32 @@ fun EstadisticasScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        FilterChip(
-                            selected = ordenAscendenteGeneral,
+                        Surface(
                             onClick = { viewModel.toggleOrdenAscendenteGeneral() },
-                            label = {
-                                Text(
-                                    text = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
-                                    fontSize = 11.sp
-                                )
-                            },
-                            leadingIcon = {
+                            shape = RoundedCornerShape(8.dp),
+                            color = DarkCard,
+                            border = BorderStroke(1.dp, (if (ordenAscendenteGeneral) LimeVolt else BlueCompanero).copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val flechaColor = if (ordenAscendenteGeneral) LimeVolt else BlueCompanero
                                 Icon(
                                     imageVector = if (ordenAscendenteGeneral) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
+                                    contentDescription = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
+                                    tint = flechaColor,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
-                        )
+                        }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -715,7 +727,7 @@ fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = item.jugador.nombre,
+                            text = item.jugador.nombreConTu(),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -751,10 +763,11 @@ fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
                 }
 
                 // Porcentaje de victorias destacado
+                val colorPct = obtenerColorPorcentaje(item.porcentajeVictorias.toFloat())
                 Surface(
-                    color = LimeVolt.copy(alpha = 0.15f),
+                    color = colorPct.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.4f))
+                    border = BorderStroke(1.dp, colorPct.copy(alpha = 0.5f))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -762,13 +775,13 @@ fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
                     ) {
                         Text(
                             text = "${item.porcentajeVictorias}%",
-                            color = LimeVolt,
+                            color = colorPct,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Victorias",
-                            color = TextSecondary,
+                            color = colorPct.copy(alpha = 0.85f),
                             fontSize = 9.sp
                         )
                     }

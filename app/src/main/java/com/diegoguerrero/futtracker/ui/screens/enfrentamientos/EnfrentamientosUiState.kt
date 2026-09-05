@@ -8,9 +8,10 @@ import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
 
 enum class SeccionEnfrentamientos(val titulo: String) {
-    HISTORIAL("General"),
-    CARA_A_CARA("Cara a cara"),
-    DUOS("Dúos")
+    INDIVIDUAL("Individual"),
+    GENERAL("General"),
+    DUOS("Dúos"),
+    H2H("H2H")
 }
 
 enum class FiltroHistorial(val label: String) {
@@ -20,7 +21,7 @@ enum class FiltroHistorial(val label: String) {
 }
 
 data class EnfrentamientosUiState(
-    val seccionActual: SeccionEnfrentamientos = SeccionEnfrentamientos.HISTORIAL,
+    val seccionActual: SeccionEnfrentamientos = SeccionEnfrentamientos.INDIVIDUAL,
     val historial: List<EstadisticasJugadorCruzadas> = emptyList(),
     val destacados: DestacadosEnfrentamientos = DestacadosEnfrentamientos(),
     val duos: List<DuoEstadisticas> = emptyList(),
@@ -34,5 +35,12 @@ data class EnfrentamientosUiState(
     val jugadorAId: String? = null,
     val jugadorBId: String? = null,
     val comparativaCaraACara: ComparativaCaraACara? = null,
+    val jugadorSeleccionadoGeneralId: String? = null,
+    val destacadosGeneral: DestacadosEnfrentamientos = DestacadosEnfrentamientos(),
+    val busquedaGeneral: String = "",
+    val soloFavoritosGeneral: Boolean = false,
+    val posicionGeneral: Posicion? = null,
+    val soloPosicionPrincipalGeneral: Boolean = false,
+    val jugadoresFiltradosGeneral: List<Jugador> = emptyList(),
     val cargando: Boolean = false
 )

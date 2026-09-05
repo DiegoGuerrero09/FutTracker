@@ -29,7 +29,8 @@ data class PartidoEntity(
     val golesChilena: Int = 0,
     val golesTacon: Int = 0,
     val golesFueraArea: Int = 0,
-    val duracionMinutos: Int = 60
+    val duracionMinutos: Int = 60,
+    val jugadoPorMi: Boolean = true
 ) {
     fun toDomain(): Partido {
         val posJugada = runCatching { Posicion.valueOf(posicionJugada) }.getOrDefault(Posicion.DC)
@@ -67,7 +68,8 @@ data class PartidoEntity(
             golesChilena = golesChilena,
             golesTacon = golesTacon,
             golesFueraArea = golesFueraArea,
-            duracionMinutos = duracionMinutos
+            duracionMinutos = duracionMinutos,
+            jugadoPorMi = jugadoPorMi
         )
     }
 }
@@ -98,6 +100,7 @@ fun Partido.toEntity(): PartidoEntity {
         golesChilena = golesChilena,
         golesTacon = golesTacon,
         golesFueraArea = golesFueraArea,
-        duracionMinutos = duracionMinutos
+        duracionMinutos = duracionMinutos,
+        jugadoPorMi = jugadoPorMi
     )
 }

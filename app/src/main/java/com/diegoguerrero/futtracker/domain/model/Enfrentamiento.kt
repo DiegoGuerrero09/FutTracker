@@ -75,8 +75,13 @@ data class ComparativaCaraACara(
 }
 
 data class DestacadosEnfrentamientos(
-    val companeroMasGana: EstadisticasJugadorCruzadas? = null,
-    val companeroMasPierde: EstadisticasJugadorCruzadas? = null,
-    val rivalMasGana: EstadisticasJugadorCruzadas? = null,
-    val rivalMasPierde: EstadisticasJugadorCruzadas? = null
-)
+    val companerosMasGanan: List<EstadisticasJugadorCruzadas> = emptyList(),
+    val companerosMasPierden: List<EstadisticasJugadorCruzadas> = emptyList(),
+    val rivalesMasGanan: List<EstadisticasJugadorCruzadas> = emptyList(),
+    val rivalesMasPierden: List<EstadisticasJugadorCruzadas> = emptyList()
+) {
+    val companeroMasGana: EstadisticasJugadorCruzadas? get() = companerosMasGanan.firstOrNull()
+    val companeroMasPierde: EstadisticasJugadorCruzadas? get() = companerosMasPierden.firstOrNull()
+    val rivalMasGana: EstadisticasJugadorCruzadas? get() = rivalesMasGanan.firstOrNull()
+    val rivalMasPierde: EstadisticasJugadorCruzadas? get() = rivalesMasPierden.firstOrNull()
+}

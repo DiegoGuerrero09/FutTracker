@@ -15,7 +15,7 @@ import com.diegoguerrero.futtracker.data.local.entity.PerfilEntity
 
 @Database(
     entities = [JugadorEntity::class, PartidoEntity::class, PerfilEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -72,6 +72,12 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE partidos ADD COLUMN duracionMinutos INTEGER NOT NULL DEFAULT 60")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE partidos ADD COLUMN jugadoPorMi INTEGER NOT NULL DEFAULT 1")
             }
         }
     }

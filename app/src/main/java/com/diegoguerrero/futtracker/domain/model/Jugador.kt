@@ -24,3 +24,8 @@ data class Jugador(
             posicionesPrimarias.joinToString("/") { it.name }
         }
 }
+
+fun Jugador.nombreConTu(): String {
+    val esYo = this.esUsuarioPropio || this.id == "usuario_propio_id"
+    return if (esYo) "${this.nombre.removeSuffix(" (Tú)")} (Tú)" else this.nombre
+}

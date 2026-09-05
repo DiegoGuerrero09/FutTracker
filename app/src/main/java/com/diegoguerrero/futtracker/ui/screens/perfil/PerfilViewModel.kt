@@ -29,13 +29,38 @@ class PerfilViewModel @Inject constructor(
             initialValue = Perfil()
         )
 
+    init {
+        viewModelScope.launch {
+            val p = perfilRepository.obtenerPerfil().first() ?: Perfil()
+            val jugadoresActuales = jugadorRepository.obtenerJugadores().first()
+            val usuarioExistente = jugadoresActuales.find { it.esUsuarioPropio || it.id == "usuario_propio_id" || it.nombre.equals(p.nombre, ignoreCase = true) }
+            val posicionesAsignar = p.posiciones.ifEmpty { setOf(p.posicionFavorita) }
+
+            if (usuarioExistente != null) {
+                if (!usuarioExistente.esUsuarioPropio) {
+                    jugadorRepository.actualizarJugador(usuarioExistente.copy(esUsuarioPropio = true))
+                }
+            } else {
+                jugadorRepository.insertarJugador(
+                    Jugador(
+                        id = "usuario_propio_id",
+                        nombre = p.nombre.ifBlank { "Usuario" },
+                        fotoUri = p.fotoUri,
+                        posicionesPrimarias = posicionesAsignar,
+                        esUsuarioPropio = true
+                    )
+                )
+            }
+        }
+    }
+
     fun guardarPerfil(nuevoPerfil: Perfil) {
         viewModelScope.launch {
             perfilRepository.guardarPerfil(nuevoPerfil)
 
             if (nuevoPerfil.sincronizadoConJugadores) {
                 val jugadoresActuales = jugadorRepository.obtenerJugadores().first()
-                val usuarioExistente = jugadoresActuales.find { it.esUsuarioPropio }
+                val usuarioExistente = jugadoresActuales.find { it.esUsuarioPropio || it.id == "usuario_propio_id" || it.nombre.equals(nuevoPerfil.nombre, ignoreCase = true) }
 
                 val posicionesAsignar = nuevoPerfil.posiciones.ifEmpty { setOf(nuevoPerfil.posicionFavorita) }
 
@@ -102,6 +127,7 @@ class PerfilViewModel @Inject constructor(
                 put("fecha", part.fecha)
                 put("modoJuego", part.modoJuego.name)
                 put("duracionMinutos", part.duracionMinutos)
+                put("jugadoPorMi", part.jugadoPorMi)
                 put("golesAFavor", part.golesAFavor)
                 put("golesEnContra", part.golesEnContra)
                 put("posicionJugada", part.posicionJugada.name)
@@ -282,7 +308,8 @@ class PerfilViewModel @Inject constructor(
                     golesTacon = tacon,
                     jugadoresMiEquipo = miEq,
                     jugadoresEquipoRival = rivEq,
-                    jugadoresIds = jIds.ifEmpty { (miEq + rivEq).distinct() }
+                    jugadoresIds = jIds.ifEmpty { (miEq + rivEq).distinct() },
+                    jugadoPorMi = pObj.optBoolean("jugadoPorMi", true)
                 )
                 partidoRepository.insertarPartido(partido)
                 countPartidos++

@@ -43,13 +43,13 @@ data class EstadisticasJugadorGeneral(
 )
 
 enum class CriterioOrdenGeneral {
+    NOMBRE,
     VICTORIAS,
     DERROTAS,
     EMPATES,
     PARTIDOS,
     PORCENTAJE,
-    MINUTOS,
-    NOMBRE
+    MINUTOS
 }
 
 private data class FiltrosGeneralData(
@@ -86,7 +86,7 @@ class EstadisticasViewModel @Inject constructor(
 
     val temporadasConDatos: StateFlow<List<String>> = todosPartidos.map { partidos ->
         val actual = calcularTemporadaActual()
-        val temporadas = partidos.map { obtenerTemporada(it.fecha) }
+        val temporadas = partidos.filter { it.jugadoPorMi }.map { obtenerTemporada(it.fecha) }
         (listOf(actual) + temporadas).distinct().sortedDescending()
     }.stateIn(
         scope = viewModelScope,
@@ -96,7 +96,7 @@ class EstadisticasViewModel @Inject constructor(
 
     val aniosConDatos: StateFlow<List<Int>> = todosPartidos.map { partidos ->
         val actual = LocalDate.now().year
-        val anios = partidos.map {
+        val anios = partidos.filter { it.jugadoPorMi }.map {
             Calendar.getInstance().apply { timeInMillis = it.fecha }.get(Calendar.YEAR)
         }
         (listOf(actual) + anios).distinct().sortedDescending()
@@ -130,6 +130,7 @@ class EstadisticasViewModel @Inject constructor(
         val fFin = args[6] as Long
 
         var lista = if (modo != null) partidos.filter { it.modoJuego == modo } else partidos
+        lista = lista.filter { it.jugadoPorMi }
 
         lista = when (tipoTiempo) {
             TipoFiltroEstadisticas.TOTAL -> lista
@@ -286,10 +287,10 @@ class EstadisticasViewModel @Inject constructor(
     private val _soloPosicionPrincipalGeneral = MutableStateFlow(false)
     val soloPosicionPrincipalGeneral: StateFlow<Boolean> = _soloPosicionPrincipalGeneral.asStateFlow()
 
-    private val _criterioOrdenGeneral = MutableStateFlow(CriterioOrdenGeneral.VICTORIAS)
+    private val _criterioOrdenGeneral = MutableStateFlow(CriterioOrdenGeneral.NOMBRE)
     val criterioOrdenGeneral: StateFlow<CriterioOrdenGeneral> = _criterioOrdenGeneral.asStateFlow()
 
-    private val _ordenAscendenteGeneral = MutableStateFlow(false)
+    private val _ordenAscendenteGeneral = MutableStateFlow(true)
     val ordenAscendenteGeneral: StateFlow<Boolean> = _ordenAscendenteGeneral.asStateFlow()
 
     val jugadoresEstadisticasGeneral: StateFlow<List<EstadisticasJugadorGeneral>> = combine(
@@ -378,7 +379,8 @@ class EstadisticasViewModel @Inject constructor(
                 else filtrados.sortedByDescending { it.jugador.nombre.lowercase() }
         }
 
-        ordenados
+        val (mios, otros) = ordenados.partition { it.jugador.esUsuarioPropio || it.jugador.id == "usuario_propio_id" }
+        mios + otros
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

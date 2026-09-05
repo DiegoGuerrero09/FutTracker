@@ -45,6 +45,7 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var gmRiv = 0
 
                 for (p in partidos) {
+                    if (!p.jugadoPorMi) continue
                     val enMiEquipo = p.jugadoresMiEquipo.contains(j.id)
                     val enRival = p.jugadoresEquipoRival.contains(j.id)
 
@@ -93,44 +94,159 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
 
     override fun obtenerDestacados(): Flow<DestacadosEnfrentamientos> {
         return obtenerHistorialCruzado().map { lista ->
-            val conPartidosComp = lista.filter { it.partidosComoCompanero > 0 }
-            val conPartidosRiv = lista.filter { it.partidosComoRival > 0 }
-
-            val compMasGana = conPartidosComp
-                .filter { it.victoriasComoCompanero > 0 }
-                .maxWithOrNull(
-                    compareBy<EstadisticasJugadorCruzadas> { it.victoriasComoCompanero }
-                        .thenBy { it.porcentajeVictoriasCompanero }
-                )
-
-            val compMasPierde = conPartidosComp
-                .filter { it.derrotasComoCompanero > 0 }
-                .maxWithOrNull(
-                    compareBy<EstadisticasJugadorCruzadas> { it.derrotasComoCompanero }
-                        .thenByDescending { 100f - it.porcentajeVictoriasCompanero }
-                )
-
-            val rivMasGana = conPartidosRiv
-                .filter { it.victoriasComoRival > 0 }
-                .maxWithOrNull(
-                    compareBy<EstadisticasJugadorCruzadas> { it.victoriasComoRival }
-                        .thenBy { it.porcentajeVictoriasRival }
-                )
-
-            val rivMasPierde = conPartidosRiv
-                .filter { it.derrotasComoRival > 0 }
-                .maxWithOrNull(
-                    compareBy<EstadisticasJugadorCruzadas> { it.derrotasComoRival }
-                        .thenByDescending { 100f - it.porcentajeVictoriasRival }
-                )
-
-            DestacadosEnfrentamientos(
-                companeroMasGana = compMasGana,
-                companeroMasPierde = compMasPierde,
-                rivalMasGana = rivMasGana,
-                rivalMasPierde = rivMasPierde
-            )
+            calcularDestacados(lista)
         }
+    }
+
+    override fun obtenerHistorialCruzadoParaJugador(jugadorId: String): Flow<List<EstadisticasJugadorCruzadas>> {
+        return combine(
+            enfrentamientosDao.getAllPartidos(),
+            enfrentamientosDao.getAllJugadores()
+        ) { partidosEntities, jugadoresEntities ->
+            val partidos = partidosEntities.map { it.toDomain() }
+            val jugadores = jugadoresEntities.map { it.toDomain() }
+            val targetJugador = jugadores.firstOrNull { it.id == jugadorId || (it.esUsuarioPropio && jugadorId == "usuario_propio_id") } ?: return@combine emptyList()
+
+            val listaSinTarget = jugadores.filter { it.id != targetJugador.id }
+
+            listaSinTarget.map { j ->
+                var partComp = 0
+                var vicComp = 0
+                var empComp = 0
+                var derComp = 0
+                var gfComp = 0
+                var gcComp = 0
+                var gmComp = 0
+
+                var partRiv = 0
+                var vicRiv = 0
+                var empRiv = 0
+                var derRiv = 0
+                var gfRiv = 0
+                var gcRiv = 0
+                var gmRiv = 0
+
+                for (p in partidos) {
+                    val targetEsUser = targetJugador.esUsuarioPropio || targetJugador.id == "usuario_propio_id"
+                    val jEsUser = j.esUsuarioPropio || j.id == "usuario_propio_id"
+                    if (!p.jugadoPorMi && (targetEsUser || jEsUser)) continue
+
+                    val targetEnMiEquipo = p.jugadoresMiEquipo.contains(targetJugador.id) || (targetJugador.esUsuarioPropio && p.jugadoresMiEquipo.contains("usuario_propio_id"))
+                    val targetEnRival = p.jugadoresEquipoRival.contains(targetJugador.id) || (targetJugador.esUsuarioPropio && p.jugadoresEquipoRival.contains("usuario_propio_id"))
+
+                    val jEnMiEquipo = p.jugadoresMiEquipo.contains(j.id) || (j.esUsuarioPropio && p.jugadoresMiEquipo.contains("usuario_propio_id"))
+                    val jEnRival = p.jugadoresEquipoRival.contains(j.id) || (j.esUsuarioPropio && p.jugadoresEquipoRival.contains("usuario_propio_id"))
+
+                    if (targetEnMiEquipo) {
+                        if (jEnMiEquipo) {
+                            partComp++
+                            if (p.esVictoria) vicComp++
+                            else if (p.esEmpate) empComp++
+                            else if (p.esDerrota) derComp++
+                            gfComp += p.golesAFavor
+                            gcComp += p.golesEnContra
+                        }
+                        if (jEnRival) {
+                            partRiv++
+                            if (p.esVictoria) vicRiv++
+                            else if (p.esEmpate) empRiv++
+                            else if (p.esDerrota) derRiv++
+                            gfRiv += p.golesAFavor
+                            gcRiv += p.golesEnContra
+                        }
+                    } else if (targetEnRival) {
+                        if (jEnRival) {
+                            partComp++
+                            if (p.esDerrota) vicComp++
+                            else if (p.esEmpate) empComp++
+                            else if (p.esVictoria) derComp++
+                            gfComp += p.golesEnContra
+                            gcComp += p.golesAFavor
+                        }
+                        if (jEnMiEquipo) {
+                            partRiv++
+                            if (p.esDerrota) vicRiv++
+                            else if (p.esEmpate) empRiv++
+                            else if (p.esVictoria) derRiv++
+                            gfRiv += p.golesEnContra
+                            gcRiv += p.golesAFavor
+                        }
+                    }
+                }
+
+                EstadisticasJugadorCruzadas(
+                    jugador = j,
+                    partidosComoCompanero = partComp,
+                    victoriasComoCompanero = vicComp,
+                    empatesComoCompanero = empComp,
+                    derrotasComoCompanero = derComp,
+                    golesFavorComoCompanero = gfComp,
+                    golesContraComoCompanero = gcComp,
+                    golesMarcadosComoCompanero = gmComp,
+                    partidosComoRival = partRiv,
+                    victoriasComoRival = vicRiv,
+                    empatesComoRival = empRiv,
+                    derrotasComoRival = derRiv,
+                    golesFavorComoRival = gfRiv,
+                    golesContraComoRival = gcRiv,
+                    golesMarcadosComoRival = gmRiv
+                )
+            }.sortedWith(compareByDescending<EstadisticasJugadorCruzadas> { it.totalPartidos }.thenBy { it.jugador.nombre.lowercase() })
+        }
+    }
+
+    override fun obtenerDestacadosParaJugador(jugadorId: String): Flow<DestacadosEnfrentamientos> {
+        return obtenerHistorialCruzadoParaJugador(jugadorId).map { lista ->
+            calcularDestacados(lista)
+        }
+    }
+
+    private fun calcularDestacados(lista: List<EstadisticasJugadorCruzadas>): DestacadosEnfrentamientos {
+        val conPartidosComp = lista.filter { it.partidosComoCompanero > 0 }
+        val conPartidosRiv = lista.filter { it.partidosComoRival > 0 }
+
+        // Compañero más gana (La cabra / Talismán)
+        val compGanaCands = conPartidosComp.filter { it.victoriasComoCompanero > 0 }
+        val maxVicComp = compGanaCands.maxOfOrNull { it.victoriasComoCompanero }
+        val compMasGanan = if (maxVicComp != null && maxVicComp > 0) {
+            val topVic = compGanaCands.filter { it.victoriasComoCompanero == maxVicComp }
+            val maxPct = topVic.maxOfOrNull { it.porcentajeVictoriasCompanero } ?: 0f
+            topVic.filter { it.porcentajeVictoriasCompanero == maxPct }
+        } else emptyList()
+
+        // Compañero más pierde (La lacra)
+        val compPierdeCands = conPartidosComp.filter { it.derrotasComoCompanero > 0 }
+        val maxDerComp = compPierdeCands.maxOfOrNull { it.derrotasComoCompanero }
+        val compMasPierden = if (maxDerComp != null && maxDerComp > 0) {
+            val topDer = compPierdeCands.filter { it.derrotasComoCompanero == maxDerComp }
+            val minPct = topDer.minOfOrNull { it.porcentajeVictoriasCompanero } ?: 100f
+            topDer.filter { it.porcentajeVictoriasCompanero == minPct }
+        } else emptyList()
+
+        // Rival más gana (Rival favorito / Caramelito)
+        val rivGanaCands = conPartidosRiv.filter { it.victoriasComoRival > 0 }
+        val maxVicRiv = rivGanaCands.maxOfOrNull { it.victoriasComoRival }
+        val rivMasGanan = if (maxVicRiv != null && maxVicRiv > 0) {
+            val topVic = rivGanaCands.filter { it.victoriasComoRival == maxVicRiv }
+            val maxPct = topVic.maxOfOrNull { it.porcentajeVictoriasRival } ?: 0f
+            topVic.filter { it.porcentajeVictoriasRival == maxPct }
+        } else emptyList()
+
+        // Rival más pierde (La bestia negra)
+        val rivPierdeCands = conPartidosRiv.filter { it.derrotasComoRival > 0 }
+        val maxDerRiv = rivPierdeCands.maxOfOrNull { it.derrotasComoRival }
+        val rivMasPierden = if (maxDerRiv != null && maxDerRiv > 0) {
+            val topDer = rivPierdeCands.filter { it.derrotasComoRival == maxDerRiv }
+            val minPct = topDer.minOfOrNull { it.porcentajeVictoriasRival } ?: 100f
+            topDer.filter { it.porcentajeVictoriasRival == minPct }
+        } else emptyList()
+
+        return DestacadosEnfrentamientos(
+            companerosMasGanan = compMasGanan,
+            companerosMasPierden = compMasPierden,
+            rivalesMasGanan = rivMasGanan,
+            rivalesMasPierden = rivMasPierden
+        )
     }
 
     override fun obtenerComparativa(

@@ -1,8 +1,12 @@
 package com.diegoguerrero.futtracker.ui.screens.enfrentamientos
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.diegoguerrero.futtracker.domain.model.nombreConTu
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -90,7 +94,7 @@ fun EnfrentamientosScreen(
             }
 
             when (uiState.seccionActual) {
-                SeccionEnfrentamientos.HISTORIAL -> {
+                SeccionEnfrentamientos.INDIVIDUAL -> {
                     SeccionHistorialCompanerosRivales(
                         uiState = uiState,
                         onFiltroTextoChange = { viewModel.setFiltroTexto(it) },
@@ -101,15 +105,25 @@ fun EnfrentamientosScreen(
                         onSeleccionarJugador = { viewModel.seleccionarJugadorDetalle(it) }
                     )
                 }
-                SeccionEnfrentamientos.CARA_A_CARA -> {
+                SeccionEnfrentamientos.GENERAL -> {
+                    SeccionGeneralCabraLacra(
+                        uiState = uiState,
+                        onSeleccionarJugador = { viewModel.seleccionarJugadorGeneral(it) },
+                        onBusquedaChange = { viewModel.setBusquedaGeneral(it) },
+                        onToggleFavorito = { viewModel.toggleSoloFavoritosGeneral() },
+                        onPosicionChange = { viewModel.setPosicionGeneral(it) },
+                        onSoloPosicionPrincipalChange = { viewModel.setSoloPosicionPrincipalGeneral(it) }
+                    )
+                }
+                SeccionEnfrentamientos.DUOS -> {
+                    SeccionDuos(duos = uiState.duos)
+                }
+                SeccionEnfrentamientos.H2H -> {
                     SeccionCaraACara(
                         uiState = uiState,
                         onSeleccionarA = { viewModel.seleccionarJugadorA(it) },
                         onSeleccionarB = { viewModel.seleccionarJugadorB(it) }
                     )
-                }
-                SeccionEnfrentamientos.DUOS -> {
-                    SeccionDuos(duos = uiState.duos)
                 }
             }
         }
@@ -154,11 +168,11 @@ fun SeccionHistorialCompanerosRivales(
             ) {
                 CardDestacado(
                     modifier = Modifier.weight(1f),
-                    titulo = "Talismán",
+                    titulo = "La cabra",
                     subtitulo = "Más victorias juntos",
-                    icono = "🏆",
+                    icono = "🐐",
                     colorBorde = BlueCompanero,
-                    estadistica = uiState.destacados.companeroMasGana,
+                    estadisticas = uiState.destacados.companerosMasGanan,
                     esCompanero = true
                 )
                 CardDestacado(
@@ -167,7 +181,7 @@ fun SeccionHistorialCompanerosRivales(
                     subtitulo = "Más derrotas juntos",
                     icono = "💔",
                     colorBorde = RedLoss,
-                    estadistica = uiState.destacados.companeroMasPierde,
+                    estadisticas = uiState.destacados.companerosMasPierden,
                     esCompanero = true
                 )
             }
@@ -178,20 +192,20 @@ fun SeccionHistorialCompanerosRivales(
             ) {
                 CardDestacado(
                     modifier = Modifier.weight(1f),
-                    titulo = "Rival favorito",
+                    titulo = "El caramelito",
                     subtitulo = "Más victorias contra él",
-                    icono = "🎯",
+                    icono = "🍬",
                     colorBorde = BlueCompanero,
-                    estadistica = uiState.destacados.rivalMasGana,
+                    estadisticas = uiState.destacados.rivalesMasGanan,
                     esCompanero = false
                 )
                 CardDestacado(
                     modifier = Modifier.weight(1f),
-                    titulo = "Bestia negra",
+                    titulo = "La bestia",
                     subtitulo = "Más derrotas contra él",
-                    icono = "⚠️",
+                    icono = "🦁",
                     colorBorde = RedLoss,
-                    estadistica = uiState.destacados.rivalMasPierde,
+                    estadisticas = uiState.destacados.rivalesMasPierden,
                     esCompanero = false
                 )
             }
@@ -350,9 +364,26 @@ fun CardDestacado(
     subtitulo: String,
     icono: String,
     colorBorde: Color,
-    estadistica: EstadisticasJugadorCruzadas?,
+    estadisticas: List<EstadisticasJugadorCruzadas> = emptyList(),
+    estadistica: EstadisticasJugadorCruzadas? = null,
     esCompanero: Boolean
 ) {
+    val lista = remember(estadisticas, estadistica) {
+        if (estadisticas.isNotEmpty()) estadisticas else listOfNotNull(estadistica)
+    }
+    var currentIndex by remember(lista) { mutableIntStateOf(0) }
+
+    LaunchedEffect(lista) {
+        if (lista.size > 1) {
+            while (true) {
+                kotlinx.coroutines.delay(3500)
+                currentIndex = (currentIndex + 1) % lista.size
+            }
+        }
+    }
+
+    val itemActual = if (lista.isNotEmpty()) lista.getOrNull(currentIndex % lista.size) else null
+
     Card(
         modifier = modifier.height(100.dp),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
@@ -375,6 +406,14 @@ fun CardDestacado(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
+                if (lista.size > 1) {
+                    Text(
+                        text = "${(currentIndex % lista.size) + 1}/${lista.size}",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorBorde
+                    )
+                }
             }
             Text(
                 text = subtitulo,
@@ -386,52 +425,62 @@ fun CardDestacado(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (estadistica != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    JugadorAvatar(
-                        fotoUri = estadistica.jugador.fotoUri,
-                        nombre = estadistica.jugador.nombre,
-                        tamano = 32.dp,
-                        fontSize = 11.sp
-                    )
-                    Column {
-                        Text(
-                            text = estadistica.jugador.nombre,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+            AnimatedContent(
+                targetState = itemActual,
+                transitionSpec = {
+                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
+                },
+                label = "DestacadoRotation"
+            ) { actualEst ->
+                if (actualEst != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        JugadorAvatar(
+                            fotoUri = actualEst.jugador.fotoUri,
+                            nombre = actualEst.jugador.nombre,
+                            tamano = 32.dp,
+                            fontSize = 11.sp,
+                            bordeColor = colorBorde,
+                            bordeAncho = 1.5.dp
                         )
-                        val victorias = if (esCompanero) estadistica.victoriasComoCompanero else estadistica.victoriasComoRival
-                        val partidos = if (esCompanero) estadistica.partidosComoCompanero else estadistica.partidosComoRival
-                        val derrotas = if (esCompanero) estadistica.derrotasComoCompanero else estadistica.derrotasComoRival
-                        val pct = if (partidos > 0) ((victorias.toFloat() / partidos) * 100).toInt() else 0
+                        Column {
+                            Text(
+                                text = actualEst.jugador.nombreConTu(),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val victorias = if (esCompanero) actualEst.victoriasComoCompanero else actualEst.victoriasComoRival
+                            val partidos = if (esCompanero) actualEst.partidosComoCompanero else actualEst.partidosComoRival
+                            val derrotas = if (esCompanero) actualEst.derrotasComoCompanero else actualEst.derrotasComoRival
+                            val pct = if (partidos > 0) ((victorias.toFloat() / partidos) * 100).toInt() else 0
 
+                            Text(
+                                text = "$partidos PJ • $victorias V - $derrotas D ($pct%)",
+                                fontSize = 10.sp,
+                                color = colorBorde,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
                         Text(
-                            text = "$partidos PJ • $victorias V - $derrotas D ($pct%)",
-                            fontSize = 10.sp,
-                            color = colorBorde,
-                            fontWeight = FontWeight.Bold
+                            text = "Sin datos aún",
+                            fontSize = 11.sp,
+                            color = TextSecondary.copy(alpha = 0.6f),
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                         )
                     }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(
-                        text = "Sin datos aún",
-                        fontSize = 11.sp,
-                        color = TextSecondary.copy(alpha = 0.6f),
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    )
                 }
             }
         }
@@ -448,7 +497,8 @@ fun CardJugadorHistorial(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, DarkCardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -461,7 +511,8 @@ fun CardJugadorHistorial(
                 fotoUri = item.jugador.fotoUri,
                 nombre = item.jugador.nombre,
                 tamano = 44.dp,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                permitirZoom = true
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -470,7 +521,7 @@ fun CardJugadorHistorial(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = item.jugador.nombre,
+                        text = item.jugador.nombreConTu(),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -561,7 +612,7 @@ fun DialogoDetalleJugadorCruzado(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = detalle.jugador.nombre,
+                    text = detalle.jugador.nombreConTu(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -723,6 +774,332 @@ fun DialogoDetalleJugadorCruzado(
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text("Cerrar", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SeccionGeneralCabraLacra(
+    uiState: EnfrentamientosUiState,
+    onSeleccionarJugador: (String) -> Unit,
+    onBusquedaChange: (String) -> Unit,
+    onToggleFavorito: () -> Unit,
+    onPosicionChange: (Posicion?) -> Unit,
+    onSoloPosicionPrincipalChange: (Boolean) -> Unit
+) {
+    val jugadorSeleccionado = uiState.todosLosJugadores.firstOrNull { it.id == uiState.jugadorSeleccionadoGeneralId }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Buscador y filtros para elegir el jugador a inspeccionar
+        item {
+            OutlinedTextField(
+                value = uiState.busquedaGeneral,
+                onValueChange = onBusquedaChange,
+                placeholder = { Text("Buscar jugador...", color = TextSecondary) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = "Buscar", tint = TextSecondary)
+                },
+                trailingIcon = {
+                    if (uiState.busquedaGeneral.isNotBlank()) {
+                        IconButton(onClick = { onBusquedaChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = TextSecondary)
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = LimeVolt,
+                    unfocusedBorderColor = DarkCardBorder,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = LimeVolt
+                ),
+                singleLine = true
+            )
+        }
+
+        // Filtros rápidos
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = uiState.soloFavoritosGeneral,
+                    onClick = onToggleFavorito,
+                    label = { Text("★ Favoritos", fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                        selectedLabelColor = LimeVolt,
+                        containerColor = DarkCard,
+                        labelColor = TextSecondary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = uiState.soloFavoritosGeneral,
+                        borderColor = if (uiState.soloFavoritosGeneral) LimeVolt else DarkCardBorder
+                    )
+                )
+
+                FilterChip(
+                    selected = uiState.soloPosicionPrincipalGeneral,
+                    onClick = { onSoloPosicionPrincipalChange(!uiState.soloPosicionPrincipalGeneral) },
+                    label = {
+                        Text(
+                            text = if (uiState.soloPosicionPrincipalGeneral) "Solo principal" else "Ambas posiciones",
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                        selectedLabelColor = LimeVolt,
+                        containerColor = DarkCard,
+                        labelColor = TextSecondary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = uiState.soloPosicionPrincipalGeneral,
+                        borderColor = if (uiState.soloPosicionPrincipalGeneral) LimeVolt else DarkCardBorder
+                    )
+                )
+            }
+        }
+
+        // Selector horizontal de posiciones
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                FilterChip(
+                    selected = uiState.posicionGeneral == null,
+                    onClick = { onPosicionChange(null) },
+                    label = { Text("Todas", fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                        selectedLabelColor = LimeVolt,
+                        containerColor = DarkCard,
+                        labelColor = TextSecondary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = uiState.posicionGeneral == null,
+                        borderColor = if (uiState.posicionGeneral == null) LimeVolt else DarkCardBorder
+                    )
+                )
+
+                Posicion.values().forEach { pos ->
+                    val sel = uiState.posicionGeneral == pos
+                    FilterChip(
+                        selected = sel,
+                        onClick = { onPosicionChange(if (sel) null else pos) },
+                        label = { Text(pos.name, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = DarkCard,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = sel,
+                            borderColor = if (sel) LimeVolt else DarkCardBorder
+                        )
+                    )
+                }
+            }
+        }
+
+        // Lista horizontal de jugadores para seleccionar
+        item {
+            Text(
+                text = "Seleccionar jugador:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            if (uiState.jugadoresFiltradosGeneral.isEmpty()) {
+                Text(
+                    text = "No hay jugadores que coincidan con los filtros.",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            } else {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(uiState.jugadoresFiltradosGeneral) { jug ->
+                        val esSeleccionado = jug.id == jugadorSeleccionado?.id
+                        Card(
+                            modifier = Modifier
+                                .clickable { onSeleccionarJugador(jug.id) }
+                                .width(85.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (esSeleccionado) LimeVolt.copy(alpha = 0.15f) else DarkCard
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (esSeleccionado) LimeVolt else DarkCardBorder
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                JugadorAvatar(
+                                    fotoUri = jug.fotoUri,
+                                    nombre = jug.nombre,
+                                    tamano = 36.dp,
+                                    fontSize = 12.sp,
+                                    bordeColor = if (esSeleccionado) LimeVolt else Color.Transparent,
+                                    bordeAncho = 1.5.dp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = jug.nombreConTu(),
+                                    fontSize = 11.sp,
+                                    fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (esSeleccionado) LimeVolt else Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ficha del jugador actualmente seleccionado
+        if (jugadorSeleccionado != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        JugadorAvatar(
+                            fotoUri = jugadorSeleccionado.fotoUri,
+                            nombre = jugadorSeleccionado.nombre,
+                            tamano = 46.dp,
+                            fontSize = 16.sp,
+                            permitirZoom = true,
+                            bordeColor = LimeVolt,
+                            bordeAncho = 1.5.dp
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = jugadorSeleccionado.nombreConTu(),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                if (jugadorSeleccionado.esFavorito) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Favorito",
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                jugadorSeleccionado.posicionesPrimarias.forEach { pos ->
+                                    BadgePosicion(label = pos.name, esPrimaria = true)
+                                }
+                                jugadorSeleccionado.posicionesSecundarias.forEach { pos ->
+                                    BadgePosicion(label = pos.name, esPrimaria = false)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Destacados para este jugador
+            item {
+                Text(
+                    text = "Destacados de ${jugadorSeleccionado.nombreConTu()}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = LimeVolt
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CardDestacado(
+                        modifier = Modifier.weight(1f),
+                        titulo = "La cabra",
+                        subtitulo = "Más victorias juntos",
+                        icono = "🐐",
+                        colorBorde = BlueCompanero,
+                        estadisticas = uiState.destacadosGeneral.companerosMasGanan,
+                        esCompanero = true
+                    )
+                    CardDestacado(
+                        modifier = Modifier.weight(1f),
+                        titulo = "La lacra",
+                        subtitulo = "Más derrotas juntos",
+                        icono = "💔",
+                        colorBorde = RedLoss,
+                        estadisticas = uiState.destacadosGeneral.companerosMasPierden,
+                        esCompanero = true
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CardDestacado(
+                        modifier = Modifier.weight(1f),
+                        titulo = "El caramelito",
+                        subtitulo = "Más victorias contra él",
+                        icono = "🍬",
+                        colorBorde = BlueCompanero,
+                        estadisticas = uiState.destacadosGeneral.rivalesMasGanan,
+                        esCompanero = false
+                    )
+                    CardDestacado(
+                        modifier = Modifier.weight(1f),
+                        titulo = "La bestia",
+                        subtitulo = "Más derrotas contra él",
+                        icono = "🦁",
+                        colorBorde = RedLoss,
+                        estadisticas = uiState.destacadosGeneral.rivalesMasPierden,
+                        esCompanero = false
+                    )
                 }
             }
         }
@@ -909,7 +1286,8 @@ fun SeccionCaraACara(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, DarkCardBorder)
                 ) {
                     Box(modifier = Modifier.padding(20.dp), contentAlignment = Alignment.Center) {
                         Text("Selecciona dos jugadores diferentes para comparar.", color = TextSecondary, fontSize = 13.sp)
@@ -922,7 +1300,8 @@ fun SeccionCaraACara(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier
@@ -945,9 +1324,9 @@ fun SeccionCaraACara(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                JugadorAvatar(fotoUri = jugadorA?.fotoUri, nombre = jugadorA?.nombre ?: "", tamano = 48.dp)
+                                JugadorAvatar(fotoUri = jugadorA?.fotoUri, nombre = jugadorA?.nombre ?: "", tamano = 48.dp, permitirZoom = true)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(jugadorA?.nombre ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(jugadorA?.nombreConTu() ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 Text("${comp.victoriasA} victorias", color = GreenWin, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
                             }
 
@@ -966,9 +1345,9 @@ fun SeccionCaraACara(
                             }
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                JugadorAvatar(fotoUri = jugadorB?.fotoUri, nombre = jugadorB?.nombre ?: "", tamano = 48.dp)
+                                JugadorAvatar(fotoUri = jugadorB?.fotoUri, nombre = jugadorB?.nombre ?: "", tamano = 48.dp, permitirZoom = true)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(jugadorB?.nombre ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(jugadorB?.nombreConTu() ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 Text("${comp.victoriasB} victorias", color = OrangeDraw, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
                             }
                         }
@@ -1161,7 +1540,8 @@ fun CardDuo(duo: DuoEstadisticas, esModoGanador: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, DarkCardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -1176,7 +1556,8 @@ fun CardDuo(duo: DuoEstadisticas, esModoGanador: Boolean) {
                     fotoUri = duo.jugador1.fotoUri,
                     nombre = duo.jugador1.nombre,
                     tamano = 36.dp,
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    permitirZoom = true
                 )
                 Box(modifier = Modifier.padding(start = 22.dp)) {
                     JugadorAvatar(
@@ -1185,14 +1566,15 @@ fun CardDuo(duo: DuoEstadisticas, esModoGanador: Boolean) {
                         tamano = 36.dp,
                         fontSize = 11.sp,
                         bordeColor = DarkCard,
-                        bordeAncho = 2.dp
+                        bordeAncho = 2.dp,
+                        permitirZoom = true
                     )
                 }
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${duo.jugador1.nombre} & ${duo.jugador2.nombre}",
+                    text = "${duo.jugador1.nombreConTu()} & ${duo.jugador2.nombreConTu()}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -1215,7 +1597,7 @@ fun CardDuo(duo: DuoEstadisticas, esModoGanador: Boolean) {
             Column(horizontalAlignment = Alignment.End) {
                 if (esModoGanador) {
                     val pct = duo.porcentajeVictorias.toInt()
-                    val colorPct = if (pct >= 50) GreenWin else if (pct >= 30) OrangeDraw else RedLoss
+                    val colorPct = obtenerColorPorcentaje(duo.porcentajeVictorias)
                     Text(
                         text = "$pct%",
                         fontSize = 16.sp,

@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
+import com.diegoguerrero.futtracker.domain.model.nombreConTu
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
@@ -314,7 +315,7 @@ private fun JugadorItem(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = jugador.nombre,
+                        text = jugador.nombreConTu(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = Color.White,

@@ -25,3 +25,14 @@ val OrangeDraw = Color(0xFFF59E0B)
 val RedLoss = Color(0xFFEF4444)
 val BlueAssist = Color(0xFF29B6F6)
 val BlueCompanero = Color(0xFF38BDF8)
+
+fun obtenerColorPorcentaje(porcentaje: Float): Color {
+    val p = (porcentaje / 100f).coerceIn(0f, 1f)
+    return if (p < 0.5f) {
+        val factor = p / 0.5f
+        androidx.compose.ui.graphics.lerp(RedLoss, OrangeDraw, factor)
+    } else {
+        val factor = (p - 0.5f) / 0.5f
+        androidx.compose.ui.graphics.lerp(OrangeDraw, GreenWin, factor)
+    }
+}
