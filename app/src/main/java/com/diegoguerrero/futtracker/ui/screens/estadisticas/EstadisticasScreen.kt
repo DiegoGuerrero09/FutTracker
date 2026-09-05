@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.diegoguerrero.futtracker.domain.model.Clima
 import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.TipoFutbol
@@ -47,7 +48,7 @@ import java.util.*
 fun EstadisticasScreen(
     viewModel: EstadisticasViewModel = hiltViewModel()
 ) {
-    var pestanaSeleccionada by remember { mutableIntStateOf(0) } // 0: Jugadores, 1: Partidos
+    var pestanaSeleccionada by remember { mutableIntStateOf(0) } // 0: Individual, 1: Partidos
 
     val filtroModo by viewModel.filtroModoJuego.collectAsState()
     val filtroTiempo by viewModel.filtroTiempo.collectAsState()
@@ -62,13 +63,23 @@ fun EstadisticasScreen(
     val resumen by viewModel.resumen.collectAsState()
 
     // Estados pestaña Partidos
+    val partidosTabPartidos by viewModel.partidosTabPartidos.collectAsState()
     val statsClima by viewModel.statsClima.collectAsState()
     val statsEstadios by viewModel.statsEstadios.collectAsState()
     val statsDiasSemana by viewModel.statsDiasSemana.collectAsState()
+    val statsHorasPartidos by viewModel.statsHorasPartidos.collectAsState()
+    val filtroClimas by viewModel.filtroClimas.collectAsState()
+    val filtroTechado by viewModel.filtroTechado.collectAsState()
+    val filtroEstadios by viewModel.filtroEstadios.collectAsState()
+    val filtroDiasSemana by viewModel.filtroDiasSemana.collectAsState()
+    val filtroHoras by viewModel.filtroHoras.collectAsState()
+    val estadiosDisponiblesFiltro by viewModel.estadiosDisponiblesFiltro.collectAsState()
+    val horasDisponiblesFiltro by viewModel.horasDisponiblesFiltro.collectAsState()
+    val hayFiltrosPartidosActivos by viewModel.hayFiltrosPartidosActivos.collectAsState()
+
+    // Estados Individual
     val statsClaroOscuro by viewModel.statsClaroOscuro.collectAsState()
     val statsPosicionesFrecuencia by viewModel.statsPosicionesFrecuencia.collectAsState()
-
-    var mostrarRangoPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -93,7 +104,7 @@ fun EstadisticasScreen(
                         onClick = { pestanaSeleccionada = 0 },
                         text = {
                             Text(
-                                "Jugadores",
+                                "Individual",
                                 fontWeight = if (pestanaSeleccionada == 0) FontWeight.Bold else FontWeight.Normal,
                                 color = if (pestanaSeleccionada == 0) LimeVolt else TextSecondary
                             )
@@ -218,18 +229,13 @@ fun EstadisticasScreen(
                             }
                         }
                         TipoFiltroEstadisticas.FECHA_PERSONALIZADA -> {
-                            val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-                            OutlinedButton(
-                                onClick = { mostrarRangoPicker = true },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${sdf.format(Date(fechaInicio))} - ${sdf.format(Date(fechaFin))}",
-                                    fontSize = 12.sp
-                                )
-                            }
+                            SelectorRangoFechasDosBotones(
+                                fechaInicio = fechaInicio,
+                                fechaFin = fechaFin,
+                                onRangoChange = { ini, fin ->
+                                    viewModel.setRangoFechas(ini, fin)
+                                }
+                            )
                         }
                     }
                 }
@@ -459,6 +465,22 @@ fun EstadisticasScreen(
                 GraficoMinutosJugados(partidos = partidosFiltrados)
             }
 
+            // 7. Estadísticas Claro vs Oscuro
+            item {
+                GraficoClaroOscuro(
+                    statsClaro = statsClaroOscuro.first,
+                    statsOscuro = statsClaroOscuro.second
+                )
+            }
+
+            // 8. Mapa de calor de posiciones más jugadas
+            item {
+                GraficoMapaCalorPosiciones(
+                    posicionesFrecuencia = statsPosicionesFrecuencia,
+                    totalPartidos = partidosFiltrados.size
+                )
+            }
+
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     } else {
@@ -564,105 +586,256 @@ fun EstadisticasScreen(
                             }
                         }
                         TipoFiltroEstadisticas.FECHA_PERSONALIZADA -> {
-                            val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-                            OutlinedButton(
-                                onClick = { mostrarRangoPicker = true },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${sdf.format(Date(fechaInicio))} - ${sdf.format(Date(fechaFin))}",
-                                    fontSize = 12.sp
+                            SelectorRangoFechasDosBotones(
+                                fechaInicio = fechaInicio,
+                                fechaFin = fechaFin,
+                                onRangoChange = { ini, fin ->
+                                    viewModel.setRangoFechas(ini, fin)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Filtros de partido: Clima, Estadio, Días, Horas (Multi-selección)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    border = BorderStroke(1.dp, if (hayFiltrosPartidosActivos) LimeVolt else DarkCardBorder)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterAlt,
+                                    contentDescription = null,
+                                    tint = LimeVolt,
+                                    modifier = Modifier.size(16.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Filtros de partido",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            if (hayFiltrosPartidosActivos) {
+                                TextButton(
+                                    onClick = { viewModel.limpiarFiltrosPartidos() },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = null,
+                                        tint = LimeVolt,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Limpiar", color = LimeVolt, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+
+                        // 1. Climas
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Clima:",
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(Clima.entries.toTypedArray()) { c ->
+                                    val emoji = if (c == Clima.DESPEJADO) "☀️/🌙" else c.emoji
+                                    val seleccionado = filtroClimas.contains(c)
+                                    FilterChip(
+                                        selected = seleccionado,
+                                        onClick = { viewModel.toggleFiltroClima(c) },
+                                        label = {
+                                            Text(
+                                                text = "$emoji ${c.label}",
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = LimeVolt,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                                item {
+                                    val seleccionado = filtroTechado
+                                    FilterChip(
+                                        selected = seleccionado,
+                                        onClick = { viewModel.toggleFiltroTechado() },
+                                        label = {
+                                            Text(
+                                                text = "🏠 Techado",
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = LimeVolt,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        // 2. Estadios / Ubicaciones
+                        if (estadiosDisponiblesFiltro.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Ubicación / Estadio:",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    items(estadiosDisponiblesFiltro) { nomEstadio ->
+                                        val seleccionado = filtroEstadios.contains(nomEstadio)
+                                        FilterChip(
+                                            selected = seleccionado,
+                                            onClick = { viewModel.toggleFiltroEstadio(nomEstadio) },
+                                            label = {
+                                                Text(
+                                                    text = nomEstadio,
+                                                    fontSize = 11.sp
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = LimeVolt,
+                                                selectedLabelColor = Color.Black
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Días de la semana
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Día de la semana:",
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            val dias = listOf(
+                                Calendar.MONDAY to "Lun",
+                                Calendar.TUESDAY to "Mar",
+                                Calendar.WEDNESDAY to "Mié",
+                                Calendar.THURSDAY to "Jue",
+                                Calendar.FRIDAY to "Vie",
+                                Calendar.SATURDAY to "Sáb",
+                                Calendar.SUNDAY to "Dom"
+                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                items(dias) { (diaNum, diaLabel) ->
+                                    val seleccionado = filtroDiasSemana.contains(diaNum)
+                                    FilterChip(
+                                        selected = seleccionado,
+                                        onClick = { viewModel.toggleFiltroDiaSemana(diaNum) },
+                                        label = {
+                                            Text(
+                                                text = diaLabel,
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = LimeVolt,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        // 4. Horas
+                        if (horasDisponiblesFiltro.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Hora de inicio:",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    items(horasDisponiblesFiltro) { hora ->
+                                        val seleccionado = filtroHoras.contains(hora)
+                                        FilterChip(
+                                            selected = seleccionado,
+                                            onClick = { viewModel.toggleFiltroHora(hora) },
+                                            label = {
+                                                Text(
+                                                    text = "${hora}h",
+                                                    fontSize = 11.sp
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = LimeVolt,
+                                                selectedLabelColor = Color.Black
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // 1. Balance de resultados
+            // 1. Gráfica de Ubicaciones / Estadios
             item {
-                GraficoResultados(partidos = partidosFiltrados)
+                GraficoEstadios(
+                    statsEstadios = statsEstadios,
+                    totalPartidos = partidosTabPartidos.size
+                )
             }
 
             // 2. Gráfica de Clima
             item {
                 GraficoClima(
                     statsClima = statsClima,
-                    totalPartidos = partidosFiltrados.size
+                    totalPartidos = partidosTabPartidos.size
                 )
             }
 
-            // 3. Gráfica de Estadios / Ubicaciones
-            item {
-                GraficoEstadios(
-                    statsEstadios = statsEstadios,
-                    totalPartidos = partidosFiltrados.size
-                )
-            }
-
-            // 4. Gráfica Días de la semana más jugados
+            // 3. Gráfica Días de la semana más jugados
             item {
                 GraficoDiasSemana(
                     statsDiasSemana = statsDiasSemana
                 )
             }
 
-            // 5. Estadísticas Claro vs Oscuro
+            // 4. Gráfica Horas más jugadas
             item {
-                GraficoClaroOscuro(
-                    statsClaro = statsClaroOscuro.first,
-                    statsOscuro = statsClaroOscuro.second
-                )
-            }
-
-            // 6. Mapa de calor de posiciones más jugadas
-            item {
-                GraficoMapaCalorPosiciones(
-                    posicionesFrecuencia = statsPosicionesFrecuencia,
-                    totalPartidos = partidosFiltrados.size
+                GraficoHorasPartidos(
+                    statsHoras = statsHorasPartidos
                 )
             }
 
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
-    }
-
-    if (mostrarRangoPicker) {
-        val datePickerState = rememberDateRangePickerState(
-            initialSelectedStartDateMillis = fechaInicio,
-            initialSelectedEndDateMillis = fechaFin
-        )
-        DatePickerDialog(
-            onDismissRequest = { mostrarRangoPicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val start = datePickerState.selectedStartDateMillis
-                        val end = datePickerState.selectedEndDateMillis ?: start
-                        if (start != null && end != null) {
-                            viewModel.setRangoFechas(start, end)
-                        }
-                        mostrarRangoPicker = false
-                    }
-                ) {
-                    Text("Aplicar", color = LimeVolt)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarRangoPicker = false }) {
-                    Text("Cancelar")
-                }
-            }
-        ) {
-            DateRangePicker(
-                state = datePickerState,
-                title = { Text("Selecciona rango de fechas", modifier = Modifier.padding(16.dp)) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
     }
 }
 
@@ -743,74 +916,101 @@ fun GraficoMinutosJugados(partidos: List<Partido>) {
                     )
                 }
 
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
-                        .padding(top = 4.dp),
-                    verticalAlignment = Alignment.Bottom
+                        .padding(top = 4.dp)
                 ) {
-                    // Eje Y con escala
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(bottom = 16.dp, end = 6.dp),
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        horizontalAlignment = Alignment.End
-                    ) {
-                        Text(
-                            text = "${maxMinutos}m",
-                            color = TextSecondary,
-                            fontSize = 9.sp
-                        )
-                        Text(
-                            text = "${maxMinutos / 2}m",
-                            color = TextSecondary,
-                            fontSize = 9.sp
-                        )
-                        Text(
-                            text = "0m",
-                            color = TextSecondary,
-                            fontSize = 9.sp
-                        )
-                    }
-
-                    // Barras
                     Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                            .fillMaxWidth()
+                            .height(115.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        semanasData.forEach { (semana, mins) ->
-                            val ratio = (mins.toFloat() / maxMinutos).coerceIn(0.08f, 1f)
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = "${mins}'",
-                                    color = LimeVolt,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .width(22.dp)
-                                        .fillMaxHeight(ratio)
-                                        .background(LimeVolt, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = semana,
-                                    color = TextSecondary,
-                                    fontSize = 9.sp,
-                                    maxLines = 1
-                                )
+                        // Eje Y con escala
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(bottom = 6.dp, end = 6.dp),
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            Text(
+                                text = "${maxMinutos}m",
+                                color = TextSecondary,
+                                fontSize = 9.sp
+                            )
+                            Text(
+                                text = "${maxMinutos / 2}m",
+                                color = TextSecondary,
+                                fontSize = 9.sp
+                            )
+                            Text(
+                                text = "0m",
+                                color = TextSecondary,
+                                fontSize = 9.sp
+                            )
+                        }
+
+                        // Barras
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            semanasData.forEach { (_, mins) ->
+                                val ratio = (mins.toFloat() / maxMinutos).coerceIn(0.08f, 1f)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Bottom,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = "${mins}'",
+                                        color = LimeVolt,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .width(22.dp)
+                                            .fillMaxHeight(ratio)
+                                            .background(LimeVolt, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    )
+                                }
                             }
+                        }
+                    }
+
+                    // Línea horizontal del Eje X
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 28.dp)
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.25f))
+                    )
+
+                    // Valores del Eje X
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 28.dp, top = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        semanasData.forEach { (semana, _) ->
+                            Text(
+                                text = semana,
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
                         }
                     }
                 }

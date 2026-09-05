@@ -35,7 +35,7 @@ data class PartidoEntity(
     val duracionMinutos: Int = 60,
     val jugadoPorMi: Boolean = true,
     val esFavorito: Boolean = false,
-    val clima: String = "SOLEADO",
+    val clima: String = "",
     val fotoUri: String? = null,
     val equipoJugado: String? = null,
     val estadioId: Long? = null
@@ -61,7 +61,7 @@ data class PartidoEntity(
         val idsMiEquipo = if (jugadoresMiEquipo.isBlank()) idsGeneral else jugadoresMiEquipo.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         val idsRival = if (jugadoresEquipoRival.isBlank()) emptyList() else jugadoresEquipoRival.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-        val climaEnum = runCatching { Clima.valueOf(clima) }.getOrDefault(Clima.SOLEADO)
+        val climaEnum = if (clima.isBlank() || clima == "NINGUNO") null else Clima.fromString(clima)
         val equipoEnum = equipoJugado?.let { runCatching { EquipoColor.valueOf(it) }.getOrNull() }
 
         return Partido(
@@ -129,7 +129,7 @@ fun Partido.toEntity(): PartidoEntity {
         duracionMinutos = duracionMinutos,
         jugadoPorMi = jugadoPorMi,
         esFavorito = esFavorito,
-        clima = clima.name,
+        clima = clima?.name ?: "",
         fotoUri = fotoUri,
         equipoJugado = equipoJugado?.name,
         estadioId = estadioId

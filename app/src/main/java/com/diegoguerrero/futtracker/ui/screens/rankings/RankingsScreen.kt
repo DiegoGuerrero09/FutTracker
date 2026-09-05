@@ -26,6 +26,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.nombreConTu
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
+import com.diegoguerrero.futtracker.ui.components.FilaBadgesPosiciones
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.screens.estadisticas.CriterioOrdenGeneral
 import com.diegoguerrero.futtracker.ui.screens.estadisticas.EstadisticasJugadorGeneral
@@ -339,22 +340,11 @@ fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    val totalPos = item.jugador.posicionesPrimarias + item.jugador.posicionesSecundarias
-                    if (totalPos.isEmpty()) {
-                        Text("Sin posición", fontSize = 11.sp, color = TextSecondary)
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            item.jugador.posicionesPrimarias.forEach { pos ->
-                                BadgePosicion(label = pos.name, esPrimaria = true)
-                            }
-                            item.jugador.posicionesSecundarias.forEach { pos ->
-                                BadgePosicion(label = pos.name, esPrimaria = false)
-                            }
-                        }
-                    }
+                    FilaBadgesPosiciones(
+                        primarias = item.jugador.posicionesPrimarias,
+                        secundarias = item.jugador.posicionesSecundarias,
+                        maxVisibles = 2
+                    )
                 }
 
                 // Porcentaje de victorias destacado

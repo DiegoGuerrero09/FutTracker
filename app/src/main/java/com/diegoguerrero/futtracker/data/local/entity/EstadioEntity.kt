@@ -11,7 +11,9 @@ data class EstadioEntity(
     val id: Long = 0,
     val nombre: String,
     val modalidades: String,
-    val fotoUri: String? = null
+    val fotoUri: String? = null,
+    val esFavorito: Boolean = false,
+    val fechaCreacion: Long = 0
 ) {
     fun toDomain(): Estadio {
         val mods = if (modalidades.isBlank()) {
@@ -26,7 +28,9 @@ data class EstadioEntity(
             id = id,
             nombre = nombre,
             modalidades = mods,
-            fotoUri = fotoUri
+            fotoUri = fotoUri,
+            esFavorito = esFavorito,
+            fechaCreacion = if (fechaCreacion > 0) fechaCreacion else id * 1000
         )
     }
 }
@@ -36,6 +40,8 @@ fun Estadio.toEntity(): EstadioEntity {
         id = id,
         nombre = nombre,
         modalidades = modalidades.joinToString(",") { it.name },
-        fotoUri = fotoUri
+        fotoUri = fotoUri,
+        esFavorito = esFavorito,
+        fechaCreacion = fechaCreacion
     )
 }

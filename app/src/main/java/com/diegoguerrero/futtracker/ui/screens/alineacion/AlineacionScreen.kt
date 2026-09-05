@@ -45,8 +45,10 @@ import com.diegoguerrero.futtracker.ui.components.CampoFutbol
 import com.diegoguerrero.futtracker.ui.theme.*
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.text.PlatformTextStyle
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
+import com.diegoguerrero.futtracker.ui.components.FilaBadgesPosiciones
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -282,7 +284,7 @@ fun AlineacionScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Si la alineación está generada, aparece arriba inmediatamente
             val mapaAlineacion = alineacionMapaCampo
@@ -649,31 +651,17 @@ fun AlineacionScreen(
                                 text = jugador.nombreConTu(),
                                 color = Color.White,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                             )
 
-                            Spacer(modifier = Modifier.height(3.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                            val totalPos = jugador.posicionesPrimarias + jugador.posicionesSecundarias
-                            if (totalPos.isEmpty()) {
-                                Text(
-                                    text = "Sin posición asignada",
-                                    color = TextSecondary,
-                                    fontSize = 11.sp
-                                )
-                            } else {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    jugador.posicionesPrimarias.forEach { pos ->
-                                        BadgePosicion(label = pos.name, esPrimaria = true)
-                                    }
-                                    jugador.posicionesSecundarias.forEach { pos ->
-                                        BadgePosicion(label = pos.name, esPrimaria = false)
-                                    }
-                                }
-                            }
+                            FilaBadgesPosiciones(
+                                primarias = jugador.posicionesPrimarias,
+                                secundarias = jugador.posicionesSecundarias,
+                                maxVisibles = 3
+                            )
                         }
 
                         if (jugador.esFavorito) {
@@ -755,7 +743,8 @@ private fun ItemJugadorAlineado(
                 text = "${index + 1}.",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSecondary
+                color = TextSecondary,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
             )
             Spacer(modifier = Modifier.width(6.dp))
             JugadorAvatar(
@@ -771,24 +760,11 @@ private fun ItemJugadorAlineado(
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Surface(
-                color = Color(0xFF13151E),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.width(36.dp).height(20.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = posicion.name,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = LimeVolt,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            BadgePosicion(label = posicion.name, esPrimaria = true)
         }
     }
 }

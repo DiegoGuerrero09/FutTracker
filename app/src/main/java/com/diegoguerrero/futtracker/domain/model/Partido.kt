@@ -5,9 +5,36 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 enum class Clima(val label: String, val emoji: String) {
-    SOLEADO("Soleado", "☀️"),
+    DESPEJADO("Despejado", "☀️"),
     NUBLADO("Nublado", "⛅"),
-    LLUVIOSO("Lluvioso", "🌧️")
+    LLUVIOSO("Lluvioso", "🌧️");
+
+    companion object {
+        val SOLEADO = DESPEJADO
+
+        fun fromString(str: String?): Clima? {
+            return when (str?.trim()?.uppercase()) {
+                "DESPEJADO", "SOLEADO" -> DESPEJADO
+                "NUBLADO" -> NUBLADO
+                "LLUVIOSO" -> LLUVIOSO
+                else -> null
+            }
+        }
+    }
+}
+
+fun Clima.obtenerEmoji(hora: Int? = null): String {
+    return when (this) {
+        Clima.DESPEJADO -> if (hora != null && hora >= 20) "🌙" else "☀️"
+        Clima.NUBLADO -> "⛅"
+        Clima.LLUVIOSO -> "🌧️"
+    }
+}
+
+fun Clima.obtenerEmojiParaFecha(fechaMillis: Long): String {
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = fechaMillis }
+    val hora = cal.get(java.util.Calendar.HOUR_OF_DAY)
+    return obtenerEmoji(hora)
 }
 
 enum class EquipoColor(val label: String, val emoji: String) {
@@ -41,7 +68,7 @@ data class Partido(
     val duracionMinutos: Int = 60,
     val jugadoPorMi: Boolean = true,
     val esFavorito: Boolean = false,
-    val clima: Clima = Clima.SOLEADO,
+    val clima: Clima? = null,
     val fotoUri: String? = null,
     val equipoJugado: EquipoColor? = null,
     val estadioId: Long? = null

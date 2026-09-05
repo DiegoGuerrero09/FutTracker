@@ -3,6 +3,7 @@ package com.diegoguerrero.futtracker.ui.screens.enfrentamientos
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.diegoguerrero.futtracker.domain.model.DestacadosEnfrentamientos
+import com.diegoguerrero.futtracker.domain.model.DuoEstadisticas
 import com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorCruzadas
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
@@ -16,41 +17,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
-
-private data class FiltrosIndividualData(
-    val sec: SeccionEnfrentamientos,
-    val texto: String,
-    val filtro: FiltroHistorial,
-    val soloFav: Boolean,
-    val pos: Posicion?,
-    val soloPrin: Boolean,
-    val periodo: PeriodoPartidos,
-    val anio: Int,
-    val temporada: String,
-    val fechaInicio: Long,
-    val fechaFin: Long
-)
-
-private data class FiltrosGeneralData(
-    val busq: String,
-    val fav: Boolean,
-    val pos: Posicion?,
-    val soloPrin: Boolean,
-    val idSel: String?,
-    val periodo: PeriodoPartidos,
-    val anio: Int,
-    val temporada: String,
-    val fechaInicio: Long,
-    val fechaFin: Long
-)
-
-private data class H2HAndGenData(
-    val idA: String?,
-    val idB: String?,
-    val destGen: DestacadosEnfrentamientos,
-    val anios: List<Int>,
-    val temps: List<String>
-)
 
 private fun calcularTemporadaActual(): String {
     val cal = Calendar.getInstance()
@@ -129,6 +95,30 @@ private fun calcularRangoPeriodo(
     }
 }
 
+private data class FiltrosInspeccionado(
+    val id: String?,
+    val busqueda: String,
+    val fav: Boolean,
+    val pos: Posicion?,
+    val soloPrin: Boolean
+)
+
+private data class FiltrosPeriodo(
+    val periodo: PeriodoPartidos,
+    val anio: Int,
+    val temp: String,
+    val fechaInicio: Long,
+    val fechaFin: Long
+)
+
+private data class FiltrosCruzado(
+    val texto: String,
+    val filtro: FiltroHistorial,
+    val fav: Boolean,
+    val pos: Posicion?,
+    val soloPrin: Boolean
+)
+
 @HiltViewModel
 class EnfrentamientosViewModel @Inject constructor(
     private val enfrentamientosRepository: EnfrentamientosRepository,
@@ -137,32 +127,28 @@ class EnfrentamientosViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _seccionActual = MutableStateFlow(SeccionEnfrentamientos.INDIVIDUAL)
+
+    // Selector del jugador a inspeccionar (arriba, default "Tú")
+    private val _jugadorSeleccionadoId = MutableStateFlow<String?>(null)
+    private val _busquedaJugadorInspeccionado = MutableStateFlow("")
+    private val _soloFavoritosInspeccionado = MutableStateFlow(false)
+    private val _posicionInspeccionado = MutableStateFlow<Posicion?>(null)
+    private val _soloPosicionPrincipalInspeccionado = MutableStateFlow(false)
+
+    // Período
+    private val _filtroPeriodo = MutableStateFlow(PeriodoPartidos.TOTAL)
+    private val _anioSeleccionado = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
+    private val _temporadaSeleccionada = MutableStateFlow(calcularTemporadaActual())
+    private val _fechaInicio = MutableStateFlow(System.currentTimeMillis() - 30L * 86400000L)
+    private val _fechaFin = MutableStateFlow(System.currentTimeMillis())
+
+    // Filtros de la lista cruzada (otros jugadores vs el inspeccionado)
     private val _filtroTexto = MutableStateFlow("")
     private val _filtroHistorial = MutableStateFlow(FiltroHistorial.TODOS)
     private val _filtroSoloFavoritos = MutableStateFlow(false)
     private val _filtroPosicion = MutableStateFlow<Posicion?>(null)
     private val _filtroSoloPosicionPrincipal = MutableStateFlow(false)
-    private val _filtroPeriodoIndividual = MutableStateFlow(PeriodoPartidos.TOTAL)
-    private val _anioSeleccionadoIndividual = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
-    private val _temporadaSeleccionadaIndividual = MutableStateFlow(calcularTemporadaActual())
-    private val _fechaInicioIndividual = MutableStateFlow(System.currentTimeMillis() - 30L * 86400000L)
-    private val _fechaFinIndividual = MutableStateFlow(System.currentTimeMillis())
-
     private val _jugadorDetalle = MutableStateFlow<EstadisticasJugadorCruzadas?>(null)
-    private val _jugadorAId = MutableStateFlow<String?>(null)
-    private val _jugadorBId = MutableStateFlow<String?>(null)
-
-    // Estado para la pestaña General (ver cabra, lacra, caramelito, bestia de cualquier jugador)
-    private val _jugadorSeleccionadoGeneralId = MutableStateFlow<String?>(null)
-    private val _busquedaGeneral = MutableStateFlow("")
-    private val _soloFavoritosGeneral = MutableStateFlow(false)
-    private val _posicionGeneral = MutableStateFlow<Posicion?>(null)
-    private val _soloPosicionPrincipalGeneral = MutableStateFlow(false)
-    private val _filtroPeriodoGeneral = MutableStateFlow(PeriodoPartidos.TOTAL)
-    private val _anioSeleccionadoGeneral = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
-    private val _temporadaSeleccionadaGeneral = MutableStateFlow(calcularTemporadaActual())
-    private val _fechaInicioGeneral = MutableStateFlow(System.currentTimeMillis() - 30L * 86400000L)
-    private val _fechaFinGeneral = MutableStateFlow(System.currentTimeMillis())
 
     val aniosDisponibles: StateFlow<List<Int>> = partidoRepository.obtenerPartidos()
         .map { lista ->
@@ -184,30 +170,7 @@ class EnfrentamientosViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf(calcularTemporadaActual()))
 
-    private val rangoIndividual = combine(
-        _filtroPeriodoIndividual,
-        _anioSeleccionadoIndividual,
-        _temporadaSeleccionadaIndividual,
-        _fechaInicioIndividual,
-        _fechaFinIndividual
-    ) { periodo, anio, temp, fIni, fFin ->
-        calcularRangoPeriodo(periodo, anio, temp, fIni, fFin)
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val historial: StateFlow<List<EstadisticasJugadorCruzadas>> = rangoIndividual.flatMapLatest { (inicio, fin) ->
-        enfrentamientosRepository.obtenerHistorialCruzado(inicio, fin)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val destacados: StateFlow<DestacadosEnfrentamientos> = rangoIndividual.flatMapLatest { (inicio, fin) ->
-        enfrentamientosRepository.obtenerDestacados(inicio, fin)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DestacadosEnfrentamientos())
-
-    val duos = enfrentamientosRepository.obtenerDuos()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val todosJugadores = jugadorRepository.obtenerJugadores()
+    val todosJugadores: StateFlow<List<Jugador>> = jugadorRepository.obtenerJugadores()
         .map { lista ->
             lista.sortedWith(
                 compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
@@ -217,20 +180,30 @@ class EnfrentamientosViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val rangoGeneral = combine(
-        _filtroPeriodoGeneral,
-        _anioSeleccionadoGeneral,
-        _temporadaSeleccionadaGeneral,
-        _fechaInicioGeneral,
-        _fechaFinGeneral
+    val duos = enfrentamientosRepository.obtenerDuos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val rangoPeriodo = combine(
+        _filtroPeriodo,
+        _anioSeleccionado,
+        _temporadaSeleccionada,
+        _fechaInicio,
+        _fechaFin
     ) { periodo, anio, temp, fIni, fFin ->
         calcularRangoPeriodo(periodo, anio, temp, fIni, fFin)
     }
 
+    private val targetJugadorIdFlow = combine(
+        _jugadorSeleccionadoId,
+        todosJugadores
+    ) { selId, jugadores ->
+        selId ?: jugadores.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }?.id ?: jugadores.firstOrNull()?.id
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    val destacadosGeneral: StateFlow<DestacadosEnfrentamientos> = combine(
-        _jugadorSeleccionadoGeneralId,
-        rangoGeneral
+    val destacados: StateFlow<DestacadosEnfrentamientos> = combine(
+        targetJugadorIdFlow,
+        rangoPeriodo
     ) { id, (inicio, fin) ->
         if (id != null) {
             enfrentamientosRepository.obtenerDestacadosParaJugador(id, inicio, fin)
@@ -240,165 +213,129 @@ class EnfrentamientosViewModel @Inject constructor(
     }.flatMapLatest { it }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DestacadosEnfrentamientos())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val comparativaCaraACara = combine(_jugadorAId, _jugadorBId) { idA, idB ->
-        Pair(idA, idB)
-    }.flatMapLatest { (idA, idB) ->
-        if (idA != null && idB != null && idA != idB) {
-            enfrentamientosRepository.obtenerComparativa(idA, idB)
+    val historial: StateFlow<List<EstadisticasJugadorCruzadas>> = combine(
+        targetJugadorIdFlow,
+        rangoPeriodo
+    ) { id, (inicio, fin) ->
+        if (id != null) {
+            enfrentamientosRepository.obtenerHistorialCruzadoParaJugador(id, inicio, fin)
         } else {
-            flowOf(null)
+            flowOf(emptyList())
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    }.flatMapLatest { it }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val filtrosIndividualFlow = combine(
-        combine(_seccionActual, _filtroTexto, _filtroHistorial) { sec, texto, filtro ->
-            Triple(sec, texto, filtro)
-        },
-        combine(_filtroSoloFavoritos, _filtroPosicion, _filtroSoloPosicionPrincipal) { fav, pos, soloPrin ->
-            Triple(fav, pos, soloPrin)
-        },
-        combine(
-            _filtroPeriodoIndividual,
-            _anioSeleccionadoIndividual,
-            _temporadaSeleccionadaIndividual,
-            _fechaInicioIndividual,
-            _fechaFinIndividual
-        ) { periodo, anio, temp, fIni, fFin ->
-            listOf(periodo, anio, temp, fIni, fFin)
-        }
-    ) { (sec, texto, filtro), (fav, pos, soloPrin), periodoArgs ->
-        FiltrosIndividualData(
-            sec, texto, filtro, fav, pos, soloPrin,
-            periodoArgs[0] as PeriodoPartidos,
-            periodoArgs[1] as Int,
-            periodoArgs[2] as String,
-            periodoArgs[3] as Long,
-            periodoArgs[4] as Long
-        )
+    private val filtrosInspeccionadoFlow = combine(
+        targetJugadorIdFlow,
+        _busquedaJugadorInspeccionado,
+        _soloFavoritosInspeccionado,
+        _posicionInspeccionado,
+        _soloPosicionPrincipalInspeccionado
+    ) { id, busq, fav, pos, soloPrin ->
+        FiltrosInspeccionado(id, busq, fav, pos, soloPrin)
     }
 
-    private val filtrosGeneralFlow = combine(
-        combine(_busquedaGeneral, _soloFavoritosGeneral, _posicionGeneral) { busq, fav, pos ->
-            Triple(busq, fav, pos)
-        },
-        combine(_soloPosicionPrincipalGeneral, _jugadorSeleccionadoGeneralId) { soloPrin, idSel ->
-            Pair(soloPrin, idSel)
-        },
-        combine(
-            _filtroPeriodoGeneral,
-            _anioSeleccionadoGeneral,
-            _temporadaSeleccionadaGeneral,
-            _fechaInicioGeneral,
-            _fechaFinGeneral
-        ) { periodo, anio, temp, fIni, fFin ->
-            listOf(periodo, anio, temp, fIni, fFin)
-        }
-    ) { (busq, fav, pos), (soloPrin, idSel), periodoArgs ->
-        FiltrosGeneralData(
-            busq, fav, pos, soloPrin, idSel,
-            periodoArgs[0] as PeriodoPartidos,
-            periodoArgs[1] as Int,
-            periodoArgs[2] as String,
-            periodoArgs[3] as Long,
-            periodoArgs[4] as Long
-        )
+    private val filtrosPeriodoFlow = combine(
+        _filtroPeriodo,
+        _anioSeleccionado,
+        _temporadaSeleccionada,
+        _fechaInicio,
+        _fechaFin
+    ) { periodo, anio, temp, fIni, fFin ->
+        FiltrosPeriodo(periodo, anio, temp, fIni, fFin)
     }
 
-    private val h2hAndGenFlow = combine(
-        combine(_jugadorAId, _jugadorBId) { a, b -> Pair(a, b) },
-        destacadosGeneral,
-        aniosDisponibles,
-        temporadasDisponibles
-    ) { (a, b), destGen, anios, temps ->
-        H2HAndGenData(a, b, destGen, anios, temps)
+    private val filtrosCruzadoFlow = combine(
+        _filtroTexto,
+        _filtroHistorial,
+        _filtroSoloFavoritos,
+        _filtroPosicion,
+        _filtroSoloPosicionPrincipal
+    ) { texto, hist, fav, pos, soloPrin ->
+        FiltrosCruzado(texto, hist, fav, pos, soloPrin)
     }
 
     val uiState: StateFlow<EnfrentamientosUiState> = combine(
-        filtrosIndividualFlow,
-        combine(historial, destacados, duos) { hist, dest, d ->
-            Triple(hist, dest, d)
-        },
-        combine(todosJugadores, _jugadorDetalle, comparativaCaraACara) { jug, det, comp ->
-            Triple(jug, det, comp)
-        },
-        filtrosGeneralFlow,
-        h2hAndGenFlow
-    ) { fIndiv, (hist, dest, d), (jug, det, comp), fGen, h2hGen ->
-        val (idA, idB, destGen, anios, temps) = h2hGen
-
-        val historialFiltrado = hist.filter { item ->
-            val coincideTexto = fIndiv.texto.isBlank() || item.jugador.nombre.contains(fIndiv.texto, ignoreCase = true)
-            val coincideFiltro = when (fIndiv.filtro) {
-                FiltroHistorial.TODOS -> true
-                FiltroHistorial.COMPANEROS -> item.partidosComoCompanero > 0
-                FiltroHistorial.RIVALES -> item.partidosComoRival > 0
-            }
-            val coincideFav = !fIndiv.soloFav || item.jugador.esFavorito
-            val coincidePos = when {
-                fIndiv.pos == null -> true
-                fIndiv.soloPrin -> item.jugador.posicionesPrimarias.contains(fIndiv.pos)
-                else -> item.jugador.posicionesPrimarias.contains(fIndiv.pos) || item.jugador.posicionesSecundarias.contains(fIndiv.pos)
-            }
-            coincideTexto && coincideFiltro && coincideFav && coincidePos
+        _seccionActual,
+        filtrosInspeccionadoFlow,
+        filtrosPeriodoFlow,
+        filtrosCruzadoFlow,
+        combine(
+            destacados,
+            historial,
+            todosJugadores,
+            duos,
+            _jugadorDetalle
+        ) { dest, hist, todos, duosList, det ->
+            listOf(dest, hist, todos, duosList, det)
         }
+    ) { sec, fInsp, fPer, fCruz, combinedData ->
+        val dest = combinedData[0] as DestacadosEnfrentamientos
+        val hist = combinedData[1] as List<EstadisticasJugadorCruzadas>
+        val todos = combinedData[2] as List<Jugador>
+        val duosList = combinedData[3] as List<DuoEstadisticas>
+        val det = combinedData[4] as EstadisticasJugadorCruzadas?
 
-        val jugadoresFiltradosGen = jug.filter { item ->
-            val coincideBusq = fGen.busq.isBlank() || item.nombre.contains(fGen.busq, ignoreCase = true)
-            val coincideFav = !fGen.fav || item.esFavorito
+        val jugadoresFiltradosInsp = todos.filter { item ->
+            val coincideBusq = fInsp.busqueda.isBlank() || item.nombre.contains(fInsp.busqueda, ignoreCase = true)
+            val coincideFav = !fInsp.fav || item.esFavorito
             val coincidePos = when {
-                fGen.pos == null -> true
-                fGen.soloPrin -> item.posicionesPrimarias.contains(fGen.pos)
-                else -> item.posicionesPrimarias.contains(fGen.pos) || item.posicionesSecundarias.contains(fGen.pos)
+                fInsp.pos == null -> true
+                fInsp.soloPrin -> item.posicionesPrimarias.contains(fInsp.pos)
+                else -> item.posicionesPrimarias.contains(fInsp.pos) || item.posicionesSecundarias.contains(fInsp.pos)
             }
             coincideBusq && coincideFav && coincidePos
         }
 
-        val finalGenId = fGen.idSel ?: jug.firstOrNull()?.id
+        val historialFiltrado = hist.filter { item ->
+            val coincideTexto = fCruz.texto.isBlank() || item.jugador.nombre.contains(fCruz.texto, ignoreCase = true)
+            val coincideFiltro = when (fCruz.filtro) {
+                FiltroHistorial.TODOS -> true
+                FiltroHistorial.COMPANEROS -> item.partidosComoCompanero > 0
+                FiltroHistorial.RIVALES -> item.partidosComoRival > 0
+            }
+            val coincideFav = !fCruz.fav || item.jugador.esFavorito
+            val coincidePos = when {
+                fCruz.pos == null -> true
+                fCruz.soloPrin -> item.jugador.posicionesPrimarias.contains(fCruz.pos)
+                else -> item.jugador.posicionesPrimarias.contains(fCruz.pos) || item.jugador.posicionesSecundarias.contains(fCruz.pos)
+            }
+            coincideTexto && coincideFiltro && coincideFav && coincidePos
+        }
 
         EnfrentamientosUiState(
-            seccionActual = fIndiv.sec,
-            historial = historialFiltrado,
+            seccionActual = sec,
+            jugadorSeleccionadoId = fInsp.id,
+            busquedaJugadorInspeccionado = fInsp.busqueda,
+            soloFavoritosInspeccionado = fInsp.fav,
+            posicionInspeccionado = fInsp.pos,
+            soloPosicionPrincipalInspeccionado = fInsp.soloPrin,
+            jugadoresFiltradosInspeccionados = jugadoresFiltradosInsp,
+            filtroPeriodo = fPer.periodo,
+            anioSeleccionado = fPer.anio,
+            temporadaSeleccionada = fPer.temp,
+            fechaInicio = fPer.fechaInicio,
+            fechaFin = fPer.fechaFin,
+            aniosDisponibles = aniosDisponibles.value,
+            temporadasDisponibles = temporadasDisponibles.value,
             destacados = dest,
-            duos = d,
-            todosLosJugadores = jug,
-            filtroTexto = fIndiv.texto,
-            filtroHistorial = fIndiv.filtro,
-            filtroSoloFavoritos = fIndiv.soloFav,
-            filtroPosicion = fIndiv.pos,
-            filtroSoloPosicionPrincipal = fIndiv.soloPrin,
-            filtroPeriodoIndividual = fIndiv.periodo,
-            anioSeleccionadoIndividual = fIndiv.anio,
-            temporadaSeleccionadaIndividual = fIndiv.temporada,
-            fechaInicioIndividual = fIndiv.fechaInicio,
-            fechaFinIndividual = fIndiv.fechaFin,
+            historial = historialFiltrado,
+            filtroTexto = fCruz.texto,
+            filtroHistorial = fCruz.filtro,
+            filtroSoloFavoritos = fCruz.fav,
+            filtroPosicion = fCruz.pos,
+            filtroSoloPosicionPrincipal = fCruz.soloPrin,
             jugadorDetalle = det,
-            jugadorAId = idA,
-            jugadorBId = idB,
-            comparativaCaraACara = comp,
-            jugadorSeleccionadoGeneralId = finalGenId,
-            destacadosGeneral = destGen,
-            busquedaGeneral = fGen.busq,
-            soloFavoritosGeneral = fGen.fav,
-            posicionGeneral = fGen.pos,
-            soloPosicionPrincipalGeneral = fGen.soloPrin,
-            filtroPeriodoGeneral = fGen.periodo,
-            anioSeleccionadoGeneral = fGen.anio,
-            temporadaSeleccionadaGeneral = fGen.temporada,
-            fechaInicioGeneral = fGen.fechaInicio,
-            fechaFinGeneral = fGen.fechaFin,
-            aniosDisponibles = anios,
-            temporadasDisponibles = temps,
-            jugadoresFiltradosGeneral = jugadoresFiltradosGen
+            duos = duosList,
+            todosLosJugadores = todos
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EnfrentamientosUiState())
 
     init {
         viewModelScope.launch {
             todosJugadores.collect { jugadores ->
-                if (jugadores.isNotEmpty()) {
-                    if (_jugadorSeleccionadoGeneralId.value == null) {
-                        _jugadorSeleccionadoGeneralId.value = jugadores[0].id
-                    }
+                if (jugadores.isNotEmpty() && _jugadorSeleccionadoId.value == null) {
+                    val user = jugadores.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+                    _jugadorSeleccionadoId.value = user?.id ?: jugadores[0].id
                 }
             }
         }
@@ -408,6 +345,46 @@ class EnfrentamientosViewModel @Inject constructor(
         _seccionActual.value = seccion
     }
 
+    // Métodos para el jugador inspeccionado
+    fun seleccionarJugadorInspeccionado(id: String) {
+        _jugadorSeleccionadoId.value = id
+    }
+
+    fun setBusquedaJugadorInspeccionado(texto: String) {
+        _busquedaJugadorInspeccionado.value = texto
+    }
+
+    fun toggleSoloFavoritosInspeccionado() {
+        _soloFavoritosInspeccionado.value = !_soloFavoritosInspeccionado.value
+    }
+
+    fun setPosicionInspeccionado(pos: Posicion?) {
+        _posicionInspeccionado.value = pos
+    }
+
+    fun setSoloPosicionPrincipalInspeccionado(soloPrincipal: Boolean) {
+        _soloPosicionPrincipalInspeccionado.value = soloPrincipal
+    }
+
+    // Métodos de período
+    fun setFiltroPeriodo(periodo: PeriodoPartidos) {
+        _filtroPeriodo.value = periodo
+    }
+
+    fun setAnio(anio: Int) {
+        _anioSeleccionado.value = anio
+    }
+
+    fun setTemporada(temporada: String) {
+        _temporadaSeleccionada.value = temporada
+    }
+
+    fun setRangoFechas(inicio: Long, fin: Long) {
+        _fechaInicio.value = inicio
+        _fechaFin.value = fin
+    }
+
+    // Métodos para el historial cruzado (otros jugadores)
     fun setFiltroTexto(texto: String) {
         _filtroTexto.value = texto
     }
@@ -428,79 +405,8 @@ class EnfrentamientosViewModel @Inject constructor(
         _filtroSoloPosicionPrincipal.value = soloPrincipal
     }
 
-    fun setPeriodoIndividual(periodo: PeriodoPartidos, anio: Int = _anioSeleccionadoIndividual.value) {
-        _filtroPeriodoIndividual.value = periodo
-        _anioSeleccionadoIndividual.value = anio
-    }
-
-    fun setFiltroPeriodoIndividual(periodo: PeriodoPartidos) {
-        _filtroPeriodoIndividual.value = periodo
-    }
-
-    fun setAnioIndividual(anio: Int) {
-        _anioSeleccionadoIndividual.value = anio
-    }
-
-    fun setTemporadaIndividual(temporada: String) {
-        _temporadaSeleccionadaIndividual.value = temporada
-    }
-
-    fun setRangoFechasIndividual(inicio: Long, fin: Long) {
-        _fechaInicioIndividual.value = inicio
-        _fechaFinIndividual.value = fin
-    }
-
     fun seleccionarJugadorDetalle(item: EstadisticasJugadorCruzadas?) {
         _jugadorDetalle.value = item
     }
-
-    fun seleccionarJugadorA(id: String) {
-        _jugadorAId.value = id
-    }
-
-    fun seleccionarJugadorB(id: String) {
-        _jugadorBId.value = id
-    }
-
-    fun seleccionarJugadorGeneral(id: String) {
-        _jugadorSeleccionadoGeneralId.value = id
-    }
-
-    fun setBusquedaGeneral(texto: String) {
-        _busquedaGeneral.value = texto
-    }
-
-    fun toggleSoloFavoritosGeneral() {
-        _soloFavoritosGeneral.value = !_soloFavoritosGeneral.value
-    }
-
-    fun setPosicionGeneral(pos: Posicion?) {
-        _posicionGeneral.value = pos
-    }
-
-    fun setSoloPosicionPrincipalGeneral(soloPrincipal: Boolean) {
-        _soloPosicionPrincipalGeneral.value = soloPrincipal
-    }
-
-    fun setPeriodoGeneral(periodo: PeriodoPartidos, anio: Int = _anioSeleccionadoGeneral.value) {
-        _filtroPeriodoGeneral.value = periodo
-        _anioSeleccionadoGeneral.value = anio
-    }
-
-    fun setFiltroPeriodoGeneral(periodo: PeriodoPartidos) {
-        _filtroPeriodoGeneral.value = periodo
-    }
-
-    fun setAnioGeneral(anio: Int) {
-        _anioSeleccionadoGeneral.value = anio
-    }
-
-    fun setTemporadaGeneral(temporada: String) {
-        _temporadaSeleccionadaGeneral.value = temporada
-    }
-
-    fun setRangoFechasGeneral(inicio: Long, fin: Long) {
-        _fechaInicioGeneral.value = inicio
-        _fechaFinGeneral.value = fin
-    }
 }
+

@@ -155,6 +155,39 @@ fun BadgePosicion(label: String, esPrimaria: Boolean) {
 }
 
 @Composable
+fun FilaBadgesPosiciones(
+    primarias: Set<com.diegoguerrero.futtracker.domain.model.Posicion>,
+    secundarias: Set<com.diegoguerrero.futtracker.domain.model.Posicion>,
+    modifier: Modifier = Modifier,
+    maxVisibles: Int = 3
+) {
+    val total = (primarias + secundarias).toList()
+    if (total.isEmpty()) {
+        Text("Sin posición", fontSize = 11.sp, color = TextSecondary)
+        return
+    }
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (total.size <= maxVisibles) {
+            total.forEach { pos ->
+                BadgePosicion(label = pos.name, esPrimaria = pos in primarias)
+            }
+        } else {
+            val visiblesCount = (maxVisibles - 1).coerceAtLeast(1)
+            val mostradas = total.take(visiblesCount)
+            val restantes = total.size - visiblesCount
+            mostradas.forEach { pos ->
+                BadgePosicion(label = pos.name, esPrimaria = pos in primarias)
+            }
+            BadgePosicion(label = "+$restantes", esPrimaria = false)
+        }
+    }
+}
+
+@Composable
 fun ImagenLocal(
     fotoUri: String?,
     contentDescription: String? = null,

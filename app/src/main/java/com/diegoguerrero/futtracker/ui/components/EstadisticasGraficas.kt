@@ -53,7 +53,7 @@ fun GraficoResultados(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Balance de resultados",
+                text = "⚖️ Balance de resultados",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
@@ -172,7 +172,7 @@ fun GraficoGolesAsistencias(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Goles y asistencias",
+                    text = "⚽ Goles y asistencias",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
@@ -355,7 +355,7 @@ fun GraficoResumenGoles(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Resumen de goles",
+                    text = "⚽ Resumen de goles",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
@@ -470,7 +470,7 @@ fun GraficoTirosAlPalo(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tiros al palo",
+                    text = "🥅 Tiros al palo",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold

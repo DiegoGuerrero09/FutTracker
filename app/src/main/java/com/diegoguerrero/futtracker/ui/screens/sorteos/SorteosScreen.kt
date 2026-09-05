@@ -43,6 +43,7 @@ import kotlin.math.roundToInt
 import com.diegoguerrero.futtracker.ui.components.CampoFutbol
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
+import com.diegoguerrero.futtracker.ui.components.FilaBadgesPosiciones
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
 import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
@@ -57,7 +58,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SorteosScreen(
-    jugadores: List<Jugador>
+    jugadores: List<Jugador>,
+    estadios: List<Estadio> = emptyList()
 ) {
     val context = LocalContext.current
     val useCase = remember { GenerarAlineacionUseCase() }
@@ -72,6 +74,8 @@ fun SorteosScreen(
     // Fecha, hora y lugar del partido para compartir
     var fechaHoraMillis by remember { mutableStateOf<Long?>(null) }
     var lugarSorteo by remember { mutableStateOf("") }
+    var expandedEstadiosDropdown by remember { mutableStateOf(false) }
+    val estadiosOrdenados = remember(estadios) { estadios.sortedBy { it.nombre.lowercase() } }
 
     // Formaciones y mapas tácticos sugeridos tras sorteo
     var formacionSugeridaClaro by remember { mutableStateOf<Formacion?>(null) }
@@ -320,7 +324,7 @@ fun SorteosScreen(
 
         try {
             val width = 1080
-            val height = 1860
+            val height = 1380
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(bitmap)
 
@@ -501,50 +505,50 @@ fun SorteosScreen(
             }
 
             // --- Tarjeta Equipo Claro ---
-            val rectClaro = RectF(40f, 195f, width - 40f, 985f)
+            val rectClaro = RectF(40f, 185f, width - 40f, 755f)
             canvas.drawRoundRect(rectClaro, 20f, 20f, cardPaint)
             canvas.drawRoundRect(rectClaro, 20f, 20f, cardBorderClaroPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#D4FF00")
-            canvas.drawText("⚪ Equipo claro", 70f, 255f, sectionTitlePaint)
+            canvas.drawText("⚪ Equipo claro", 70f, 240f, sectionTitlePaint)
 
             val listaClaro = mapaCampoClaro?.entries
                 ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
                 ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
                 ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro.sortedBy { it.first.ordinal } else equipoClaro.map { Posicion.DC to it })
 
-            var yClaro = 320f
+            var yClaro = 300f
             listaClaro.forEachIndexed { i, (_, j) ->
                 canvas.drawText("${i + 1}. ${j.nombre}", 70f, yClaro, playerTextPaint)
-                yClaro += 55f
+                yClaro += 58f
             }
 
             mapaCampoClaro?.let { mapa ->
-                val rectPitchClaro = RectF(460f, 280f, width - 55f, 965f)
+                val rectPitchClaro = RectF(460f, 220f, width - 55f, 740f)
                 dibujarMiniCampo(rectPitchClaro, mapa, android.graphics.Color.WHITE, android.graphics.Color.BLACK)
             }
 
             // --- Tarjeta Equipo Oscuro ---
-            val rectOscuro = RectF(40f, 1015f, width - 40f, 1805f)
+            val rectOscuro = RectF(40f, 780f, width - 40f, 1350f)
             canvas.drawRoundRect(rectOscuro, 20f, 20f, cardPaint)
             canvas.drawRoundRect(rectOscuro, 20f, 20f, cardBorderOscuroPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#80D8FF")
-            canvas.drawText("⚫ Equipo oscuro", 70f, 1075f, sectionTitlePaint)
+            canvas.drawText("⚫ Equipo oscuro", 70f, 835f, sectionTitlePaint)
 
             val listaOscuro = mapaCampoOscuro?.entries
                 ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
                 ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
                 ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro.sortedBy { it.first.ordinal } else equipoOscuro.map { Posicion.DC to it })
 
-            var yOscuro = 1140f
+            var yOscuro = 895f
             listaOscuro.forEachIndexed { i, (_, j) ->
                 canvas.drawText("${i + 1}. ${j.nombre}", 70f, yOscuro, playerTextPaint)
-                yOscuro += 55f
+                yOscuro += 58f
             }
 
             mapaCampoOscuro?.let { mapa ->
-                val rectPitchOscuro = RectF(460f, 1100f, width - 55f, 1785f)
+                val rectPitchOscuro = RectF(460f, 815f, width - 55f, 1335f)
                 dibujarMiniCampo(rectPitchOscuro, mapa, android.graphics.Color.BLACK, android.graphics.Color.WHITE)
             }
 
@@ -669,7 +673,7 @@ fun SorteosScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Detalles del partido (para compartir):",
+                            text = "Detalles del partido:",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
@@ -749,36 +753,83 @@ fun SorteosScreen(
                             }
                         }
 
-                        // Lugar
-                        OutlinedTextField(
-                            value = lugarSorteo,
-                            onValueChange = { lugarSorteo = it },
-                            placeholder = { Text("Lugar (ej. Polideportivo, Campo 3)", fontSize = 13.sp, color = TextSecondary) },
-                            singleLine = true,
-                            leadingIcon = {
-                                Icon(Icons.Default.Place, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(18.dp))
-                            },
-                            trailingIcon = {
-                                if (lugarSorteo.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { lugarSorteo = "" },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Limpiar lugar", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        // Lugar / Estadio (Dropdown)
+                        ExposedDropdownMenuBox(
+                            expanded = expandedEstadiosDropdown,
+                            onExpandedChange = { expandedEstadiosDropdown = !expandedEstadiosDropdown },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = lugarSorteo,
+                                onValueChange = {},
+                                readOnly = true,
+                                placeholder = {
+                                    Text(
+                                        if (estadios.isEmpty()) "No hay estadios registrados" else "Seleccionar estadio...",
+                                        fontSize = 13.sp,
+                                        color = TextSecondary
+                                    )
+                                },
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(Icons.Default.Place, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(18.dp))
+                                },
+                                trailingIcon = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (lugarSorteo.isNotEmpty()) {
+                                            IconButton(
+                                                onClick = { lugarSorteo = "" },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(Icons.Default.Clear, contentDescription = "Limpiar estadio", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEstadiosDropdown)
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = LimeVolt,
+                                    unfocusedBorderColor = DarkCardBorder,
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expandedEstadiosDropdown,
+                                onDismissRequest = { expandedEstadiosDropdown = false },
+                                modifier = Modifier.background(DarkCard)
+                            ) {
+                                if (estadiosOrdenados.isEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("No hay estadios creados (añade uno en Datos)", color = TextSecondary, fontSize = 13.sp) },
+                                        onClick = { expandedEstadiosDropdown = false }
+                                    )
+                                } else {
+                                    estadiosOrdenados.forEach { est ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(Icons.Default.Stadium, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(est.nombre, color = Color.White, fontSize = 13.sp)
+                                                }
+                                            },
+                                            onClick = {
+                                                lugarSorteo = est.nombre
+                                                expandedEstadiosDropdown = false
+                                            }
+                                        )
                                     }
                                 }
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = LimeVolt,
-                                unfocusedBorderColor = DarkCardBorder,
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -1061,22 +1112,11 @@ fun SorteosScreen(
                                                 ) {
                                                     Text(j.nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                                                     Spacer(modifier = Modifier.height(2.dp))
-                                                    val totalPos = j.posicionesPrimarias + j.posicionesSecundarias
-                                                    if (totalPos.isEmpty()) {
-                                                        Text("Sin posición", fontSize = 10.sp, color = TextSecondary)
-                                                    } else {
-                                                        Row(
-                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            j.posicionesPrimarias.forEach { pos ->
-                                                                BadgePosicion(label = pos.name, esPrimaria = true)
-                                                            }
-                                                            j.posicionesSecundarias.forEach { pos ->
-                                                                BadgePosicion(label = pos.name, esPrimaria = false)
-                                                            }
-                                                        }
-                                                    }
+                                                    FilaBadgesPosiciones(
+                                                        primarias = j.posicionesPrimarias,
+                                                        secundarias = j.posicionesSecundarias,
+                                                        maxVisibles = 3
+                                                    )
                                                 }
 
                                                 if (j.esFavorito) {

@@ -140,7 +140,7 @@ class PerfilViewModel @Inject constructor(
                 put("duracionMinutos", part.duracionMinutos)
                 put("jugadoPorMi", part.jugadoPorMi)
                 put("esFavorito", part.esFavorito)
-                put("clima", part.clima.name)
+                part.clima?.let { put("clima", it.name) }
                 part.fotoUri?.let { put("fotoUri", it) }
                 part.equipoJugado?.let { put("equipoJugado", it.name) }
                 part.estadioId?.let { put("estadioId", it) }
@@ -319,8 +319,8 @@ class PerfilViewModel @Inject constructor(
                 }
 
                 val esFav = pObj.optBoolean("esFavorito", false)
-                val climaStr = pObj.optString("clima", Clima.SOLEADO.name)
-                val clima = runCatching { Clima.valueOf(climaStr) }.getOrDefault(Clima.SOLEADO)
+                val climaStr = if (pObj.has("clima") && !pObj.isNull("clima")) pObj.getString("clima") else null
+                val clima = climaStr?.let { Clima.fromString(it) }
                 val fotoUri = if (pObj.has("fotoUri") && !pObj.isNull("fotoUri")) pObj.getString("fotoUri") else null
                 val eqColorStr = if (pObj.has("equipoJugado") && !pObj.isNull("equipoJugado")) pObj.getString("equipoJugado") else null
                 val eqColor = eqColorStr?.let { runCatching { EquipoColor.valueOf(it) }.getOrNull() }

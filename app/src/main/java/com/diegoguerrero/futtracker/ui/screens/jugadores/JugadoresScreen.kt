@@ -31,6 +31,7 @@ import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.nombreConTu
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
+import com.diegoguerrero.futtracker.ui.components.FilaBadgesPosiciones
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
 import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
@@ -376,10 +377,6 @@ private fun JugadorItem(
     onToggleFavorito: () -> Unit,
     onEliminar: () -> Unit
 ) {
-    // Lógica para aplicar elipsis visual o resumen si tiene 6 o más posiciones totales
-    val totalPosiciones = jugador.posicionesPrimarias.union(jugador.posicionesSecundarias)
-    val mostrarElipsis = totalPosiciones.size >= 6
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -421,29 +418,23 @@ private fun JugadorItem(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (mostrarElipsis) {
-                            val primerasVisibles = totalPosiciones.take(4)
-                            primerasVisibles.forEach { pos ->
-                                BadgePosicion(label = pos.name, esPrimaria = pos in jugador.posicionesPrimarias)
-                            }
-                            BadgePosicion(label = "+${totalPosiciones.size - 4}", esPrimaria = false)
-                        } else {
-                            jugador.posicionesPrimarias.forEach { pos ->
-                                BadgePosicion(label = pos.name, esPrimaria = true)
-                            }
-                            jugador.posicionesSecundarias.forEach { pos ->
-                                BadgePosicion(label = pos.name, esPrimaria = false)
-                            }
-                        }
-                    }
+                    FilaBadgesPosiciones(
+                        primarias = jugador.posicionesPrimarias,
+                        secundarias = jugador.posicionesSecundarias,
+                        maxVisibles = 3
+                    )
                 }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onClick) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar jugador",
+                        tint = LimeVolt
+                    )
+                }
+
                 IconButton(onClick = onToggleFavorito) {
                     Icon(
                         imageVector = if (jugador.esFavorito) Icons.Default.Star else Icons.Outlined.StarOutline,
@@ -460,44 +451,6 @@ private fun JugadorItem(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun BadgePosicion(label: String, esPrimaria: Boolean) {
-    val bgColor = if (esPrimaria) {
-        LimeVolt.copy(alpha = 0.25f)
-    } else {
-        Color(0xFF334155)
-    }
-    val textColor = if (esPrimaria) {
-        LimeVolt
-    } else {
-        Color(0xFFCBD5E1)
-    }
-
-    Surface(
-        color = bgColor,
-        shape = RoundedCornerShape(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .defaultMinSize(minWidth = 34.dp)
-                .height(20.dp)
-                .padding(horizontal = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                color = textColor,
-                fontSize = 10.sp,
-                fontWeight = if (esPrimaria) FontWeight.Bold else FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                style = androidx.compose.ui.text.TextStyle(
-                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
-                )
-            )
         }
     }
 }

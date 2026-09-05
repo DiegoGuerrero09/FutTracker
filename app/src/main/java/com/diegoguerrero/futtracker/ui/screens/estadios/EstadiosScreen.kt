@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.diegoguerrero.futtracker.domain.model.Estadio
 import com.diegoguerrero.futtracker.domain.model.TipoFutbol
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
+import com.diegoguerrero.futtracker.ui.components.DialogoVisorFotoConZoom
 import com.diegoguerrero.futtracker.ui.components.ImagenLocal
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
@@ -42,11 +43,45 @@ fun EstadiosScreen(
     estadios: List<Estadio>,
     onAgregarEstadio: (Estadio) -> Unit,
     onActualizarEstadio: (Estadio) -> Unit,
-    onEliminarEstadio: (Estadio) -> Unit
+    onEliminarEstadio: (Estadio) -> Unit,
+    onToggleFavorito: (Estadio) -> Unit = {}
 ) {
     var mostrarDialogoCrear by remember { mutableStateOf(false) }
     var estadioAEditar by remember { mutableStateOf<Estadio?>(null) }
     var estadioAEliminar by remember { mutableStateOf<Estadio?>(null) }
+
+    var busqueda by remember { mutableStateOf("") }
+    var filtroSoloFavoritos by remember { mutableStateOf(false) }
+    var ordenNombreAsc by remember { mutableStateOf<Boolean?>(null) }
+    var ordenFechaDesc by remember { mutableStateOf<Boolean?>(null) }
+    var modalidadFiltro by remember { mutableStateOf<TipoFutbol?>(null) }
+
+    val estadiosFiltrados = remember(
+        estadios, busqueda, filtroSoloFavoritos, ordenNombreAsc, ordenFechaDesc, modalidadFiltro
+    ) {
+        estadios.filter { est ->
+            val matchText = busqueda.isBlank() || est.nombre.contains(busqueda.trim(), ignoreCase = true)
+            val matchFav = !filtroSoloFavoritos || est.esFavorito
+            val matchMod = modalidadFiltro == null || est.modalidades.contains(modalidadFiltro)
+            matchText && matchFav && matchMod
+        }.sortedWith { a, b ->
+            when {
+                ordenNombreAsc != null -> {
+                    if (ordenNombreAsc == true) a.nombre.compareTo(b.nombre, ignoreCase = true)
+                    else b.nombre.compareTo(a.nombre, ignoreCase = true)
+                }
+                ordenFechaDesc != null -> {
+                    if (ordenFechaDesc == true) b.fechaCreacion.compareTo(a.fechaCreacion)
+                    else a.fechaCreacion.compareTo(b.fechaCreacion)
+                }
+                else -> {
+                    compareByDescending<Estadio> { it.esFavorito }
+                        .thenBy { it.nombre.lowercase() }
+                        .compare(a, b)
+                }
+            }
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -66,7 +101,210 @@ fun EstadiosScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            if (estadios.isEmpty()) {
+            // Buscador
+            OutlinedTextField(
+                value = busqueda,
+                onValueChange = { busqueda = it },
+                placeholder = { Text("Buscar estadio...", fontSize = 13.sp, color = TextSecondary) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(20.dp))
+                },
+                trailingIcon = {
+                    if (busqueda.isNotEmpty()) {
+                        IconButton(onClick = { busqueda = "" }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = LimeVolt,
+                    unfocusedBorderColor = DarkCardBorder,
+                    focusedContainerColor = DarkCard,
+                    unfocusedContainerColor = DarkCard,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Fila 1: Ordenar y Favoritos
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Filtro Favoritos
+                item {
+                    FilterChip(
+                        selected = filtroSoloFavoritos,
+                        onClick = { filtroSoloFavoritos = !filtroSoloFavoritos },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFFFD700).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFFFFD700),
+                            containerColor = Color.Transparent,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = filtroSoloFavoritos,
+                            borderColor = DarkCardBorder,
+                            selectedBorderColor = Color(0xFFFFD700)
+                        ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (filtroSoloFavoritos) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                tint = if (filtroSoloFavoritos) Color(0xFFFFD700) else TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = { Text("Favoritos", fontSize = 11.sp) }
+                    )
+                }
+
+                // Orden por Nombre
+                item {
+                    val labelNombre = when (ordenNombreAsc) {
+                        true -> "Nombre (A-Z) ↑"
+                        false -> "Nombre (Z-A) ↓"
+                        null -> "Nombre"
+                    }
+                    FilterChip(
+                        selected = ordenNombreAsc != null,
+                        onClick = {
+                            ordenFechaDesc = null
+                            ordenNombreAsc = when (ordenNombreAsc) {
+                                null -> true
+                                true -> false
+                                false -> null
+                            }
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = Color.Transparent,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = ordenNombreAsc != null,
+                            borderColor = DarkCardBorder,
+                            selectedBorderColor = LimeVolt
+                        ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.SortByAlpha,
+                                contentDescription = null,
+                                tint = if (ordenNombreAsc != null) LimeVolt else TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = { Text(labelNombre, fontSize = 11.sp) }
+                    )
+                }
+
+                // Orden por Fecha
+                item {
+                    val labelFecha = when (ordenFechaDesc) {
+                        true -> "Recientes ↓"
+                        false -> "Antiguos ↑"
+                        null -> "Fecha añadido"
+                    }
+                    FilterChip(
+                        selected = ordenFechaDesc != null,
+                        onClick = {
+                            ordenNombreAsc = null
+                            ordenFechaDesc = when (ordenFechaDesc) {
+                                null -> true
+                                true -> false
+                                false -> null
+                            }
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = Color.Transparent,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = ordenFechaDesc != null,
+                            borderColor = DarkCardBorder,
+                            selectedBorderColor = LimeVolt
+                        ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = null,
+                                tint = if (ordenFechaDesc != null) LimeVolt else TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = { Text(labelFecha, fontSize = 11.sp) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Fila 2: Modalidad
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                item {
+                    FilterChip(
+                        selected = modalidadFiltro == null,
+                        onClick = { modalidadFiltro = null },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = Color.Transparent,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = modalidadFiltro == null,
+                            borderColor = DarkCardBorder,
+                            selectedBorderColor = LimeVolt
+                        ),
+                        label = { Text("Todas", fontSize = 11.sp) }
+                    )
+                }
+
+                items(TipoFutbol.entries.toTypedArray()) { mod ->
+                    val sel = modalidadFiltro == mod
+                    val label = when (mod) {
+                        TipoFutbol.FUTSAL -> "Futsal"
+                        TipoFutbol.FUT_6 -> "Fútbol 6"
+                        TipoFutbol.FUT_7 -> "Fútbol 7"
+                    }
+                    FilterChip(
+                        selected = sel,
+                        onClick = { modalidadFiltro = if (sel) null else mod },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = Color.Transparent,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = sel,
+                            borderColor = DarkCardBorder,
+                            selectedBorderColor = LimeVolt
+                        ),
+                        label = { Text(label, fontSize = 11.sp) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (estadiosFiltrados.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -80,13 +318,13 @@ fun EstadiosScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "No hay estadios registrados",
+                            text = if (estadios.isEmpty()) "No hay estadios registrados" else "No se encontraron estadios",
                             color = TextSecondary,
                             fontSize = 15.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Toca el botón + para añadir uno",
+                            text = if (estadios.isEmpty()) "Toca el botón + para añadir uno" else "Prueba cambiando los filtros",
                             color = TextSecondary.copy(alpha = 0.7f),
                             fontSize = 13.sp
                         )
@@ -97,11 +335,12 @@ fun EstadiosScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(estadios, key = { it.id }) { estadio ->
+                    items(estadiosFiltrados, key = { it.id }) { estadio ->
                         EstadioCard(
                             estadio = estadio,
                             onEditar = { estadioAEditar = estadio },
-                            onEliminar = { estadioAEliminar = estadio }
+                            onEliminar = { estadioAEliminar = estadio },
+                            onToggleFavorito = { onToggleFavorito(estadio) }
                         )
                     }
                 }
@@ -160,13 +399,25 @@ fun EstadiosScreen(
 fun EstadioCard(
     estadio: Estadio,
     onEditar: () -> Unit,
-    onEliminar: () -> Unit
+    onEliminar: () -> Unit,
+    onToggleFavorito: () -> Unit = {}
 ) {
+    var mostrarZoomFoto by remember { mutableStateOf(false) }
+    val fotoValida = estadio.fotoUri != null && File(estadio.fotoUri).exists()
+
+    if (mostrarZoomFoto && fotoValida && estadio.fotoUri != null) {
+        DialogoVisorFotoConZoom(
+            fotoUri = estadio.fotoUri,
+            nombre = estadio.nombre,
+            onDismiss = { mostrarZoomFoto = false }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(0.8.dp, DarkCardBorder)
+        border = BorderStroke(0.8.dp, if (estadio.esFavorito) Color(0xFFFFD700).copy(alpha = 0.5f) else DarkCardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -174,15 +425,19 @@ fun EstadioCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Foto o Icono por defecto
+            // Foto o Icono por defecto (Permite zoom al pulsar la foto)
             Box(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(LimeVolt.copy(alpha = 0.12f)),
+                    .background(LimeVolt.copy(alpha = 0.12f))
+                    .then(
+                        if (fotoValida) {
+                            Modifier.clickable { mostrarZoomFoto = true }
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                val fotoValida = estadio.fotoUri != null && File(estadio.fotoUri).exists()
                 if (fotoValida) {
                     ImagenLocal(
                         fotoUri = estadio.fotoUri,
@@ -234,6 +489,14 @@ fun EstadioCard(
                 }
             }
 
+            IconButton(onClick = onToggleFavorito, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = if (estadio.esFavorito) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = "Favorito",
+                    tint = if (estadio.esFavorito) Color(0xFFFFD700) else TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             IconButton(onClick = onEditar, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = Icons.Default.Edit,
@@ -298,6 +561,17 @@ fun DialogoEstadio(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Selector de Foto
+                var mostrarZoomDialogo by remember { mutableStateOf(false) }
+                val fotoValida = fotoUri != null && File(fotoUri!!).exists()
+
+                if (mostrarZoomDialogo && fotoValida && fotoUri != null) {
+                    DialogoVisorFotoConZoom(
+                        fotoUri = fotoUri!!,
+                        nombre = nombre.ifBlank { "Estadio" },
+                        onDismiss = { mostrarZoomDialogo = false }
+                    )
+                }
+
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -310,7 +584,6 @@ fun DialogoEstadio(
                             .clickable { photoPickerLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
-                        val fotoValida = fotoUri != null && File(fotoUri).exists()
                         if (fotoValida) {
                             ImagenLocal(
                                 fotoUri = fotoUri,
@@ -336,14 +609,30 @@ fun DialogoEstadio(
                         }
                     }
                     if (fotoUri != null) {
-                        IconButton(
-                            onClick = { fotoUri = null },
+                        Row(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .size(24.dp)
-                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                .offset(x = 12.dp, y = (-4).dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Quitar foto", tint = Color.White, modifier = Modifier.size(14.dp))
+                            if (fotoValida) {
+                                IconButton(
+                                    onClick = { mostrarZoomDialogo = true },
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+                                ) {
+                                    Icon(Icons.Default.ZoomIn, contentDescription = "Ver foto ampliada", tint = LimeVolt, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                            IconButton(
+                                onClick = { fotoUri = null },
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Quitar foto", tint = Color.White, modifier = Modifier.size(14.dp))
+                            }
                         }
                     }
                 }

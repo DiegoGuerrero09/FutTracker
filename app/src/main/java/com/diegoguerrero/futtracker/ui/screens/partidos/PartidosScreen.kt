@@ -44,8 +44,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.diegoguerrero.futtracker.domain.model.Clima
 import com.diegoguerrero.futtracker.domain.model.EquipoColor
 import com.diegoguerrero.futtracker.domain.model.Estadio
+import com.diegoguerrero.futtracker.domain.model.obtenerEmoji
+import com.diegoguerrero.futtracker.domain.model.obtenerEmojiParaFecha
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
+import com.diegoguerrero.futtracker.ui.components.DialogoVisorFotoConZoom
 import com.diegoguerrero.futtracker.ui.components.ImagenLocal
+import com.diegoguerrero.futtracker.ui.components.SelectorRangoFechasDosBotones
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -97,7 +101,6 @@ fun PartidosScreen(
     var anioSeleccionadoPartidos by remember { mutableStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
     var fechaInicioPartidos by remember { mutableStateOf(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000) }
     var fechaFinPartidos by remember { mutableStateOf(System.currentTimeMillis()) }
-    var mostrarRangoPickerPartidos by remember { mutableStateOf(false) }
 
     var filtroModalidad by remember { mutableStateOf<TipoFutbol?>(null) }
     var filtroDuracion by remember { mutableStateOf<Int?>(null) }
@@ -533,10 +536,7 @@ fun PartidosScreen(
                             item {
                                 FilterChip(
                                     selected = filtroPeriodo == PeriodoPartidos.RANGO_FECHAS,
-                                    onClick = {
-                                        filtroPeriodo = PeriodoPartidos.RANGO_FECHAS
-                                        mostrarRangoPickerPartidos = true
-                                    },
+                                    onClick = { filtroPeriodo = PeriodoPartidos.RANGO_FECHAS },
                                     label = { Text("Por fecha", fontSize = 11.sp) }
                                 )
                             }
@@ -577,22 +577,14 @@ fun PartidosScreen(
                                 }
                             }
                         } else if (filtroPeriodo == PeriodoPartidos.RANGO_FECHAS) {
-                            val sdfRango = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${sdfRango.format(Date(fechaInicioPartidos))} - ${sdfRango.format(Date(fechaFinPartidos))}",
-                                    color = LimeVolt,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                TextButton(onClick = { mostrarRangoPickerPartidos = true }) {
-                                    Text("Cambiar rango", fontSize = 11.sp, color = LimeVolt)
+                            SelectorRangoFechasDosBotones(
+                                fechaInicio = fechaInicioPartidos,
+                                fechaFin = fechaFinPartidos,
+                                onRangoChange = { ini, fin ->
+                                    fechaInicioPartidos = ini
+                                    fechaFinPartidos = fin
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -847,42 +839,6 @@ fun PartidosScreen(
         }
     }
 
-    if (mostrarRangoPickerPartidos) {
-        val datePickerState = rememberDateRangePickerState(
-            initialSelectedStartDateMillis = fechaInicioPartidos,
-            initialSelectedEndDateMillis = fechaFinPartidos
-        )
-        DatePickerDialog(
-            onDismissRequest = { mostrarRangoPickerPartidos = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val start = datePickerState.selectedStartDateMillis
-                        val end = datePickerState.selectedEndDateMillis ?: start
-                        if (start != null && end != null) {
-                            fechaInicioPartidos = start
-                            fechaFinPartidos = end
-                        }
-                        mostrarRangoPickerPartidos = false
-                    }
-                ) {
-                    Text("Aplicar", color = LimeVolt)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarRangoPickerPartidos = false }) {
-                    Text("Cancelar")
-                }
-            }
-        ) {
-            DateRangePicker(
-                state = datePickerState,
-                title = { Text("Selecciona rango de fechas", modifier = Modifier.padding(16.dp)) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-
     if (mostrarDialogoParticipante) {
         var busquedaParticipante by remember { mutableStateOf("") }
         val jugadoresFiltradosDialog = remember(jugadores, busquedaParticipante) {
@@ -1066,6 +1022,17 @@ private fun PartidoItem(
         estadios.find { it.id == partido.estadioId }
     }
 
+    var mostrarZoomFoto by remember { mutableStateOf(false) }
+    val tieneFotoValida = partido.fotoUri != null && File(partido.fotoUri).exists()
+
+    if (mostrarZoomFoto && tieneFotoValida && partido.fotoUri != null) {
+        DialogoVisorFotoConZoom(
+            fotoUri = partido.fotoUri,
+            nombre = "Partido ${partido.golesAFavor} - ${partido.golesEnContra}",
+            onDismiss = { mostrarZoomFoto = false }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1119,16 +1086,18 @@ private fun PartidoItem(
                         )
                     }
 
-                    Surface(
-                        color = Color.White.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = "${partido.clima.emoji} ${partido.clima.label}",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                    if (partido.clima != null) {
+                        Surface(
+                            color = Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = partido.clima.obtenerEmojiParaFecha(partido.fecha),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
 
                     if (estadioPartido != null) {
@@ -1194,7 +1163,12 @@ private fun PartidoItem(
                         modifier = Modifier
                             .size(52.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(DarkBackground),
+                            .background(DarkBackground)
+                            .then(
+                                if (tieneFotoValida) {
+                                    Modifier.clickable { mostrarZoomFoto = true }
+                                } else Modifier
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         if (partido.fotoUri != null) {
@@ -1466,7 +1440,7 @@ fun DialogoPartido(
     var fechaMillis by remember { mutableStateOf(partidoExistente?.fecha ?: System.currentTimeMillis()) }
     var modoJuego by remember { mutableStateOf(partidoExistente?.modoJuego ?: TipoFutbol.FUTSAL) }
     var esFavorito by remember { mutableStateOf(partidoExistente?.esFavorito ?: false) }
-    var clima by remember { mutableStateOf(partidoExistente?.clima ?: Clima.SOLEADO) }
+    var clima by remember { mutableStateOf<Clima?>(partidoExistente?.clima) }
     var fotoUri by remember { mutableStateOf(partidoExistente?.fotoUri) }
     var uriSeleccionadaParaRecorte by remember { mutableStateOf<Uri?>(null) }
     var equipoJugado by remember { mutableStateOf(partidoExistente?.equipoJugado ?: EquipoColor.CLARO) }
@@ -1749,66 +1723,35 @@ fun DialogoPartido(
                         }
                     }
                     if (fotoUri != null) {
-                        IconButton(onClick = { fotoUri = null }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Quitar foto", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                        var mostrarZoomDialogo by remember { mutableStateOf(false) }
+                        val fotoValida = File(fotoUri!!).exists()
+                        if (mostrarZoomDialogo && fotoValida) {
+                            DialogoVisorFotoConZoom(
+                                fotoUri = fotoUri!!,
+                                nombre = "Foto del partido",
+                                onDismiss = { mostrarZoomDialogo = false }
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (fotoValida) {
+                                IconButton(onClick = { mostrarZoomDialogo = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ZoomIn,
+                                        contentDescription = "Ver foto ampliada",
+                                        tint = LimeVolt,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            IconButton(onClick = { fotoUri = null }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Quitar foto", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                            }
                         }
                     } else {
                         IconButton(onClick = {
                             photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         }) {
                             Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Elegir foto", tint = LimeVolt, modifier = Modifier.size(22.dp))
-                        }
-                    }
-                }
-
-                // Clima del partido
-                Column {
-                    Text("Clima", color = TextSecondary, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Clima.entries.forEach { c ->
-                            val sel = clima == c
-                            FilterChip(
-                                selected = sel,
-                                onClick = { clima = c },
-                                border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
-                                label = {
-                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                        Text("${c.emoji} ${c.label}", fontSize = 12.sp, textAlign = TextAlign.Center)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                // Estadio / Ubicación
-                if (estadios.isNotEmpty()) {
-                    Column {
-                        Text("Estadio / Ubicación", color = TextSecondary, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            item {
-                                FilterChip(
-                                    selected = estadioId == null,
-                                    onClick = { estadioId = null },
-                                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = estadioId == null, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
-                                    label = { Text("Sin especificar", fontSize = 11.sp) }
-                                )
-                            }
-                            items(estadios) { est ->
-                                val sel = estadioId == est.id
-                                FilterChip(
-                                    selected = sel,
-                                    onClick = { estadioId = est.id },
-                                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
-                                    label = { Text("🏟️ ${est.nombre}", fontSize = 11.sp) }
-                                )
-                            }
                         }
                     }
                 }
@@ -1869,6 +1812,81 @@ fun DialogoPartido(
                                 },
                                 modifier = Modifier.weight(1f)
                             )
+                        }
+                    }
+                }
+
+                // Clima del partido (debajo de duración y antes de elegir equipo)
+                Column {
+                    Text("Clima", color = TextSecondary, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            val sel = clima == null
+                            FilterChip(
+                                selected = sel,
+                                onClick = { clima = null },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = LimeVolt,
+                                    selectedLabelColor = Color.Black
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = sel,
+                                    borderColor = LimeVolt.copy(alpha = 0.5f),
+                                    selectedBorderColor = LimeVolt
+                                ),
+                                label = { Text("🏠 No clima (Pista techada)", fontSize = 12.sp) }
+                            )
+                        }
+                        items(Clima.entries.toTypedArray()) { c ->
+                            val sel = clima == c
+                            val horaPartido = Calendar.getInstance().apply { timeInMillis = fechaMillis }.get(Calendar.HOUR_OF_DAY)
+                            val emoji = c.obtenerEmoji(horaPartido)
+                            FilterChip(
+                                selected = sel,
+                                onClick = { clima = c },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = LimeVolt,
+                                    selectedLabelColor = Color.Black
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = sel,
+                                    borderColor = LimeVolt.copy(alpha = 0.5f),
+                                    selectedBorderColor = LimeVolt
+                                ),
+                                label = { Text("$emoji ${c.label}", fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
+
+                // Ubicación (debajo de duración y clima)
+                if (estadios.isNotEmpty()) {
+                    Column {
+                        Text("Ubicación", color = TextSecondary, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item {
+                                FilterChip(
+                                    selected = estadioId == null,
+                                    onClick = { estadioId = null },
+                                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = estadioId == null, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
+                                    label = { Text("Sin especificar", fontSize = 11.sp) }
+                                )
+                            }
+                            items(estadios) { est ->
+                                val sel = estadioId == est.id
+                                FilterChip(
+                                    selected = sel,
+                                    onClick = { estadioId = est.id },
+                                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
+                                    label = { Text("🏟️ ${est.nombre}", fontSize = 11.sp) }
+                                )
+                            }
                         }
                     }
                 }
@@ -1996,7 +2014,11 @@ fun DialogoPartido(
                                         posicionesSecundarias.remove(pos)
                                     },
                                     border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
-                                    label = { Text(pos.name, fontSize = 11.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                                    label = {
+                                        Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.Center) {
+                                            Text(pos.name, fontSize = 11.sp, textAlign = TextAlign.Center, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -2017,7 +2039,11 @@ fun DialogoPartido(
                                             else posicionesSecundarias.add(pos)
                                         },
                                         border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
-                                        label = { Text(pos.name, fontSize = 11.sp) }
+                                        label = {
+                                            Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.Center) {
+                                                Text(pos.name, fontSize = 11.sp, textAlign = TextAlign.Center)
+                                            }
+                                        }
                                     )
                                 }
                             }
@@ -2266,8 +2292,11 @@ fun DialogoPartido(
                     }
 
                     val rivalCol = if (equipoJugado == EquipoColor.CLARO) EquipoColor.OSCURO else EquipoColor.CLARO
-                    val tabTexto1 = if (jugadoPorMi) "Mi equipo (${equipoJugado.emoji}) (${jugadoresMiEquipo.size})" else "⚪ Claro (${jugadoresMiEquipo.size})"
-                    val tabTexto2 = if (jugadoPorMi) "Equipo rival (${rivalCol.emoji}) (${jugadoresEquipoRival.size})" else "⚫ Oscuro (${jugadoresEquipoRival.size})"
+                    val maxCompaneros = (modoJuego.nJugadoresCampo - 1).coerceAtLeast(1)
+                    val maxRival = modoJuego.nJugadoresCampo
+                    val companerosCount = jugadoresMiEquipo.count { it !in usuarioIds }
+                    val tabTexto1 = if (jugadoPorMi) "Mi equipo (${equipoJugado.emoji}) ($companerosCount/$maxCompaneros)" else "⚪ Claro (${jugadoresMiEquipo.size}/$maxRival)"
+                    val tabTexto2 = if (jugadoPorMi) "Equipo rival (${rivalCol.emoji}) (${jugadoresEquipoRival.size}/$maxRival)" else "⚫ Oscuro (${jugadoresEquipoRival.size}/$maxRival)"
 
                     Column {
                         Text("Jugadores participantes (por equipo)", color = TextSecondary, fontSize = 13.sp)

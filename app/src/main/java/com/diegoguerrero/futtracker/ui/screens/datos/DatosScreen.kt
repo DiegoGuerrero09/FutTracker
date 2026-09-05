@@ -37,7 +37,8 @@ fun DatosScreen(
     onEliminarPartido: (Partido) -> Unit,
     onAgregarEstadio: (Estadio) -> Unit = {},
     onActualizarEstadio: (Estadio) -> Unit = {},
-    onEliminarEstadio: (Estadio) -> Unit = {}
+    onEliminarEstadio: (Estadio) -> Unit = {},
+    onToggleFavoritoEstadio: (Estadio) -> Unit = {}
 ) {
     var tabSeleccionada by remember { mutableStateOf(0) }
     val tabs = listOf("Jugadores", "Partidos", "Estadios")
@@ -111,7 +112,8 @@ fun DatosScreen(
                         estadios = estadios,
                         onAgregarEstadio = onAgregarEstadio,
                         onActualizarEstadio = onActualizarEstadio,
-                        onEliminarEstadio = onEliminarEstadio
+                        onEliminarEstadio = onEliminarEstadio,
+                        onToggleFavorito = onToggleFavoritoEstadio
                     )
                 }
             }

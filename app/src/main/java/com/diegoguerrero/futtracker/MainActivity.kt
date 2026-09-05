@@ -99,14 +99,15 @@ fun MainAppLayout(
                     onEliminarPartido = { partidosViewModel.eliminarPartido(it) },
                     onAgregarEstadio = { estadiosViewModel.agregarEstadio(it) },
                     onActualizarEstadio = { estadiosViewModel.actualizarEstadio(it) },
-                    onEliminarEstadio = { estadiosViewModel.eliminarEstadio(it) }
+                    onEliminarEstadio = { estadiosViewModel.eliminarEstadio(it) },
+                    onToggleFavoritoEstadio = { estadiosViewModel.toggleFavorito(it) }
                 )
             }
             composable(Screen.Alineacion.route) {
                 AlineacionScreen(plantillaCompleta = jugadores)
             }
             composable(Screen.Sorteos.route) {
-                SorteosScreen(jugadores = jugadores)
+                SorteosScreen(jugadores = jugadores, estadios = estadios)
             }
             composable(Screen.Jugadores.route) {
                 JugadoresScreen(

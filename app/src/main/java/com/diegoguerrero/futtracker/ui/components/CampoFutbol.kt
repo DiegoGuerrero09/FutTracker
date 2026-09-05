@@ -193,7 +193,6 @@ fun CampoFutbol(
                     val fichaBorder = colorBordeFicha ?: if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f)
 
                     Box(
-                        contentAlignment = Alignment.BottomEnd,
                         modifier = Modifier.size(avatarTamano + 4.dp)
                     ) {
                         JugadorAvatar(
@@ -201,7 +200,8 @@ fun CampoFutbol(
                             nombre = jugador?.nombre ?: posicionEnum.name,
                             tamano = avatarTamano,
                             bordeColor = fichaBorder,
-                            bordeAncho = 1.5.dp
+                            bordeAncho = 1.5.dp,
+                            modifier = Modifier.align(Alignment.Center)
                         )
 
                         // Placa pequeña cuadrada con tamaño uniforme (referencia DFC) y texto subido
@@ -209,6 +209,7 @@ fun CampoFutbol(
                             color = if (jugador != null) fichaBorder else Color.Black.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
+                                .align(Alignment.BottomEnd)
                                 .offset(x = 2.dp, y = (-2).dp)
                                 .size(width = 22.dp, height = 14.5.dp)
                         ) {

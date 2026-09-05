@@ -30,13 +30,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.diegoguerrero.futtracker.domain.model.ComparativaCaraACara
 import com.diegoguerrero.futtracker.domain.model.DuoEstadisticas
 import com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorCruzadas
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
+import com.diegoguerrero.futtracker.ui.components.FilaBadgesPosiciones
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
+import com.diegoguerrero.futtracker.ui.components.SelectorRangoFechasDosBotones
 import com.diegoguerrero.futtracker.ui.screens.partidos.PeriodoPartidos
 import com.diegoguerrero.futtracker.ui.theme.*
 import java.text.SimpleDateFormat
@@ -101,43 +102,27 @@ fun EnfrentamientosScreen(
 
             when (uiState.seccionActual) {
                 SeccionEnfrentamientos.INDIVIDUAL -> {
-                    SeccionHistorialCompanerosRivales(
+                    SeccionIndividual(
                         uiState = uiState,
-                        onFiltroTextoChange = { viewModel.setFiltroTexto(it) },
+                        onSeleccionarJugadorInspeccionado = { viewModel.seleccionarJugadorInspeccionado(it) },
+                        onBusquedaJugadorInspeccionadoChange = { viewModel.setBusquedaJugadorInspeccionado(it) },
+                        onToggleFavoritoInspeccionado = { viewModel.toggleSoloFavoritosInspeccionado() },
+                        onPosicionInspeccionadoChange = { viewModel.setPosicionInspeccionado(it) },
+                        onSoloPosicionPrincipalInspeccionadoChange = { viewModel.setSoloPosicionPrincipalInspeccionado(it) },
+                        onPeriodoChange = { viewModel.setFiltroPeriodo(it) },
+                        onAnioChange = { viewModel.setAnio(it) },
+                        onTemporadaChange = { viewModel.setTemporada(it) },
+                        onRangoFechasChange = { ini, fin -> viewModel.setRangoFechas(ini, fin) },
+                        onFiltroTextoHistorialChange = { viewModel.setFiltroTexto(it) },
                         onFiltroHistorialChange = { viewModel.setFiltroHistorial(it) },
-                        onToggleFavorito = { viewModel.toggleFiltroSoloFavoritos() },
-                        onPosicionChange = { viewModel.setFiltroPosicion(it) },
-                        onSoloPosicionPrincipalChange = { viewModel.setFiltroSoloPosicionPrincipal(it) },
-                        onPeriodoChange = { viewModel.setFiltroPeriodoIndividual(it) },
-                        onAnioChange = { viewModel.setAnioIndividual(it) },
-                        onTemporadaChange = { viewModel.setTemporadaIndividual(it) },
-                        onRangoFechasChange = { ini, fin -> viewModel.setRangoFechasIndividual(ini, fin) },
-                        onSeleccionarJugador = { viewModel.seleccionarJugadorDetalle(it) }
-                    )
-                }
-                SeccionEnfrentamientos.GENERAL -> {
-                    SeccionGeneralCabraLacra(
-                        uiState = uiState,
-                        onSeleccionarJugador = { viewModel.seleccionarJugadorGeneral(it) },
-                        onBusquedaChange = { viewModel.setBusquedaGeneral(it) },
-                        onToggleFavorito = { viewModel.toggleSoloFavoritosGeneral() },
-                        onPosicionChange = { viewModel.setPosicionGeneral(it) },
-                        onSoloPosicionPrincipalChange = { viewModel.setSoloPosicionPrincipalGeneral(it) },
-                        onPeriodoChange = { viewModel.setFiltroPeriodoGeneral(it) },
-                        onAnioChange = { viewModel.setAnioGeneral(it) },
-                        onTemporadaChange = { viewModel.setTemporadaGeneral(it) },
-                        onRangoFechasChange = { ini, fin -> viewModel.setRangoFechasGeneral(ini, fin) }
+                        onToggleFavoritoHistorial = { viewModel.toggleFiltroSoloFavoritos() },
+                        onPosicionHistorialChange = { viewModel.setFiltroPosicion(it) },
+                        onSoloPosicionPrincipalHistorialChange = { viewModel.setFiltroSoloPosicionPrincipal(it) },
+                        onSeleccionarJugadorDetalle = { viewModel.seleccionarJugadorDetalle(it) }
                     )
                 }
                 SeccionEnfrentamientos.DUOS -> {
                     SeccionDuos(duos = uiState.duos)
-                }
-                SeccionEnfrentamientos.H2H -> {
-                    SeccionCaraACara(
-                        uiState = uiState,
-                        onSeleccionarA = { viewModel.seleccionarJugadorA(it) },
-                        onSeleccionarB = { viewModel.seleccionarJugadorB(it) }
-                    )
                 }
             }
         }
@@ -153,25 +138,345 @@ fun EnfrentamientosScreen(
 }
 
 @Composable
-fun SeccionHistorialCompanerosRivales(
+fun SeccionIndividual(
     uiState: EnfrentamientosUiState,
-    onFiltroTextoChange: (String) -> Unit,
-    onFiltroHistorialChange: (FiltroHistorial) -> Unit,
-    onToggleFavorito: () -> Unit,
-    onPosicionChange: (Posicion?) -> Unit,
-    onSoloPosicionPrincipalChange: (Boolean) -> Unit,
+    onSeleccionarJugadorInspeccionado: (String) -> Unit,
+    onBusquedaJugadorInspeccionadoChange: (String) -> Unit,
+    onToggleFavoritoInspeccionado: () -> Unit,
+    onPosicionInspeccionadoChange: (Posicion?) -> Unit,
+    onSoloPosicionPrincipalInspeccionadoChange: (Boolean) -> Unit,
     onPeriodoChange: (PeriodoPartidos) -> Unit,
     onAnioChange: (Int) -> Unit,
     onTemporadaChange: (String) -> Unit,
     onRangoFechasChange: (Long, Long) -> Unit,
-    onSeleccionarJugador: (EstadisticasJugadorCruzadas) -> Unit
+    onFiltroTextoHistorialChange: (String) -> Unit,
+    onFiltroHistorialChange: (FiltroHistorial) -> Unit,
+    onToggleFavoritoHistorial: () -> Unit,
+    onPosicionHistorialChange: (Posicion?) -> Unit,
+    onSoloPosicionPrincipalHistorialChange: (Boolean) -> Unit,
+    onSeleccionarJugadorDetalle: (EstadisticasJugadorCruzadas) -> Unit
 ) {
+    val jugadorSeleccionado = uiState.todosLosJugadores.firstOrNull { it.id == uiState.jugadorSeleccionadoId }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Filtro de Período idéntico a Stats
+        // 1. Buscador y filtros para elegir el jugador a inspeccionar
+        item {
+            Text(
+                text = "Jugador a analizar:",
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .background(DarkCard, RoundedCornerShape(10.dp))
+                    .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (uiState.busquedaJugadorInspeccionado.isEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Buscar jugador...",
+                            color = TextSecondary,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                BasicTextField(
+                    value = uiState.busquedaJugadorInspeccionado,
+                    onValueChange = onBusquedaJugadorInspeccionadoChange,
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    ),
+                    cursorBrush = SolidColor(LimeVolt),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (uiState.busquedaJugadorInspeccionado.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onBusquedaJugadorInspeccionadoChange("") },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(24.dp)
+                    ) {
+                        Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+
+        // Filtros rápidos del jugador a inspeccionar
+        item {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                item {
+                    FilterChip(
+                        selected = uiState.soloFavoritosInspeccionado,
+                        onClick = onToggleFavoritoInspeccionado,
+                        label = { Text("★ Favoritos", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = DarkCard,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = uiState.soloFavoritosInspeccionado,
+                            borderColor = if (uiState.soloFavoritosInspeccionado) LimeVolt else DarkCardBorder
+                        )
+                    )
+                }
+
+                item {
+                    FilterChip(
+                        selected = !uiState.soloPosicionPrincipalInspeccionado,
+                        onClick = { onSoloPosicionPrincipalInspeccionadoChange(false) },
+                        label = { Text("Ambas posiciones", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = DarkCard,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = !uiState.soloPosicionPrincipalInspeccionado,
+                            borderColor = if (!uiState.soloPosicionPrincipalInspeccionado) LimeVolt else DarkCardBorder
+                        )
+                    )
+                }
+
+                item {
+                    FilterChip(
+                        selected = uiState.soloPosicionPrincipalInspeccionado,
+                        onClick = { onSoloPosicionPrincipalInspeccionadoChange(true) },
+                        label = { Text("Solo principal", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = DarkCard,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = uiState.soloPosicionPrincipalInspeccionado,
+                            borderColor = if (uiState.soloPosicionPrincipalInspeccionado) LimeVolt else DarkCardBorder
+                        )
+                    )
+                }
+            }
+        }
+
+        // Selector horizontal de posiciones del jugador a inspeccionar
+        item {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = uiState.posicionInspeccionado == null,
+                        onClick = { onPosicionInspeccionadoChange(null) },
+                        label = { Text("Todas", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = DarkCard,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = uiState.posicionInspeccionado == null,
+                            borderColor = if (uiState.posicionInspeccionado == null) LimeVolt else DarkCardBorder
+                        )
+                    )
+                }
+
+                items(Posicion.values()) { pos ->
+                    val sel = uiState.posicionInspeccionado == pos
+                    FilterChip(
+                        selected = sel,
+                        onClick = { onPosicionInspeccionadoChange(if (sel) null else pos) },
+                        label = { Text(pos.name, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
+                            selectedLabelColor = LimeVolt,
+                            containerColor = DarkCard,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = sel,
+                            borderColor = if (sel) LimeVolt else DarkCardBorder
+                        )
+                    )
+                }
+            }
+        }
+
+        // Carrusel horizontal de jugadores para seleccionar (el primero es "Tú", seleccionado por defecto)
+        item {
+            Text(
+                text = "Seleccionar jugador:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            if (uiState.jugadoresFiltradosInspeccionados.isEmpty()) {
+                Text(
+                    text = "No hay jugadores que coincidan con los filtros.",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            } else {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(uiState.jugadoresFiltradosInspeccionados) { jug ->
+                        val esSeleccionado = jug.id == jugadorSeleccionado?.id
+                        Card(
+                            modifier = Modifier
+                                .clickable { onSeleccionarJugadorInspeccionado(jug.id) }
+                                .width(88.dp)
+                                .height(88.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (esSeleccionado) LimeVolt.copy(alpha = 0.15f) else DarkCard
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (esSeleccionado) LimeVolt else DarkCardBorder
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    JugadorAvatar(
+                                        fotoUri = jug.fotoUri,
+                                        nombre = jug.nombre,
+                                        tamano = 36.dp,
+                                        fontSize = 12.sp,
+                                        bordeColor = if (esSeleccionado) LimeVolt else Color.Transparent,
+                                        bordeAncho = 1.5.dp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = jug.nombreConTu(),
+                                        fontSize = 11.sp,
+                                        fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (esSeleccionado) LimeVolt else Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ficha del jugador actualmente seleccionado
+        if (jugadorSeleccionado != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        JugadorAvatar(
+                            fotoUri = jugadorSeleccionado.fotoUri,
+                            nombre = jugadorSeleccionado.nombre,
+                            tamano = 46.dp,
+                            fontSize = 16.sp,
+                            permitirZoom = true,
+                            bordeColor = LimeVolt,
+                            bordeAncho = 1.5.dp
+                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = jugadorSeleccionado.nombreConTu(),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                if (jugadorSeleccionado.esFavorito) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Favorito",
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            FilaBadgesPosiciones(
+                                primarias = jugadorSeleccionado.posicionesPrimarias,
+                                secundarias = jugadorSeleccionado.posicionesSecundarias,
+                                maxVisibles = 3
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Filtro de Período
         item {
             Text(
                 text = "Periodo de tiempo:",
@@ -181,25 +486,25 @@ fun SeccionHistorialCompanerosRivales(
             )
             Spacer(modifier = Modifier.height(6.dp))
             FiltroFechaStatsChips(
-                periodoSeleccionado = uiState.filtroPeriodoIndividual,
+                periodoSeleccionado = uiState.filtroPeriodo,
                 onPeriodoChange = onPeriodoChange,
-                temporadaSeleccionada = uiState.temporadaSeleccionadaIndividual,
+                temporadaSeleccionada = uiState.temporadaSeleccionada,
                 onTemporadaChange = onTemporadaChange,
                 temporadasDisponibles = uiState.temporadasDisponibles,
-                anioSeleccionado = uiState.anioSeleccionadoIndividual,
+                anioSeleccionado = uiState.anioSeleccionado,
                 onAnioChange = onAnioChange,
                 aniosDisponibles = uiState.aniosDisponibles,
-                fechaInicio = uiState.fechaInicioIndividual,
-                fechaFin = uiState.fechaFinIndividual,
+                fechaInicio = uiState.fechaInicio,
+                fechaFin = uiState.fechaFin,
                 onRangoFechasChange = onRangoFechasChange
             )
         }
 
-        // Bloque de destacados
+        // Destacados para este jugador
         item {
             Text(
-                text = "Destacados",
-                fontSize = 15.sp,
+                text = "Destacados de ${jugadorSeleccionado?.nombreConTu() ?: "este jugador"}",
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = LimeVolt
             )
@@ -253,7 +558,25 @@ fun SeccionHistorialCompanerosRivales(
             }
         }
 
-        // Filtro y buscador
+        // Separador y título de la sección comparativa cruzada
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            HorizontalDivider(color = DarkCardBorder)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Comparativa con otros jugadores",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = "Historial frente a otros jugadores excluyendo a ${jugadorSeleccionado?.nombreConTu() ?: "este jugador"}",
+                fontSize = 11.sp,
+                color = TextSecondary
+            )
+        }
+
+        // Filtro y buscador para los demás jugadores (compañeros y rivales)
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
@@ -289,7 +612,7 @@ fun SeccionHistorialCompanerosRivales(
 
                     BasicTextField(
                         value = uiState.filtroTexto,
-                        onValueChange = onFiltroTextoChange,
+                        onValueChange = onFiltroTextoHistorialChange,
                         singleLine = true,
                         textStyle = TextStyle(
                             color = Color.White,
@@ -302,7 +625,7 @@ fun SeccionHistorialCompanerosRivales(
 
                     if (uiState.filtroTexto.isNotEmpty()) {
                         IconButton(
-                            onClick = { onFiltroTextoChange("") },
+                            onClick = { onFiltroTextoHistorialChange("") },
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
                                 .size(24.dp)
@@ -341,8 +664,6 @@ fun SeccionHistorialCompanerosRivales(
                             )
                         )
                     }
-
-
                 }
 
                 // Filtros de favoritos y posición
@@ -353,7 +674,7 @@ fun SeccionHistorialCompanerosRivales(
                     item {
                         FilterChip(
                             selected = uiState.filtroSoloFavoritos,
-                            onClick = onToggleFavorito,
+                            onClick = onToggleFavoritoHistorial,
                             label = { Text("Favoritos", fontSize = 11.sp) },
                             leadingIcon = {
                                 Icon(
@@ -368,7 +689,7 @@ fun SeccionHistorialCompanerosRivales(
                     item {
                         FilterChip(
                             selected = uiState.filtroPosicion == null,
-                            onClick = { onPosicionChange(null) },
+                            onClick = { onPosicionHistorialChange(null) },
                             label = { Text("Todas", fontSize = 11.sp) }
                         )
                     }
@@ -376,7 +697,7 @@ fun SeccionHistorialCompanerosRivales(
                         FilterChip(
                             selected = uiState.filtroPosicion == pos,
                             onClick = {
-                                onPosicionChange(if (uiState.filtroPosicion == pos) null else pos)
+                                onPosicionHistorialChange(if (uiState.filtroPosicion == pos) null else pos)
                             },
                             label = { Text(pos.name, fontSize = 11.sp) }
                         )
@@ -393,12 +714,12 @@ fun SeccionHistorialCompanerosRivales(
                     ) {
                         FilterChip(
                             selected = !uiState.filtroSoloPosicionPrincipal,
-                            onClick = { onSoloPosicionPrincipalChange(false) },
+                            onClick = { onSoloPosicionPrincipalHistorialChange(false) },
                             label = { Text("Ambas posiciones", fontSize = 11.sp) }
                         )
                         FilterChip(
                             selected = uiState.filtroSoloPosicionPrincipal,
-                            onClick = { onSoloPosicionPrincipalChange(true) },
+                            onClick = { onSoloPosicionPrincipalHistorialChange(true) },
                             label = { Text("Solo posición principal", fontSize = 11.sp) }
                         )
                     }
@@ -433,7 +754,7 @@ fun SeccionHistorialCompanerosRivales(
             items(uiState.historial) { item ->
                 CardJugadorHistorial(
                     item = item,
-                    onClick = { onSeleccionarJugador(item) }
+                    onClick = { onSeleccionarJugadorDetalle(item) }
                 )
             }
         }
@@ -612,9 +933,11 @@ fun CardJugadorHistorial(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    item.jugador.posicionesPrimarias.take(2).forEach { pos ->
-                        BadgePosicion(label = pos.name, esPrimaria = true)
-                    }
+                    FilaBadgesPosiciones(
+                        primarias = item.jugador.posicionesPrimarias,
+                        secundarias = item.jugador.posicionesSecundarias,
+                        maxVisibles = 2
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -704,14 +1027,12 @@ fun DialogoDetalleJugadorCruzado(
                     color = Color.White
                 )
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
-                    detalle.jugador.posicionesPrimarias.forEach { pos ->
-                        BadgePosicion(label = pos.name, esPrimaria = true)
-                    }
-                }
+                FilaBadgesPosiciones(
+                    primarias = detalle.jugador.posicionesPrimarias,
+                    secundarias = detalle.jugador.posicionesSecundarias,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    maxVisibles = 3
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -860,788 +1181,6 @@ fun DialogoDetalleJugadorCruzado(
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text("Cerrar", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SeccionGeneralCabraLacra(
-    uiState: EnfrentamientosUiState,
-    onSeleccionarJugador: (String) -> Unit,
-    onBusquedaChange: (String) -> Unit,
-    onToggleFavorito: () -> Unit,
-    onPosicionChange: (Posicion?) -> Unit,
-    onSoloPosicionPrincipalChange: (Boolean) -> Unit,
-    onPeriodoChange: (PeriodoPartidos) -> Unit,
-    onAnioChange: (Int) -> Unit,
-    onTemporadaChange: (String) -> Unit,
-    onRangoFechasChange: (Long, Long) -> Unit
-) {
-    val jugadorSeleccionado = uiState.todosLosJugadores.firstOrNull { it.id == uiState.jugadorSeleccionadoGeneralId }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        // Buscador y filtros para elegir el jugador a inspeccionar
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .background(DarkCard, RoundedCornerShape(10.dp))
-                    .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (uiState.busquedaGeneral.isEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Buscar jugador...",
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                BasicTextField(
-                    value = uiState.busquedaGeneral,
-                    onValueChange = onBusquedaChange,
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
-                    ),
-                    cursorBrush = SolidColor(LimeVolt),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (uiState.busquedaGeneral.isNotEmpty()) {
-                    IconButton(
-                        onClick = { onBusquedaChange("") },
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .size(24.dp)
-                    ) {
-                        Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-        }
-
-        // Filtro de Período idéntico a Stats
-        item {
-            Text(
-                text = "Periodo de tiempo:",
-                color = TextSecondary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            FiltroFechaStatsChips(
-                periodoSeleccionado = uiState.filtroPeriodoGeneral,
-                onPeriodoChange = onPeriodoChange,
-                temporadaSeleccionada = uiState.temporadaSeleccionadaGeneral,
-                onTemporadaChange = onTemporadaChange,
-                temporadasDisponibles = uiState.temporadasDisponibles,
-                anioSeleccionado = uiState.anioSeleccionadoGeneral,
-                onAnioChange = onAnioChange,
-                aniosDisponibles = uiState.aniosDisponibles,
-                fechaInicio = uiState.fechaInicioGeneral,
-                fechaFin = uiState.fechaFinGeneral,
-                onRangoFechasChange = onRangoFechasChange
-            )
-        }
-
-        // Filtros rápidos
-        item {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                item {
-                    FilterChip(
-                        selected = uiState.soloFavoritosGeneral,
-                        onClick = onToggleFavorito,
-                        label = { Text("★ Favoritos", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = DarkCard,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = uiState.soloFavoritosGeneral,
-                            borderColor = if (uiState.soloFavoritosGeneral) LimeVolt else DarkCardBorder
-                        )
-                    )
-                }
-
-                item {
-                    FilterChip(
-                        selected = !uiState.soloPosicionPrincipalGeneral,
-                        onClick = { onSoloPosicionPrincipalChange(false) },
-                        label = {
-                            Text(
-                                text = "Ambas posiciones",
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = DarkCard,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = !uiState.soloPosicionPrincipalGeneral,
-                            borderColor = if (!uiState.soloPosicionPrincipalGeneral) LimeVolt else DarkCardBorder
-                        )
-                    )
-                }
-
-                item {
-                    FilterChip(
-                        selected = uiState.soloPosicionPrincipalGeneral,
-                        onClick = { onSoloPosicionPrincipalChange(true) },
-                        label = {
-                            Text(
-                                text = "Solo principal",
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = DarkCard,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = uiState.soloPosicionPrincipalGeneral,
-                            borderColor = if (uiState.soloPosicionPrincipalGeneral) LimeVolt else DarkCardBorder
-                        )
-                    )
-                }
-            }
-        }
-
-        // Selector horizontal de posiciones
-        item {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                item {
-                    FilterChip(
-                        selected = uiState.posicionGeneral == null,
-                        onClick = { onPosicionChange(null) },
-                        label = { Text("Todas", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = DarkCard,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = uiState.posicionGeneral == null,
-                            borderColor = if (uiState.posicionGeneral == null) LimeVolt else DarkCardBorder
-                        )
-                    )
-                }
-
-                items(Posicion.values()) { pos ->
-                    val sel = uiState.posicionGeneral == pos
-                    FilterChip(
-                        selected = sel,
-                        onClick = { onPosicionChange(if (sel) null else pos) },
-                        label = { Text(pos.name, fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = DarkCard,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = sel,
-                            borderColor = if (sel) LimeVolt else DarkCardBorder
-                        )
-                    )
-                }
-            }
-        }
-
-        // Lista horizontal de jugadores para seleccionar
-        item {
-            Text(
-                text = "Seleccionar jugador:",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            if (uiState.jugadoresFiltradosGeneral.isEmpty()) {
-                Text(
-                    text = "No hay jugadores que coincidan con los filtros.",
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                )
-            } else {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(uiState.jugadoresFiltradosGeneral) { jug ->
-                        val esSeleccionado = jug.id == jugadorSeleccionado?.id
-                        Card(
-                            modifier = Modifier
-                                .clickable { onSeleccionarJugador(jug.id) }
-                                .width(88.dp)
-                                .height(88.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (esSeleccionado) LimeVolt.copy(alpha = 0.15f) else DarkCard
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(
-                                1.5.dp,
-                                if (esSeleccionado) LimeVolt else DarkCardBorder
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    JugadorAvatar(
-                                        fotoUri = jug.fotoUri,
-                                        nombre = jug.nombre,
-                                        tamano = 36.dp,
-                                        fontSize = 12.sp,
-                                        bordeColor = if (esSeleccionado) LimeVolt else Color.Transparent,
-                                        bordeAncho = 1.5.dp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = jug.nombreConTu(),
-                                        fontSize = 11.sp,
-                                        fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (esSeleccionado) LimeVolt else Color.White,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Ficha del jugador actualmente seleccionado
-        if (jugadorSeleccionado != null) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.4f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        JugadorAvatar(
-                            fotoUri = jugadorSeleccionado.fotoUri,
-                            nombre = jugadorSeleccionado.nombre,
-                            tamano = 46.dp,
-                            fontSize = 16.sp,
-                            permitirZoom = true,
-                            bordeColor = LimeVolt,
-                            bordeAncho = 1.5.dp
-                        )
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = jugadorSeleccionado.nombreConTu(),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                if (jugadorSeleccionado.esFavorito) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = "Favorito",
-                                        tint = Color(0xFFFFD700),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                jugadorSeleccionado.posicionesPrimarias.forEach { pos ->
-                                    BadgePosicion(label = pos.name, esPrimaria = true)
-                                }
-                                jugadorSeleccionado.posicionesSecundarias.forEach { pos ->
-                                    BadgePosicion(label = pos.name, esPrimaria = false)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Destacados para este jugador
-            item {
-                Text(
-                    text = "Destacados de ${jugadorSeleccionado.nombreConTu()}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = LimeVolt
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CardDestacado(
-                        modifier = Modifier.weight(1f),
-                        titulo = "La cabra",
-                        subtitulo = "Más victorias juntos",
-                        icono = "🐐",
-                        colorBorde = BlueCompanero,
-                        estadisticas = uiState.destacadosGeneral.companerosMasGanan,
-                        esCompanero = true
-                    )
-                    CardDestacado(
-                        modifier = Modifier.weight(1f),
-                        titulo = "La lacra",
-                        subtitulo = "Más derrotas juntos",
-                        icono = "💔",
-                        colorBorde = RedLoss,
-                        estadisticas = uiState.destacadosGeneral.companerosMasPierden,
-                        esCompanero = true
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CardDestacado(
-                        modifier = Modifier.weight(1f),
-                        titulo = "El caramelito",
-                        subtitulo = "Más victorias contra él",
-                        icono = "🍬",
-                        colorBorde = BlueCompanero,
-                        estadisticas = uiState.destacadosGeneral.rivalesMasGanan,
-                        esCompanero = false
-                    )
-                    CardDestacado(
-                        modifier = Modifier.weight(1f),
-                        titulo = "La bestia",
-                        subtitulo = "Más derrotas contra él",
-                        icono = "🦁",
-                        colorBorde = RedLoss,
-                        estadisticas = uiState.destacadosGeneral.rivalesMasPierden,
-                        esCompanero = false
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SeccionCaraACara(
-    uiState: EnfrentamientosUiState,
-    onSeleccionarA: (String) -> Unit,
-    onSeleccionarB: (String) -> Unit
-) {
-    var expandidoA by remember { mutableStateOf(false) }
-    var expandidoB by remember { mutableStateOf(false) }
-
-    val jugadorA = uiState.todosLosJugadores.find { it.id == uiState.jugadorAId }
-    val jugadorB = uiState.todosLosJugadores.find { it.id == uiState.jugadorBId }
-    val jugadoresOrdenados = remember(uiState.todosLosJugadores) {
-        uiState.todosLosJugadores.sortedWith(
-            compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
-                .thenByDescending { it.esFavorito }
-                .thenBy { it.nombre.lowercase() }
-        )
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Text(
-                text = "Comparativa directa (1 vs 1)",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = LimeVolt
-            )
-            Text(
-                text = "Selecciona dos jugadores para ver su historial cara a cara y cuando juegan juntos.",
-                fontSize = 12.sp,
-                color = TextSecondary
-            )
-        }
-
-        // Selectores de los 2 jugadores
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Selector Jugador A
-                Box(modifier = Modifier.weight(1f)) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandidoA = true },
-                        colors = CardDefaults.cardColors(containerColor = DarkCard),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            JugadorAvatar(
-                                fotoUri = jugadorA?.fotoUri,
-                                nombre = jugadorA?.nombre ?: "A",
-                                tamano = 32.dp,
-                                fontSize = 11.sp
-                            )
-                            val esYoA = jugadorA?.let { it.esUsuarioPropio || it.id == "usuario_propio_id" } ?: false
-                            Text(
-                                text = if (jugadorA == null) "Seleccionar A" else if (esYoA) "${jugadorA.nombre} (Tú)" else jugadorA.nombre,
-                                fontSize = 12.sp,
-                                color = if (esYoA) LimeVolt else Color.White,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = LimeVolt)
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = expandidoA,
-                        onDismissRequest = { expandidoA = false },
-                        modifier = Modifier.background(DarkCard)
-                    ) {
-                        jugadoresOrdenados.forEach { j ->
-                            val esYo = j.esUsuarioPropio || j.id == "usuario_propio_id"
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = if (esYo) "${j.nombre} (Tú)" else j.nombre,
-                                        color = if (esYo) LimeVolt else Color.White,
-                                        fontWeight = if (esYo) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                leadingIcon = {
-                                    JugadorAvatar(fotoUri = j.fotoUri, nombre = j.nombre, tamano = 24.dp, fontSize = 9.sp)
-                                },
-                                onClick = {
-                                    onSeleccionarA(j.id)
-                                    expandidoA = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Selector Jugador B
-                Box(modifier = Modifier.weight(1f)) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandidoB = true },
-                        colors = CardDefaults.cardColors(containerColor = DarkCard),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, OrangeDraw.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            JugadorAvatar(
-                                fotoUri = jugadorB?.fotoUri,
-                                nombre = jugadorB?.nombre ?: "B",
-                                tamano = 32.dp,
-                                fontSize = 11.sp
-                            )
-                            val esYoB = jugadorB?.let { it.esUsuarioPropio || it.id == "usuario_propio_id" } ?: false
-                            Text(
-                                text = if (jugadorB == null) "Seleccionar B" else if (esYoB) "${jugadorB.nombre} (Tú)" else jugadorB.nombre,
-                                fontSize = 12.sp,
-                                color = if (esYoB) LimeVolt else Color.White,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = OrangeDraw)
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = expandidoB,
-                        onDismissRequest = { expandidoB = false },
-                        modifier = Modifier.background(DarkCard)
-                    ) {
-                        jugadoresOrdenados.forEach { j ->
-                            val esYo = j.esUsuarioPropio || j.id == "usuario_propio_id"
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = if (esYo) "${j.nombre} (Tú)" else j.nombre,
-                                        color = if (esYo) LimeVolt else Color.White,
-                                        fontWeight = if (esYo) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                leadingIcon = {
-                                    JugadorAvatar(fotoUri = j.fotoUri, nombre = j.nombre, tamano = 24.dp, fontSize = 9.sp)
-                                },
-                                onClick = {
-                                    onSeleccionarB(j.id)
-                                    expandidoB = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Resultados del cara a cara
-        val comp = uiState.comparativaCaraACara
-        if (jugadorA == null || jugadorB == null) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, DarkCardBorder)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SportsSoccer,
-                            contentDescription = null,
-                            tint = LimeVolt.copy(alpha = 0.7f),
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Selecciona dos jugadores",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Elige dos jugadores en los selectores superiores para comparar sus enfrentamientos directos y estadísticas juntos.",
-                            color = TextSecondary,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        } else if (jugadorA.id == jugadorB.id) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, DarkCardBorder)
-                ) {
-                    Box(modifier = Modifier.padding(20.dp), contentAlignment = Alignment.Center) {
-                        Text("Selecciona dos jugadores diferentes para comparar.", color = TextSecondary, fontSize = 13.sp)
-                    }
-                }
-            }
-        } else if (comp != null) {
-            item {
-                // Marcador Cara a Cara
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Enfrentamientos directos",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LimeVolt,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                JugadorAvatar(fotoUri = jugadorA.fotoUri, nombre = jugadorA.nombre, tamano = 48.dp, permitirZoom = true)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(jugadorA.nombreConTu(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                Text("${comp.victoriasA} victorias", color = GreenWin, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
-                            }
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "${comp.victoriasA} - ${comp.empates} - ${comp.victoriasB}",
-                                    color = Color.White,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                Text(
-                                    text = "${comp.partidosEnfrentados} partidos",
-                                    color = TextSecondary,
-                                    fontSize = 10.sp
-                                )
-                            }
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                JugadorAvatar(fotoUri = jugadorB.fotoUri, nombre = jugadorB.nombre, tamano = 48.dp, permitirZoom = true)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(jugadorB.nombreConTu(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                Text("${comp.victoriasB} victorias", color = OrangeDraw, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
-                        ) {
-                            Text("Goles equipo: ${comp.golesEquipoA}", fontSize = 12.sp, color = TextSecondary)
-                            Text("Empates: ${comp.empates}", fontSize = 12.sp, color = TextSecondary)
-                            Text("Goles equipo: ${comp.golesEquipoB}", fontSize = 12.sp, color = TextSecondary)
-                        }
-                    }
-                }
-            }
-
-            // Cuando juegan juntos en el mismo equipo
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BlueCompanero.copy(alpha = 0.3f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Cuando juegan juntos en el mismo equipo",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BlueCompanero,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        if (comp.partidosJuntos > 0) {
-                            val pct = if (comp.partidosJuntos > 0) ((comp.victoriasJuntos.toFloat() / comp.partidosJuntos) * 100).toInt() else 0
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Partidos juntos:", color = TextSecondary, fontSize = 12.sp)
-                                Text("${comp.partidosJuntos}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Balance (V / E / D):", color = TextSecondary, fontSize = 12.sp)
-                                Text("${comp.victoriasJuntos}V - ${comp.empatesJuntos}E - ${comp.derrotasJuntos}D", color = GreenWin, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("% Victorias juntos:", color = TextSecondary, fontSize = 12.sp)
-                                Text("$pct%", color = BlueCompanero, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        } else {
-                            Text(
-                                text = "Aún no han jugado juntos en el mismo equipo.",
-                                color = TextSecondary,
-                                fontSize = 12.sp,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -1852,7 +1391,6 @@ fun CardDuo(duo: DuoEstadisticas, esModoGanador: Boolean) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FiltroFechaStatsChips(
     periodoSeleccionado: PeriodoPartidos,
@@ -1868,8 +1406,6 @@ private fun FiltroFechaStatsChips(
     onRangoFechasChange: (Long, Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var mostrarRangoPicker by remember { mutableStateOf(false) }
-
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // Fila 1: Opciones principales
         val opciones = listOf(
@@ -1889,9 +1425,6 @@ private fun FiltroFechaStatsChips(
                     selected = periodoSeleccionado == periodo,
                     onClick = {
                         onPeriodoChange(periodo)
-                        if (periodo == PeriodoPartidos.RANGO_FECHAS) {
-                            mostrarRangoPicker = true
-                        }
                     },
                     label = { Text(label, fontSize = 11.sp) }
                 )
@@ -1926,54 +1459,12 @@ private fun FiltroFechaStatsChips(
                 }
             }
             PeriodoPartidos.RANGO_FECHAS -> {
-                val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-                OutlinedButton(
-                    onClick = { mostrarRangoPicker = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${sdf.format(Date(fechaInicio))} - ${sdf.format(Date(fechaFin))}",
-                        fontSize = 12.sp
-                    )
-                }
+                SelectorRangoFechasDosBotones(
+                    fechaInicio = fechaInicio,
+                    fechaFin = fechaFin,
+                    onRangoChange = onRangoFechasChange
+                )
             }
-        }
-    }
-
-    if (mostrarRangoPicker) {
-        val datePickerState = rememberDateRangePickerState(
-            initialSelectedStartDateMillis = fechaInicio,
-            initialSelectedEndDateMillis = fechaFin
-        )
-        DatePickerDialog(
-            onDismissRequest = { mostrarRangoPicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val start = datePickerState.selectedStartDateMillis
-                        val end = datePickerState.selectedEndDateMillis ?: start
-                        if (start != null && end != null) {
-                            onRangoFechasChange(start, end)
-                        }
-                        mostrarRangoPicker = false
-                    }
-                ) {
-                    Text("Aplicar", color = LimeVolt)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarRangoPicker = false }) {
-                    Text("Cancelar")
-                }
-            }
-        ) {
-            DateRangePicker(
-                state = datePickerState,
-                title = { Text("Selecciona rango de fechas", modifier = Modifier.padding(16.dp)) },
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }

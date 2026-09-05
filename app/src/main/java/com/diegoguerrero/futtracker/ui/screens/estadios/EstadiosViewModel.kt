@@ -40,4 +40,10 @@ class EstadiosViewModel @Inject constructor(
             estadioRepository.eliminarEstadio(estadio)
         }
     }
+
+    fun toggleFavorito(estadio: Estadio) {
+        viewModelScope.launch {
+            estadioRepository.actualizarEstadio(estadio.copy(esFavorito = !estadio.esFavorito))
+        }
+    }
 }

@@ -14,6 +14,7 @@ import com.diegoguerrero.futtracker.domain.repository.JugadorRepository
 import com.diegoguerrero.futtracker.domain.repository.PartidoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlin.math.roundToInt
 import java.time.LocalDate
 import java.util.*
 import javax.inject.Inject
@@ -47,7 +48,9 @@ data class EstadisticasJugadorGeneral(
 )
 
 data class StatsClima(
-    val clima: Clima,
+    val clima: Clima?,
+    val label: String,
+    val emoji: String,
     val total: Int,
     val porcentaje: Float
 )
@@ -75,8 +78,20 @@ data class StatsEquipoColor(
 
 data class StatsPosicionFrecuencia(
     val posicion: Posicion,
+    val minutos: Int = 0,
+    val partidosJugados: Int = 0,
+    val victorias: Int = 0,
+    val empates: Int = 0,
+    val derrotas: Int = 0,
+    val porcentajeVictorias: Int = 0,
+    val total: Float = minutos.toFloat(),
+    val porcentaje: Float = 0f
+)
+
+data class StatsHoraPartido(
+    val hora: Int,
     val total: Int,
-    val porcentaje: Float
+    val horaTexto: String
 )
 
 enum class CriterioOrdenGeneral {
@@ -313,12 +328,152 @@ class EstadisticasViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    val statsClima: StateFlow<List<StatsClima>> = partidosFiltrados.map { partidos ->
-        val total = partidos.size
-        Clima.entries.map { c ->
-            val count = partidos.count { it.clima == c }
-            val pct = if (total > 0) (count * 100f / total) else 0f
-            StatsClima(clima = c, total = count, porcentaje = pct)
+    private val _filtroClimas = MutableStateFlow<Set<Clima>>(emptySet())
+    val filtroClimas: StateFlow<Set<Clima>> = _filtroClimas.asStateFlow()
+
+    private val _filtroTechado = MutableStateFlow(false)
+    val filtroTechado: StateFlow<Boolean> = _filtroTechado.asStateFlow()
+
+    private val _filtroEstadios = MutableStateFlow<Set<String>>(emptySet())
+    val filtroEstadios: StateFlow<Set<String>> = _filtroEstadios.asStateFlow()
+
+    private val _filtroDiasSemana = MutableStateFlow<Set<Int>>(emptySet())
+    val filtroDiasSemana: StateFlow<Set<Int>> = _filtroDiasSemana.asStateFlow()
+
+    private val _filtroHoras = MutableStateFlow<Set<Int>>(emptySet())
+    val filtroHoras: StateFlow<Set<Int>> = _filtroHoras.asStateFlow()
+
+    val hayFiltrosPartidosActivos: StateFlow<Boolean> = combine(
+        _filtroClimas, _filtroTechado, _filtroEstadios, _filtroDiasSemana, _filtroHoras
+    ) { c, t, e, d, h ->
+        c.isNotEmpty() || t || e.isNotEmpty() || d.isNotEmpty() || h.isNotEmpty()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    fun toggleFiltroClima(clima: Clima) {
+        _filtroClimas.value = if (_filtroClimas.value.contains(clima)) {
+            _filtroClimas.value - clima
+        } else {
+            _filtroClimas.value + clima
+        }
+    }
+
+    fun toggleFiltroTechado() {
+        _filtroTechado.value = !_filtroTechado.value
+    }
+
+    fun toggleFiltroEstadio(estadioNombre: String) {
+        _filtroEstadios.value = if (_filtroEstadios.value.contains(estadioNombre)) {
+            _filtroEstadios.value - estadioNombre
+        } else {
+            _filtroEstadios.value + estadioNombre
+        }
+    }
+
+    fun toggleFiltroDiaSemana(diaNum: Int) {
+        _filtroDiasSemana.value = if (_filtroDiasSemana.value.contains(diaNum)) {
+            _filtroDiasSemana.value - diaNum
+        } else {
+            _filtroDiasSemana.value + diaNum
+        }
+    }
+
+    fun toggleFiltroHora(hora: Int) {
+        _filtroHoras.value = if (_filtroHoras.value.contains(hora)) {
+            _filtroHoras.value - hora
+        } else {
+            _filtroHoras.value + hora
+        }
+    }
+
+    fun limpiarFiltrosPartidos() {
+        _filtroClimas.value = emptySet()
+        _filtroTechado.value = false
+        _filtroEstadios.value = emptySet()
+        _filtroDiasSemana.value = emptySet()
+        _filtroHoras.value = emptySet()
+    }
+
+    val estadiosDisponiblesFiltro: StateFlow<List<String>> = combine(partidosFiltrados, todosEstadios) { partidos, estadios ->
+        val map = estadios.associateBy { it.id }
+        val names = partidos.map { p -> p.estadioId?.let { map[it]?.nombre } ?: "Sin ubicación" }.distinct().sorted()
+        names
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val horasDisponiblesFiltro: StateFlow<List<Int>> = partidosFiltrados.map { partidos ->
+        val cal = Calendar.getInstance()
+        partidos.map { p ->
+            cal.timeInMillis = p.fecha
+            cal.get(Calendar.HOUR_OF_DAY)
+        }.distinct().sorted()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val partidosTabPartidos: StateFlow<List<Partido>> = combine(
+        listOf(
+            partidosFiltrados,
+            todosEstadios,
+            _filtroClimas,
+            _filtroTechado,
+            _filtroEstadios,
+            _filtroDiasSemana,
+            _filtroHoras
+        )
+    ) { flows ->
+        @Suppress("UNCHECKED_CAST")
+        val partidos = flows[0] as List<Partido>
+        @Suppress("UNCHECKED_CAST")
+        val estadios = flows[1] as List<Estadio>
+        @Suppress("UNCHECKED_CAST")
+        val climas = flows[2] as Set<Clima>
+        @Suppress("UNCHECKED_CAST")
+        val techado = flows[3] as Boolean
+        @Suppress("UNCHECKED_CAST")
+        val estadiosFiltro = flows[4] as Set<String>
+        @Suppress("UNCHECKED_CAST")
+        val dias = flows[5] as Set<Int>
+        @Suppress("UNCHECKED_CAST")
+        val horas = flows[6] as Set<Int>
+
+        val mapEstadios = estadios.associateBy { it.id }
+        val cal = Calendar.getInstance()
+
+        partidos.filter { p ->
+            val hayFiltroClima = climas.isNotEmpty() || techado
+            if (hayFiltroClima) {
+                val coincideClima = (p.clima != null && climas.contains(p.clima)) || (p.clima == null && techado)
+                if (!coincideClima) return@filter false
+            }
+            if (estadiosFiltro.isNotEmpty()) {
+                val nomEstadio = p.estadioId?.let { mapEstadios[it]?.nombre } ?: "Sin ubicación"
+                if (!estadiosFiltro.contains(nomEstadio)) {
+                    return@filter false
+                }
+            }
+            cal.timeInMillis = p.fecha
+            if (dias.isNotEmpty()) {
+                val dow = cal.get(Calendar.DAY_OF_WEEK)
+                if (!dias.contains(dow)) {
+                    return@filter false
+                }
+            }
+            if (horas.isNotEmpty()) {
+                val h = cal.get(Calendar.HOUR_OF_DAY)
+                if (!horas.contains(h)) {
+                    return@filter false
+                }
+            }
+            true
         }
     }.stateIn(
         scope = viewModelScope,
@@ -326,12 +481,51 @@ class EstadisticasViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val statsEstadios: StateFlow<List<StatsEstadio>> = combine(partidosFiltrados, todosEstadios) { partidos, estadios ->
+    val statsClima: StateFlow<List<StatsClima>> = partidosTabPartidos.map { partidos ->
+        val total = partidos.size
+        val lista = mutableListOf<StatsClima>()
+
+        Clima.entries.forEach { c ->
+            val count = partidos.count { it.clima == c }
+            val pct = if (total > 0) (count * 100f / total) else 0f
+            lista.add(
+                StatsClima(
+                    clima = c,
+                    label = c.label,
+                    emoji = if (c == Clima.DESPEJADO) "☀️/🌙" else c.emoji,
+                    total = count,
+                    porcentaje = pct
+                )
+            )
+        }
+
+        val countTechado = partidos.count { it.clima == null }
+        if (countTechado > 0) {
+            val pct = if (total > 0) (countTechado * 100f / total) else 0f
+            lista.add(
+                StatsClima(
+                    clima = null,
+                    label = "Techado",
+                    emoji = "🏠",
+                    total = countTechado,
+                    porcentaje = pct
+                )
+            )
+        }
+
+        lista
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val statsEstadios: StateFlow<List<StatsEstadio>> = combine(partidosTabPartidos, todosEstadios) { partidos, estadios ->
         val total = partidos.size
         val mapEstadios = estadios.associateBy { it.id }
         val counts = mutableMapOf<String, Int>()
         partidos.forEach { p ->
-            val nombre = p.estadioId?.let { mapEstadios[it]?.nombre } ?: "Sin estadio"
+            val nombre = p.estadioId?.let { mapEstadios[it]?.nombre } ?: "Sin ubicación"
             counts[nombre] = (counts[nombre] ?: 0) + 1
         }
         counts.map { (nom, count) ->
@@ -344,7 +538,7 @@ class EstadisticasViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val statsDiasSemana: StateFlow<List<StatsDiaSemana>> = partidosFiltrados.map { partidos ->
+    val statsDiasSemana: StateFlow<List<StatsDiaSemana>> = partidosTabPartidos.map { partidos ->
         val dias = listOf(
             StatsDiaSemana(dia = "Lun", diaNum = Calendar.MONDAY, total = 0),
             StatsDiaSemana(dia = "Mar", diaNum = Calendar.TUESDAY, total = 0),
@@ -362,6 +556,34 @@ class EstadisticasViewModel @Inject constructor(
             counts[dow]++
         }
         dias.map { d -> d.copy(total = counts[d.diaNum]) }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val statsHorasPartidos: StateFlow<List<StatsHoraPartido>> = partidosTabPartidos.map { partidos ->
+        val counts = IntArray(24)
+        val cal = Calendar.getInstance()
+        partidos.forEach { p ->
+            cal.timeInMillis = p.fecha
+            val h = cal.get(Calendar.HOUR_OF_DAY)
+            counts[h]++
+        }
+        val horasConPartidos = (0..23).filter { counts[it] > 0 }
+        if (horasConPartidos.isEmpty()) {
+            emptyList()
+        } else {
+            val minHora = (horasConPartidos.minOrNull() ?: 9).coerceAtLeast(8)
+            val maxHora = (horasConPartidos.maxOrNull() ?: 22).coerceAtMost(23)
+            (minHora..maxHora).map { h ->
+                StatsHoraPartido(
+                    hora = h,
+                    total = counts[h],
+                    horaTexto = "${h}h"
+                )
+            }
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -386,19 +608,66 @@ class EstadisticasViewModel @Inject constructor(
     )
 
     val statsPosicionesFrecuencia: StateFlow<List<StatsPosicionFrecuencia>> = partidosFiltrados.map { partidos ->
-        val total = partidos.size
-        val counts = mutableMapOf<Posicion, Int>()
-        partidos.forEach { p ->
-            val set = (setOf(p.posicionJugada) + p.posicionesSecundarias + p.posicionesJugadas).filterNotNull()
-            set.forEach { pos ->
-                counts[pos] = (counts[pos] ?: 0) + 1
+        val partidosJugados = partidos.filter { it.jugadoPorMi }
+        val posMinutos = mutableMapOf<Posicion, Int>()
+        val posPJ = mutableMapOf<Posicion, Int>()
+        val posV = mutableMapOf<Posicion, Int>()
+        val posE = mutableMapOf<Posicion, Int>()
+        val posD = mutableMapOf<Posicion, Int>()
+
+        partidosJugados.forEach { p ->
+            val duracion = p.duracionMinutos.coerceAtLeast(1)
+            val primarias = (p.posicionesJugadas - p.posicionesSecundarias).ifEmpty { setOf(p.posicionJugada) }
+            val secundarias = p.posicionesSecundarias - primarias
+
+            val pesoPrimaria = 2.0
+            val pesoSecundaria = 1.0
+            val pesoTotal = (primarias.size * pesoPrimaria) + (secundarias.size * pesoSecundaria)
+
+            if (pesoTotal > 0.0) {
+                val minsPrim = if (primarias.isNotEmpty()) (duracion * (pesoPrimaria / pesoTotal)).roundToInt() else 0
+                val minsSec = if (secundarias.isNotEmpty()) (duracion * (pesoSecundaria / pesoTotal)).roundToInt() else 0
+
+                primarias.forEach { pos ->
+                    posMinutos[pos] = (posMinutos[pos] ?: 0) + minsPrim
+                    posPJ[pos] = (posPJ[pos] ?: 0) + 1
+                    if (p.esVictoria) posV[pos] = (posV[pos] ?: 0) + 1
+                    if (p.esEmpate) posE[pos] = (posE[pos] ?: 0) + 1
+                    if (p.esDerrota) posD[pos] = (posD[pos] ?: 0) + 1
+                }
+                secundarias.forEach { pos ->
+                    posMinutos[pos] = (posMinutos[pos] ?: 0) + minsSec
+                    posPJ[pos] = (posPJ[pos] ?: 0) + 1
+                    if (p.esVictoria) posV[pos] = (posV[pos] ?: 0) + 1
+                    if (p.esEmpate) posE[pos] = (posE[pos] ?: 0) + 1
+                    if (p.esDerrota) posD[pos] = (posD[pos] ?: 0) + 1
+                }
             }
         }
+
+        val totalMinutosSuma = posMinutos.values.sum()
+
         Posicion.entries.map { pos ->
-            val cnt = counts[pos] ?: 0
-            val pct = if (total > 0) (cnt * 100f / total) else 0f
-            StatsPosicionFrecuencia(posicion = pos, total = cnt, porcentaje = pct)
-        }.sortedByDescending { it.total }
+            val mins = posMinutos[pos] ?: 0
+            val pj = posPJ[pos] ?: 0
+            val v = posV[pos] ?: 0
+            val e = posE[pos] ?: 0
+            val d = posD[pos] ?: 0
+            val pctV = if (pj > 0) (v * 100 / pj) else 0
+            val pctMinutos = if (totalMinutosSuma > 0) (mins.toFloat() * 100f / totalMinutosSuma) else 0f
+
+            StatsPosicionFrecuencia(
+                posicion = pos,
+                minutos = mins,
+                partidosJugados = pj,
+                victorias = v,
+                empates = e,
+                derrotas = d,
+                porcentajeVictorias = pctV,
+                total = mins.toFloat(),
+                porcentaje = pctMinutos
+            )
+        }.sortedByDescending { it.minutos }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
