@@ -2,10 +2,14 @@ package com.diegoguerrero.futtracker.ui.screens.estadisticas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.diegoguerrero.futtracker.domain.model.Clima
+import com.diegoguerrero.futtracker.domain.model.EquipoColor
+import com.diegoguerrero.futtracker.domain.model.Estadio
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.TipoFutbol
+import com.diegoguerrero.futtracker.domain.repository.EstadioRepository
 import com.diegoguerrero.futtracker.domain.repository.JugadorRepository
 import com.diegoguerrero.futtracker.domain.repository.PartidoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,14 +46,47 @@ data class EstadisticasJugadorGeneral(
     val minutosJugados: Int = 0
 )
 
+data class StatsClima(
+    val clima: Clima,
+    val total: Int,
+    val porcentaje: Float
+)
+
+data class StatsEstadio(
+    val nombre: String,
+    val total: Int,
+    val porcentaje: Float
+)
+
+data class StatsDiaSemana(
+    val dia: String,
+    val diaNum: Int,
+    val total: Int
+)
+
+data class StatsEquipoColor(
+    val color: EquipoColor,
+    val partidosJugados: Int = 0,
+    val victorias: Int = 0,
+    val empates: Int = 0,
+    val derrotas: Int = 0,
+    val porcentajeVictorias: Int = 0
+)
+
+data class StatsPosicionFrecuencia(
+    val posicion: Posicion,
+    val total: Int,
+    val porcentaje: Float
+)
+
 enum class CriterioOrdenGeneral {
-    NOMBRE,
-    VICTORIAS,
-    DERROTAS,
-    EMPATES,
-    PARTIDOS,
     PORCENTAJE,
-    MINUTOS
+    NOMBRE,
+    PARTIDOS,
+    MINUTOS,
+    VICTORIAS,
+    EMPATES,
+    DERROTAS
 }
 
 private data class FiltrosGeneralData(
@@ -62,7 +99,8 @@ private data class FiltrosGeneralData(
 @HiltViewModel
 class EstadisticasViewModel @Inject constructor(
     private val partidoRepository: PartidoRepository,
-    private val jugadorRepository: JugadorRepository
+    private val jugadorRepository: JugadorRepository,
+    private val estadioRepository: EstadioRepository
 ) : ViewModel() {
 
     val todosPartidos: StateFlow<List<Partido>> = partidoRepository.obtenerPartidos()
@@ -266,6 +304,107 @@ class EstadisticasViewModel @Inject constructor(
         return "$startYear/$endTwoDigits"
     }
 
+    // --- Pestaña Partidos ---
+
+    val todosEstadios: StateFlow<List<Estadio>> = estadioRepository.obtenerEstadios()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val statsClima: StateFlow<List<StatsClima>> = partidosFiltrados.map { partidos ->
+        val total = partidos.size
+        Clima.entries.map { c ->
+            val count = partidos.count { it.clima == c }
+            val pct = if (total > 0) (count * 100f / total) else 0f
+            StatsClima(clima = c, total = count, porcentaje = pct)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val statsEstadios: StateFlow<List<StatsEstadio>> = combine(partidosFiltrados, todosEstadios) { partidos, estadios ->
+        val total = partidos.size
+        val mapEstadios = estadios.associateBy { it.id }
+        val counts = mutableMapOf<String, Int>()
+        partidos.forEach { p ->
+            val nombre = p.estadioId?.let { mapEstadios[it]?.nombre } ?: "Sin estadio"
+            counts[nombre] = (counts[nombre] ?: 0) + 1
+        }
+        counts.map { (nom, count) ->
+            val pct = if (total > 0) (count * 100f / total) else 0f
+            StatsEstadio(nombre = nom, total = count, porcentaje = pct)
+        }.sortedByDescending { it.total }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val statsDiasSemana: StateFlow<List<StatsDiaSemana>> = partidosFiltrados.map { partidos ->
+        val dias = listOf(
+            StatsDiaSemana(dia = "Lun", diaNum = Calendar.MONDAY, total = 0),
+            StatsDiaSemana(dia = "Mar", diaNum = Calendar.TUESDAY, total = 0),
+            StatsDiaSemana(dia = "Mié", diaNum = Calendar.WEDNESDAY, total = 0),
+            StatsDiaSemana(dia = "Jue", diaNum = Calendar.THURSDAY, total = 0),
+            StatsDiaSemana(dia = "Vie", diaNum = Calendar.FRIDAY, total = 0),
+            StatsDiaSemana(dia = "Sáb", diaNum = Calendar.SATURDAY, total = 0),
+            StatsDiaSemana(dia = "Dom", diaNum = Calendar.SUNDAY, total = 0),
+        )
+        val counts = IntArray(8)
+        val cal = Calendar.getInstance()
+        partidos.forEach { p ->
+            cal.timeInMillis = p.fecha
+            val dow = cal.get(Calendar.DAY_OF_WEEK)
+            counts[dow]++
+        }
+        dias.map { d -> d.copy(total = counts[d.diaNum]) }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val statsClaroOscuro: StateFlow<Pair<StatsEquipoColor, StatsEquipoColor>> = partidosFiltrados.map { partidos ->
+        fun calcStats(eq: EquipoColor): StatsEquipoColor {
+            val matches = partidos.filter { it.equipoJugado == eq }
+            val pj = matches.size
+            val v = matches.count { it.esVictoria }
+            val e = matches.count { it.esEmpate }
+            val d = matches.count { it.esDerrota }
+            val pct = if (pj > 0) (v * 100 / pj) else 0
+            return StatsEquipoColor(color = eq, partidosJugados = pj, victorias = v, empates = e, derrotas = d, porcentajeVictorias = pct)
+        }
+        Pair(calcStats(EquipoColor.CLARO), calcStats(EquipoColor.OSCURO))
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Pair(StatsEquipoColor(EquipoColor.CLARO), StatsEquipoColor(EquipoColor.OSCURO))
+    )
+
+    val statsPosicionesFrecuencia: StateFlow<List<StatsPosicionFrecuencia>> = partidosFiltrados.map { partidos ->
+        val total = partidos.size
+        val counts = mutableMapOf<Posicion, Int>()
+        partidos.forEach { p ->
+            val set = (setOf(p.posicionJugada) + p.posicionesSecundarias + p.posicionesJugadas).filterNotNull()
+            set.forEach { pos ->
+                counts[pos] = (counts[pos] ?: 0) + 1
+            }
+        }
+        Posicion.entries.map { pos ->
+            val cnt = counts[pos] ?: 0
+            val pct = if (total > 0) (cnt * 100f / total) else 0f
+            StatsPosicionFrecuencia(posicion = pos, total = cnt, porcentaje = pct)
+        }.sortedByDescending { it.total }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     // --- Pestaña General (Ranking por Jugador) ---
 
     val todosJugadores: StateFlow<List<Jugador>> = jugadorRepository.obtenerJugadores()
@@ -287,10 +426,10 @@ class EstadisticasViewModel @Inject constructor(
     private val _soloPosicionPrincipalGeneral = MutableStateFlow(false)
     val soloPosicionPrincipalGeneral: StateFlow<Boolean> = _soloPosicionPrincipalGeneral.asStateFlow()
 
-    private val _criterioOrdenGeneral = MutableStateFlow(CriterioOrdenGeneral.NOMBRE)
+    private val _criterioOrdenGeneral = MutableStateFlow(CriterioOrdenGeneral.PORCENTAJE)
     val criterioOrdenGeneral: StateFlow<CriterioOrdenGeneral> = _criterioOrdenGeneral.asStateFlow()
 
-    private val _ordenAscendenteGeneral = MutableStateFlow(true)
+    private val _ordenAscendenteGeneral = MutableStateFlow(false)
     val ordenAscendenteGeneral: StateFlow<Boolean> = _ordenAscendenteGeneral.asStateFlow()
 
     val jugadoresEstadisticasGeneral: StateFlow<List<EstadisticasJugadorGeneral>> = combine(
@@ -379,8 +518,7 @@ class EstadisticasViewModel @Inject constructor(
                 else filtrados.sortedByDescending { it.jugador.nombre.lowercase() }
         }
 
-        val (mios, otros) = ordenados.partition { it.jugador.esUsuarioPropio || it.jugador.id == "usuario_propio_id" }
-        mios + otros
+        ordenados
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

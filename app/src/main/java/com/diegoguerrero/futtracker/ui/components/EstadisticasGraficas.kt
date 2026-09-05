@@ -1,5 +1,6 @@
 package com.diegoguerrero.futtracker.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
+import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
@@ -46,7 +48,8 @@ fun GraficoResultados(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -159,7 +162,8 @@ fun GraficoGolesAsistencias(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -212,83 +216,103 @@ fun GraficoGolesAsistencias(
                     partidosRecientes.maxOfOrNull { max(it.goles, it.asistencias) } ?: 1
                 )
 
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp)
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val canvasWidth = size.width
-                        val canvasHeight = size.height - 24.dp.toPx()
-                        val n = partidosRecientes.size
-                        val slotWidth = canvasWidth / n
-                        val barWidth = (slotWidth * 0.28f).coerceAtMost(16.dp.toPx())
-
-                        val guideLineCount = 3
-                        for (i in 0..guideLineCount) {
-                            val y = canvasHeight * (i.toFloat() / guideLineCount)
-                            drawLine(
-                                color = Color.White.copy(alpha = 0.08f),
-                                start = Offset(0f, y),
-                                end = Offset(canvasWidth, y),
-                                strokeWidth = 1f
-                            )
-                        }
-
-                        partidosRecientes.forEachIndexed { index, p ->
-                            val centerX = (index + 0.5f) * slotWidth
-                            val golHeight = (p.goles.toFloat() / maxVal) * canvasHeight
-                            val asisHeight = (p.asistencias.toFloat() / maxVal) * canvasHeight
-
-                            if (golHeight > 0) {
-                                drawRoundRect(
-                                    color = LimeVolt,
-                                    topLeft = Offset(centerX - barWidth - 2.dp.toPx(), canvasHeight - golHeight),
-                                    size = Size(barWidth, golHeight),
-                                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                                )
-                            } else {
-                                drawCircle(
-                                    color = LimeVolt.copy(alpha = 0.3f),
-                                    radius = 2.dp.toPx(),
-                                    center = Offset(centerX - barWidth / 2 - 2.dp.toPx(), canvasHeight - 2.dp.toPx())
-                                )
-                            }
-
-                            if (asisHeight > 0) {
-                                drawRoundRect(
-                                    color = AsistenciaColor,
-                                    topLeft = Offset(centerX + 2.dp.toPx(), canvasHeight - asisHeight),
-                                    size = Size(barWidth, asisHeight),
-                                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                                )
-                            } else {
-                                drawCircle(
-                                    color = AsistenciaColor.copy(alpha = 0.3f),
-                                    radius = 2.dp.toPx(),
-                                    center = Offset(centerX + barWidth / 2 + 2.dp.toPx(), canvasHeight - 2.dp.toPx())
-                                )
-                            }
-                        }
+                    Column(
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(116.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        Text("$maxVal", color = TextSecondary, fontSize = 9.sp)
+                        Text(if (maxVal > 1) "${(maxVal + 1) / 2}" else "", color = TextSecondary, fontSize = 9.sp)
+                        Text("0", color = TextSecondary, fontSize = 9.sp)
                     }
 
-                    Row(
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
+                            .weight(1f)
+                            .fillMaxHeight()
                     ) {
-                        val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
-                        partidosRecientes.forEach { p ->
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = dateFormat.format(Date(p.fecha)),
-                                    color = TextSecondary,
-                                    fontSize = 9.sp,
-                                    maxLines = 1
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val canvasWidth = size.width
+                            val canvasHeight = size.height - 24.dp.toPx()
+                            val n = partidosRecientes.size
+                            val slotWidth = canvasWidth / n
+                            val barWidth = (slotWidth * 0.28f).coerceAtMost(16.dp.toPx())
+
+                            val guideLineCount = 3
+                            for (i in 0..guideLineCount) {
+                                val y = canvasHeight * (i.toFloat() / guideLineCount)
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    start = Offset(0f, y),
+                                    end = Offset(canvasWidth, y),
+                                    strokeWidth = 1f
                                 )
+                            }
+
+                            partidosRecientes.forEachIndexed { index, p ->
+                                val centerX = (index + 0.5f) * slotWidth
+                                val golHeight = (p.goles.toFloat() / maxVal) * canvasHeight
+                                val asisHeight = (p.asistencias.toFloat() / maxVal) * canvasHeight
+
+                                if (golHeight > 0) {
+                                    drawRoundRect(
+                                        color = LimeVolt,
+                                        topLeft = Offset(centerX - barWidth - 2.dp.toPx(), canvasHeight - golHeight),
+                                        size = Size(barWidth, golHeight),
+                                        cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                    )
+                                } else {
+                                    drawCircle(
+                                        color = LimeVolt.copy(alpha = 0.3f),
+                                        radius = 2.dp.toPx(),
+                                        center = Offset(centerX - barWidth / 2 - 2.dp.toPx(), canvasHeight - 2.dp.toPx())
+                                    )
+                                }
+
+                                if (asisHeight > 0) {
+                                    drawRoundRect(
+                                        color = AsistenciaColor,
+                                        topLeft = Offset(centerX + 2.dp.toPx(), canvasHeight - asisHeight),
+                                        size = Size(barWidth, asisHeight),
+                                        cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                    )
+                                } else {
+                                    drawCircle(
+                                        color = AsistenciaColor.copy(alpha = 0.3f),
+                                        radius = 2.dp.toPx(),
+                                        center = Offset(centerX + barWidth / 2 + 2.dp.toPx(), canvasHeight - 2.dp.toPx())
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
+                        ) {
+                            val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+                            partidosRecientes.forEach { p ->
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = dateFormat.format(Date(p.fecha)),
+                                        color = TextSecondary,
+                                        fontSize = 9.sp,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
@@ -321,7 +345,8 @@ fun GraficoResumenGoles(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -435,7 +460,8 @@ fun GraficoTirosAlPalo(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -471,68 +497,88 @@ fun GraficoTirosAlPalo(
             } else {
                 val maxVal = max(1, partidosRecientes.maxOfOrNull { it.tirosAlPalo } ?: 1)
 
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp)
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val canvasWidth = size.width
-                        val canvasHeight = size.height - 24.dp.toPx()
-                        val n = partidosRecientes.size
-                        val slotWidth = canvasWidth / n
-                        val barWidth = (slotWidth * 0.35f).coerceAtMost(20.dp.toPx())
-
-                        val guideLineCount = 3
-                        for (i in 0..guideLineCount) {
-                            val y = canvasHeight * (i.toFloat() / guideLineCount)
-                            drawLine(
-                                color = Color.White.copy(alpha = 0.08f),
-                                start = Offset(0f, y),
-                                end = Offset(canvasWidth, y),
-                                strokeWidth = 1f
-                            )
-                        }
-
-                        val paloColor = Color(0xFFF59E0B)
-                        partidosRecientes.forEachIndexed { index, p ->
-                            val centerX = (index + 0.5f) * slotWidth
-                            val paloHeight = (p.tirosAlPalo.toFloat() / maxVal) * canvasHeight
-
-                            if (paloHeight > 0) {
-                                drawRoundRect(
-                                    color = paloColor,
-                                    topLeft = Offset(centerX - barWidth / 2, canvasHeight - paloHeight),
-                                    size = Size(barWidth, paloHeight),
-                                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                                )
-                            } else {
-                                drawCircle(
-                                    color = paloColor.copy(alpha = 0.3f),
-                                    radius = 2.dp.toPx(),
-                                    center = Offset(centerX, canvasHeight - 2.dp.toPx())
-                                )
-                            }
-                        }
+                    Column(
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(116.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        Text("$maxVal", color = TextSecondary, fontSize = 9.sp)
+                        Text(if (maxVal > 1) "${(maxVal + 1) / 2}" else "", color = TextSecondary, fontSize = 9.sp)
+                        Text("0", color = TextSecondary, fontSize = 9.sp)
                     }
 
-                    Row(
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
+                            .weight(1f)
+                            .fillMaxHeight()
                     ) {
-                        val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
-                        partidosRecientes.forEach { p ->
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = dateFormat.format(Date(p.fecha)),
-                                    color = TextSecondary,
-                                    fontSize = 9.sp,
-                                    maxLines = 1
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val canvasWidth = size.width
+                            val canvasHeight = size.height - 24.dp.toPx()
+                            val n = partidosRecientes.size
+                            val slotWidth = canvasWidth / n
+                            val barWidth = (slotWidth * 0.35f).coerceAtMost(20.dp.toPx())
+
+                            val guideLineCount = 3
+                            for (i in 0..guideLineCount) {
+                                val y = canvasHeight * (i.toFloat() / guideLineCount)
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    start = Offset(0f, y),
+                                    end = Offset(canvasWidth, y),
+                                    strokeWidth = 1f
                                 )
+                            }
+
+                            val paloColor = Color(0xFFF59E0B)
+                            partidosRecientes.forEachIndexed { index, p ->
+                                val centerX = (index + 0.5f) * slotWidth
+                                val paloHeight = (p.tirosAlPalo.toFloat() / maxVal) * canvasHeight
+
+                                if (paloHeight > 0) {
+                                    drawRoundRect(
+                                        color = paloColor,
+                                        topLeft = Offset(centerX - barWidth / 2, canvasHeight - paloHeight),
+                                        size = Size(barWidth, paloHeight),
+                                        cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                    )
+                                } else {
+                                    drawCircle(
+                                        color = paloColor.copy(alpha = 0.3f),
+                                        radius = 2.dp.toPx(),
+                                        center = Offset(centerX, canvasHeight - 2.dp.toPx())
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
+                        ) {
+                            val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+                            partidosRecientes.forEach { p ->
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = dateFormat.format(Date(p.fecha)),
+                                        color = TextSecondary,
+                                        fontSize = 9.sp,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }

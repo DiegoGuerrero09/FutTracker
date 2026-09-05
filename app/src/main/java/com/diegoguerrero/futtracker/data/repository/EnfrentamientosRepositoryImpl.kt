@@ -17,12 +17,14 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
     private val enfrentamientosDao: EnfrentamientosDao
 ) : EnfrentamientosRepository {
 
-    override fun obtenerHistorialCruzado(): Flow<List<EstadisticasJugadorCruzadas>> {
+    override fun obtenerHistorialCruzado(fechaInicio: Long?, fechaFin: Long?): Flow<List<EstadisticasJugadorCruzadas>> {
         return combine(
             enfrentamientosDao.getAllPartidos(),
             enfrentamientosDao.getAllJugadores()
         ) { partidosEntities, jugadoresEntities ->
-            val partidos = partidosEntities.map { it.toDomain() }
+            val partidos = partidosEntities.map { it.toDomain() }.filter { p ->
+                (fechaInicio == null || p.fecha >= fechaInicio) && (fechaFin == null || p.fecha <= fechaFin)
+            }
             val jugadores = jugadoresEntities.map { it.toDomain() }
 
             val listaSinUsuario = jugadores.filter { !it.esUsuarioPropio && it.id != "usuario_propio_id" }
@@ -92,18 +94,20 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun obtenerDestacados(): Flow<DestacadosEnfrentamientos> {
-        return obtenerHistorialCruzado().map { lista ->
+    override fun obtenerDestacados(fechaInicio: Long?, fechaFin: Long?): Flow<DestacadosEnfrentamientos> {
+        return obtenerHistorialCruzado(fechaInicio, fechaFin).map { lista ->
             calcularDestacados(lista)
         }
     }
 
-    override fun obtenerHistorialCruzadoParaJugador(jugadorId: String): Flow<List<EstadisticasJugadorCruzadas>> {
+    override fun obtenerHistorialCruzadoParaJugador(jugadorId: String, fechaInicio: Long?, fechaFin: Long?): Flow<List<EstadisticasJugadorCruzadas>> {
         return combine(
             enfrentamientosDao.getAllPartidos(),
             enfrentamientosDao.getAllJugadores()
         ) { partidosEntities, jugadoresEntities ->
-            val partidos = partidosEntities.map { it.toDomain() }
+            val partidos = partidosEntities.map { it.toDomain() }.filter { p ->
+                (fechaInicio == null || p.fecha >= fechaInicio) && (fechaFin == null || p.fecha <= fechaFin)
+            }
             val jugadores = jugadoresEntities.map { it.toDomain() }
             val targetJugador = jugadores.firstOrNull { it.id == jugadorId || (it.esUsuarioPropio && jugadorId == "usuario_propio_id") } ?: return@combine emptyList()
 
@@ -195,8 +199,8 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun obtenerDestacadosParaJugador(jugadorId: String): Flow<DestacadosEnfrentamientos> {
-        return obtenerHistorialCruzadoParaJugador(jugadorId).map { lista ->
+    override fun obtenerDestacadosParaJugador(jugadorId: String, fechaInicio: Long?, fechaFin: Long?): Flow<DestacadosEnfrentamientos> {
+        return obtenerHistorialCruzadoParaJugador(jugadorId, fechaInicio, fechaFin).map { lista ->
             calcularDestacados(lista)
         }
     }

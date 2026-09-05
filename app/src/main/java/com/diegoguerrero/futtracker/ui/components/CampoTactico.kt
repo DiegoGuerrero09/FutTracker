@@ -198,7 +198,7 @@ fun CampoTactico(
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
                                 .offset(x = 2.dp, y = 2.dp)
-                                .size(width = 19.dp, height = 15.5.dp)
+                                .size(width = 20.dp, height = 15.5.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -207,7 +207,10 @@ fun CampoTactico(
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.offset(y = (-1.5).dp)
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                    ),
+                                    modifier = Modifier.offset(y = (-0.5).dp)
                                 )
                             }
                         }

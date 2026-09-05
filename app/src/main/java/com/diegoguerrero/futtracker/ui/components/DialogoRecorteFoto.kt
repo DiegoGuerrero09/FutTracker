@@ -57,6 +57,8 @@ fun DialogoRecorteFoto(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val visorPx = with(density) { 250.dp.toPx() }
 
     var bitmapOriginal by remember { mutableStateOf<Bitmap?>(null) }
     var rotacion by remember { mutableFloatStateOf(0f) }
@@ -201,29 +203,34 @@ fun DialogoRecorteFoto(
                             procesando = true
                             coroutineScope.launch(Dispatchers.IO) {
                                 try {
-                                    val salidaSize = 512
+                                    val salidaSize = 1024
                                     val cropped = Bitmap.createBitmap(salidaSize, salidaSize, Bitmap.Config.ARGB_8888)
                                     val canvas = android.graphics.Canvas(cropped)
 
-                                    val matrix = Matrix()
-                                    // Centrado del bitmap original
                                     val srcW = bmp.width.toFloat()
                                     val srcH = bmp.height.toFloat()
+
+                                    val baseFitScale = minOf(visorPx / srcW, visorPx / srcH)
+                                    val ratio = salidaSize.toFloat() / visorPx
+
+                                    val finalScale = baseFitScale * escala * ratio
+                                    val finalCenterX = salidaSize / 2f + offset.x * ratio
+                                    val finalCenterY = salidaSize / 2f + offset.y * ratio
+
+                                    val matrix = Matrix()
                                     matrix.postTranslate(-srcW / 2f, -srcH / 2f)
                                     matrix.postRotate(rotacion)
+                                    matrix.postScale(finalScale, finalScale)
+                                    matrix.postTranslate(finalCenterX, finalCenterY)
 
-                                    // Ratio entre visor en px y tamaño salida
-                                    val factorVisorASalida = salidaSize / 250f
-                                    val scaleTotal = escala * (salidaSize.toFloat() / maxOf(srcW, srcH))
-                                    matrix.postScale(scaleTotal, scaleTotal)
-                                    matrix.postTranslate(salidaSize / 2f + offset.x * factorVisorASalida, salidaSize / 2f + offset.y * factorVisorASalida)
-
-                                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
+                                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG).apply {
+                                        isDither = true
+                                    }
                                     canvas.drawBitmap(bmp, matrix, paint)
 
                                     val archivoDestino = File(context.filesDir, "avatar_${System.currentTimeMillis()}.jpg")
                                     FileOutputStream(archivoDestino).use { out ->
-                                        cropped.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                        cropped.compress(Bitmap.CompressFormat.JPEG, 95, out)
                                     }
 
                                     withContext(Dispatchers.Main) {

@@ -26,7 +26,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.text.style.TextAlign
 import com.diegoguerrero.futtracker.ui.screens.jugadores.obtenerIniciales
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
@@ -130,13 +133,51 @@ fun BadgePosicion(label: String, esPrimaria: Boolean) {
         color = bgColor,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
     ) {
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = if (esPrimaria) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            lineHeight = 14.sp
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minWidth = 34.dp)
+                .height(20.dp)
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = textColor,
+                fontSize = 10.sp,
+                fontWeight = if (esPrimaria) FontWeight.Bold else FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                style = androidx.compose.ui.text.TextStyle(
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun ImagenLocal(
+    fotoUri: String?,
+    contentDescription: String? = null,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    val bitmap = remember(fotoUri) {
+        fotoUri?.let { path ->
+            runCatching {
+                val file = File(path)
+                if (file.exists() && file.length() > 0) {
+                    BitmapFactory.decodeFile(path)?.asImageBitmap()
+                } else null
+            }.getOrNull()
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
         )
     }
 }

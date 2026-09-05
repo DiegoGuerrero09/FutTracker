@@ -50,4 +50,10 @@ class PartidosViewModel @Inject constructor(
             partidoRepository.eliminarPartido(partido)
         }
     }
+
+    fun toggleFavorito(partido: Partido) {
+        viewModelScope.launch {
+            partidoRepository.actualizarPartido(partido.copy(esFavorito = !partido.esFavorito))
+        }
+    }
 }

@@ -15,7 +15,8 @@ data class Jugador(
     val posicionesSecundarias: Set<Posicion> = emptySet(),
     val esFavorito: Boolean = false,
     val nivel: Int = 3,
-    val esUsuarioPropio: Boolean = false
+    val esUsuarioPropio: Boolean = false,
+    val fechaCreacion: Long = System.currentTimeMillis()
 ) {
     val inicialesPosiciones: String
         get() = if (posicionesPrimarias.isEmpty()) {

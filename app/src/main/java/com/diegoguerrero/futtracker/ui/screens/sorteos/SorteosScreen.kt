@@ -1,5 +1,7 @@
 package com.diegoguerrero.futtracker.ui.screens.sorteos
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -31,14 +33,26 @@ import com.diegoguerrero.futtracker.domain.usecase.GenerarAlineacionUseCase
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.unit.Density
+import kotlin.math.roundToInt
 import com.diegoguerrero.futtracker.ui.components.CampoFutbol
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.components.BadgePosicion
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
+import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +69,10 @@ fun SorteosScreen(
     var asignacionesOscuro by remember { mutableStateOf<List<Pair<Posicion, Jugador>>>(emptyList()) }
     var sorteoRealizado by remember { mutableStateOf(false) }
 
+    // Fecha, hora y lugar del partido para compartir
+    var fechaHoraMillis by remember { mutableStateOf<Long?>(null) }
+    var lugarSorteo by remember { mutableStateOf("") }
+
     // Formaciones y mapas tácticos sugeridos tras sorteo
     var formacionSugeridaClaro by remember { mutableStateOf<Formacion?>(null) }
     var formacionSugeridaOscuro by remember { mutableStateOf<Formacion?>(null) }
@@ -66,11 +84,16 @@ fun SorteosScreen(
     var mostrarSelectorManual by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var soloFavoritos by remember { mutableStateOf(false) }
+    var ordenNombreAscendente by remember { mutableStateOf<Boolean?>(null) }
+    var ordenFechaDescendente by remember { mutableStateOf<Boolean?>(null) }
     var selectedPosicionFilter by remember { mutableStateOf<Posicion?>(null) }
     var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
 
     // Tab para visualizar la alineación del equipo claro u oscuro
     var tabEquipoAlineacion by remember { mutableStateOf(0) } // 0: Claro, 1: Oscuro
+
+    // Jugador seleccionado para intercambio entre listas / posiciones
+    var jugadorSeleccionadoParaMover by remember { mutableStateOf<Jugador?>(null) }
 
     // Inicia sin jugadores preseleccionados
     LaunchedEffect(Unit) {
@@ -214,6 +237,84 @@ fun SorteosScreen(
         cambiarFormacionOscuro(f)
     }
 
+    fun intercambiarJugadores(jugador1: Jugador, jugador2: Jugador) {
+        if (jugador1.id == jugador2.id) return
+        val estaEnClaro1 = equipoClaro.any { it.id == jugador1.id }
+        val estaEnOscuro1 = equipoOscuro.any { it.id == jugador1.id }
+        val estaEnClaro2 = equipoClaro.any { it.id == jugador2.id }
+        val estaEnOscuro2 = equipoOscuro.any { it.id == jugador2.id }
+
+        if (estaEnClaro1 && estaEnOscuro2) {
+            val nuevoMapaClaro = mapaCampoClaro?.toMutableMap()
+            val keyClaro = nuevoMapaClaro?.entries?.firstOrNull { it.value?.id == jugador1.id }?.key
+            if (keyClaro != null) nuevoMapaClaro[keyClaro] = jugador2
+            mapaCampoClaro = nuevoMapaClaro
+
+            val nuevoMapaOscuro = mapaCampoOscuro?.toMutableMap()
+            val keyOscuro = nuevoMapaOscuro?.entries?.firstOrNull { it.value?.id == jugador2.id }?.key
+            if (keyOscuro != null) nuevoMapaOscuro[keyOscuro] = jugador1
+            mapaCampoOscuro = nuevoMapaOscuro
+
+            asignacionesClaro = asignacionesClaro.map { if (it.second.id == jugador1.id) it.first to jugador2 else it }
+            asignacionesOscuro = asignacionesOscuro.map { if (it.second.id == jugador2.id) it.first to jugador1 else it }
+
+            equipoClaro = equipoClaro.map { if (it.id == jugador1.id) jugador2 else it }
+            equipoOscuro = equipoOscuro.map { if (it.id == jugador2.id) jugador1 else it }
+        } else if (estaEnOscuro1 && estaEnClaro2) {
+            intercambiarJugadores(jugador2, jugador1)
+        } else if (estaEnClaro1 && estaEnClaro2) {
+            val nuevoMapaClaro = mapaCampoClaro?.toMutableMap()
+            val key1 = nuevoMapaClaro?.entries?.firstOrNull { it.value?.id == jugador1.id }?.key
+            val key2 = nuevoMapaClaro?.entries?.firstOrNull { it.value?.id == jugador2.id }?.key
+            if (key1 != null && key2 != null) {
+                nuevoMapaClaro[key1] = jugador2
+                nuevoMapaClaro[key2] = jugador1
+                mapaCampoClaro = nuevoMapaClaro
+            }
+            val idx1 = asignacionesClaro.indexOfFirst { it.second.id == jugador1.id }
+            val idx2 = asignacionesClaro.indexOfFirst { it.second.id == jugador2.id }
+            if (idx1 != -1 && idx2 != -1) {
+                val list = asignacionesClaro.toMutableList()
+                val tempJ = list[idx1].second
+                list[idx1] = list[idx1].first to list[idx2].second
+                list[idx2] = list[idx2].first to tempJ
+                asignacionesClaro = list
+            }
+            equipoClaro = equipoClaro.map {
+                when (it.id) {
+                    jugador1.id -> jugador2
+                    jugador2.id -> jugador1
+                    else -> it
+                }
+            }
+        } else if (estaEnOscuro1 && estaEnOscuro2) {
+            val nuevoMapaOscuro = mapaCampoOscuro?.toMutableMap()
+            val key1 = nuevoMapaOscuro?.entries?.firstOrNull { it.value?.id == jugador1.id }?.key
+            val key2 = nuevoMapaOscuro?.entries?.firstOrNull { it.value?.id == jugador2.id }?.key
+            if (key1 != null && key2 != null) {
+                nuevoMapaOscuro[key1] = jugador2
+                nuevoMapaOscuro[key2] = jugador1
+                mapaCampoOscuro = nuevoMapaOscuro
+            }
+            val idx1 = asignacionesOscuro.indexOfFirst { it.second.id == jugador1.id }
+            val idx2 = asignacionesOscuro.indexOfFirst { it.second.id == jugador2.id }
+            if (idx1 != -1 && idx2 != -1) {
+                val list = asignacionesOscuro.toMutableList()
+                val tempJ = list[idx1].second
+                list[idx1] = list[idx1].first to list[idx2].second
+                list[idx2] = list[idx2].first to tempJ
+                asignacionesOscuro = list
+            }
+            equipoOscuro = equipoOscuro.map {
+                when (it.id) {
+                    jugador1.id -> jugador2
+                    jugador2.id -> jugador1
+                    else -> it
+                }
+            }
+        }
+    }
+
     fun compartirAlineacionesPNG() {
         if (!sorteoRealizado || formacionSugeridaClaro == null || formacionSugeridaOscuro == null) return
 
@@ -239,7 +340,7 @@ fun SorteosScreen(
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
             }
-            canvas.drawText("FutTracker - Sorteo y alineaciones", width / 2f, 85f, titlePaint)
+            canvas.drawText("Sorteo de equipos", width / 2f, 85f, titlePaint)
 
             val subtitlePaint = Paint().apply {
                 color = android.graphics.Color.WHITE
@@ -248,7 +349,15 @@ fun SorteosScreen(
                 isAntiAlias = true
             }
             val modalidadNombre = when (totalJugadoresSeleccionados) { 10 -> "Futsal"; 12 -> "Fútbol 6"; else -> "Fútbol 7" }
-            canvas.drawText("Modalidad: $modalidadNombre", width / 2f, 135f, subtitlePaint)
+            val subTextBuilder = StringBuilder("🏟️ Modalidad: $modalidadNombre")
+            if (fechaHoraMillis != null) {
+                val sdf = SimpleDateFormat("EEEE, d 'de' MMMM - HH:mm", Locale("es", "ES"))
+                subTextBuilder.append("  |  ").append(sdf.format(Date(fechaHoraMillis!!)).replaceFirstChar { it.uppercase() })
+            }
+            if (lugarSorteo.isNotBlank()) {
+                subTextBuilder.append("  |  ").append(lugarSorteo.trim())
+            }
+            canvas.drawText(subTextBuilder.toString(), width / 2f, 135f, subtitlePaint)
 
             val cardPaint = Paint().apply {
                 color = android.graphics.Color.parseColor("#13151E")
@@ -258,14 +367,14 @@ fun SorteosScreen(
             val cardBorderClaroPaint = Paint().apply {
                 color = android.graphics.Color.WHITE
                 style = Paint.Style.STROKE
-                strokeWidth = 3f
+                strokeWidth = 1.8f
                 isAntiAlias = true
             }
 
             val cardBorderOscuroPaint = Paint().apply {
-                color = android.graphics.Color.BLACK
+                color = android.graphics.Color.parseColor("#4A4D57")
                 style = Paint.Style.STROKE
-                strokeWidth = 3f
+                strokeWidth = 1.8f
                 isAntiAlias = true
             }
 
@@ -381,7 +490,7 @@ fun SorteosScreen(
 
                     if (jug != null) {
                         val originalTextSize = namePaint.textSize
-                        val nombreMostrado = jug.nombreConTu()
+                        val nombreMostrado = jug.nombre
                         if (nombreMostrado.length > 9) {
                             namePaint.textSize = 11f
                         }
@@ -397,21 +506,21 @@ fun SorteosScreen(
             canvas.drawRoundRect(rectClaro, 20f, 20f, cardBorderClaroPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#D4FF00")
-            canvas.drawText("⚪ Equipo claro  (Alineación: ${formacionSugeridaClaro?.nombre})", 70f, 255f, sectionTitlePaint)
+            canvas.drawText("⚪ Equipo claro", 70f, 255f, sectionTitlePaint)
 
             val listaClaro = mapaCampoClaro?.entries
-                ?.sortedBy { it.key.second.second }
+                ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
                 ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
-                ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro else equipoClaro.map { Posicion.DC to it })
+                ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro.sortedBy { it.first.ordinal } else equipoClaro.map { Posicion.DC to it })
 
             var yClaro = 320f
-            listaClaro.forEachIndexed { i, (pos, j) ->
-                canvas.drawText("${i + 1}. [${pos.name}] ${j.nombreConTu()}", 70f, yClaro, playerTextPaint)
+            listaClaro.forEachIndexed { i, (_, j) ->
+                canvas.drawText("${i + 1}. ${j.nombre}", 70f, yClaro, playerTextPaint)
                 yClaro += 55f
             }
 
             mapaCampoClaro?.let { mapa ->
-                val rectPitchClaro = RectF(540f, 290f, width - 65f, 955f)
+                val rectPitchClaro = RectF(460f, 280f, width - 55f, 965f)
                 dibujarMiniCampo(rectPitchClaro, mapa, android.graphics.Color.WHITE, android.graphics.Color.BLACK)
             }
 
@@ -421,32 +530,23 @@ fun SorteosScreen(
             canvas.drawRoundRect(rectOscuro, 20f, 20f, cardBorderOscuroPaint)
 
             sectionTitlePaint.color = android.graphics.Color.parseColor("#80D8FF")
-            canvas.drawText("⚫ Equipo oscuro  (Alineación: ${formacionSugeridaOscuro?.nombre})", 70f, 1075f, sectionTitlePaint)
+            canvas.drawText("⚫ Equipo oscuro", 70f, 1075f, sectionTitlePaint)
 
             val listaOscuro = mapaCampoOscuro?.entries
-                ?.sortedBy { it.key.second.second }
+                ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
                 ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
-                ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro else equipoOscuro.map { Posicion.DC to it })
+                ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro.sortedBy { it.first.ordinal } else equipoOscuro.map { Posicion.DC to it })
 
             var yOscuro = 1140f
-            listaOscuro.forEachIndexed { i, (pos, j) ->
-                canvas.drawText("${i + 1}. [${pos.name}] ${j.nombreConTu()}", 70f, yOscuro, playerTextPaint)
+            listaOscuro.forEachIndexed { i, (_, j) ->
+                canvas.drawText("${i + 1}. ${j.nombre}", 70f, yOscuro, playerTextPaint)
                 yOscuro += 55f
             }
 
             mapaCampoOscuro?.let { mapa ->
-                val rectPitchOscuro = RectF(540f, 1110f, width - 65f, 1775f)
+                val rectPitchOscuro = RectF(460f, 1100f, width - 55f, 1785f)
                 dibujarMiniCampo(rectPitchOscuro, mapa, android.graphics.Color.BLACK, android.graphics.Color.WHITE)
             }
-
-            // Pie
-            val footerPaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#94A3B8")
-                textSize = 24f
-                textAlign = Paint.Align.CENTER
-                isAntiAlias = true
-            }
-            canvas.drawText("Generado con FutTracker ⚽", width / 2f, 1838f, footerPaint)
 
             // Guardar en cache
             val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
@@ -457,17 +557,25 @@ fun SorteosScreen(
 
             // Texto para compartir
             val textoCompartir = buildString {
-                appendLine("⚽ *FutTracker - Sorteo y alineaciones*")
-                appendLine("Modalidad: $modalidadNombre")
-                appendLine()
-                appendLine("⚪ *EQUIPO CLARO* (${formacionSugeridaClaro?.nombre})")
-                listaClaro.forEach { (pos, j) ->
-                    appendLine("• [${pos.name}] ${j.nombreConTu()}")
+                appendLine("⚽ *Sorteo de equipos*")
+                appendLine("🏟️ Modalidad: $modalidadNombre")
+                if (fechaHoraMillis != null) {
+                    val sdf = SimpleDateFormat("EEEE, d 'de' MMMM - HH:mm", Locale("es", "ES"))
+                    val fStr = sdf.format(Date(fechaHoraMillis!!)).replaceFirstChar { it.uppercase() }
+                    appendLine("📅 Fecha: $fStr")
+                }
+                if (lugarSorteo.isNotBlank()) {
+                    appendLine("📍 Lugar: ${lugarSorteo.trim()}")
                 }
                 appendLine()
-                appendLine("⚫ *EQUIPO OSCURO* (${formacionSugeridaOscuro?.nombre})")
-                listaOscuro.forEach { (pos, j) ->
-                    appendLine("• [${pos.name}] ${j.nombreConTu()}")
+                appendLine("⚪ *EQUIPO CLARO*")
+                listaClaro.forEach { (_, j) ->
+                    appendLine("• ${j.nombre}")
+                }
+                appendLine()
+                appendLine("⚫ *EQUIPO OSCURO*")
+                listaOscuro.forEach { (_, j) ->
+                    appendLine("• ${j.nombre}")
                 }
             }
 
@@ -546,6 +654,135 @@ fun SorteosScreen(
                 }
             }
 
+            // Detalles del partido para compartir (Fecha, Hora, Lugar)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkCard),
+                    border = BorderStroke(1.dp, DarkCardBorder)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Detalles del partido (para compartir):",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+
+                        // Selector de fecha y hora
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val cal = Calendar.getInstance().apply {
+                                        timeInMillis = fechaHoraMillis ?: System.currentTimeMillis()
+                                    }
+                                    DatePickerDialog(
+                                        context,
+                                        { _, year, month, dayOfMonth ->
+                                            TimePickerDialog(
+                                                context,
+                                                { _, hourOfDay, minute ->
+                                                    val newCal = Calendar.getInstance().apply {
+                                                        set(Calendar.YEAR, year)
+                                                        set(Calendar.MONTH, month)
+                                                        set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                                                        set(Calendar.HOUR_OF_DAY, hourOfDay)
+                                                        set(Calendar.MINUTE, minute)
+                                                    }
+                                                    fechaHoraMillis = newCal.timeInMillis
+                                                },
+                                                cal.get(Calendar.HOUR_OF_DAY),
+                                                cal.get(Calendar.MINUTE),
+                                                true
+                                            ).show()
+                                        },
+                                        cal.get(Calendar.YEAR),
+                                        cal.get(Calendar.MONTH),
+                                        cal.get(Calendar.DAY_OF_MONTH)
+                                    ).show()
+                                }
+                                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    tint = LimeVolt,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = fechaHoraMillis?.let {
+                                        val sdf = SimpleDateFormat("EEEE, d 'de' MMMM - HH:mm", Locale("es", "ES"))
+                                        sdf.format(Date(it)).replaceFirstChar { c -> c.uppercase() }
+                                    } ?: "Fecha y hora (opcional)",
+                                    color = if (fechaHoraMillis != null) Color.White else TextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (fechaHoraMillis != null) FontWeight.Medium else FontWeight.Normal
+                                )
+                            }
+                            if (fechaHoraMillis != null) {
+                                IconButton(
+                                    onClick = { fechaHoraMillis = null },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Clear,
+                                        contentDescription = "Limpiar fecha",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Lugar
+                        OutlinedTextField(
+                            value = lugarSorteo,
+                            onValueChange = { lugarSorteo = it },
+                            placeholder = { Text("Lugar (ej. Polideportivo, Campo 3)", fontSize = 13.sp, color = TextSecondary) },
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Default.Place, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(18.dp))
+                            },
+                            trailingIcon = {
+                                if (lugarSorteo.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = { lugarSorteo = "" },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Limpiar lugar", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = LimeVolt,
+                                unfocusedBorderColor = DarkCardBorder,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
             // Convocados para el sorteo
             item {
                 Row(
@@ -597,20 +834,94 @@ fun SorteosScreen(
                                 singleLine = true
                             )
 
+                            // Fila 1: Ordenar y Favoritos
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 item {
                                     FilterChip(
                                         selected = soloFavoritos,
                                         onClick = { soloFavoritos = !soloFavoritos },
                                         label = { Text("Favoritos", fontSize = 11.sp) },
-                                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp)) }
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Star,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFFD700),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
                                     )
                                 }
                                 item {
                                     FilterChip(
+                                        selected = ordenNombreAscendente != null,
+                                        onClick = {
+                                            ordenFechaDescendente = null
+                                            ordenNombreAscendente = when (ordenNombreAscendente) {
+                                                null -> true
+                                                true -> false
+                                                false -> null
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.SortByAlpha,
+                                                contentDescription = "Ordenar por nombre",
+                                                tint = if (ordenNombreAscendente != null) LimeVolt else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = when (ordenNombreAscendente) {
+                                                    true -> "Nombre (A-Z)"
+                                                    false -> "Nombre (Z-A)"
+                                                    null -> "Nombre"
+                                                },
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    )
+                                }
+                                item {
+                                    FilterChip(
+                                        selected = ordenFechaDescendente != null,
+                                        onClick = {
+                                            ordenNombreAscendente = null
+                                            ordenFechaDescendente = when (ordenFechaDescendente) {
+                                                null -> true
+                                                true -> false
+                                                false -> null
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.DateRange,
+                                                contentDescription = "Ordenar por fecha",
+                                                tint = if (ordenFechaDescendente != null) LimeVolt else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = when (ordenFechaDescendente) {
+                                                    true -> "Añadido recientemente"
+                                                    false -> "Más antiguos primero"
+                                                    null -> "Fecha añadido"
+                                                },
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Fila 2: Posiciones
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                item {
+                                    FilterChip(
                                         selected = selectedPosicionFilter == null,
                                         onClick = { selectedPosicionFilter = null },
-                                        label = { Text("Todos", fontSize = 11.sp) }
+                                        label = { Text("Todas", fontSize = 11.sp) }
                                     )
                                 }
                                 items(Posicion.entries.toTypedArray()) { pos ->
@@ -654,12 +965,30 @@ fun SorteosScreen(
                                         selectedPosicionFilter in jugador.posicionesSecundarias
                                     }
                                 coincideBusqueda && coincideFav && coincidePos
-                            }.sortedWith(
-                                compareByDescending<Jugador> { it.esUsuarioPropio }
-                                    .thenByDescending { it.id in idsConvocados }
-                                    .thenByDescending { it.esFavorito }
-                                    .thenBy { it.nombre.lowercase() }
-                            )
+                            }.sortedWith { a, b ->
+                                when {
+                                    ordenNombreAscendente != null -> {
+                                        if (ordenNombreAscendente == true) a.nombre.compareTo(b.nombre, ignoreCase = true)
+                                        else b.nombre.compareTo(a.nombre, ignoreCase = true)
+                                    }
+                                    ordenFechaDescendente != null -> {
+                                        if (ordenFechaDescendente == true) b.fechaCreacion.compareTo(a.fechaCreacion)
+                                        else a.fechaCreacion.compareTo(b.fechaCreacion)
+                                    }
+                                    else -> {
+                                        val convA = a.id in idsConvocados
+                                        val convB = b.id in idsConvocados
+                                        if (convA != convB) return@sortedWith if (convB) 1 else -1
+                                        val userA = a.esUsuarioPropio
+                                        val userB = b.esUsuarioPropio
+                                        if (userA != userB) return@sortedWith if (userB) 1 else -1
+                                        val favA = a.esFavorito
+                                        val favB = b.esFavorito
+                                        if (favA != favB) return@sortedWith if (favB) 1 else -1
+                                        a.nombre.compareTo(b.nombre, ignoreCase = true)
+                                    }
+                                }
+                            }
 
                             if (filtrados.isEmpty()) {
                                 Text("No hay jugadores encontrados.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -667,13 +996,13 @@ fun SorteosScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 240.dp)
+                                        .heightIn(max = 260.dp)
                                         .verticalScroll(rememberScrollState()),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     filtrados.forEach { j ->
                                         val seleccionado = j.id in idsConvocados
-                                        Row(
+                                        Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clickable {
@@ -682,69 +1011,82 @@ fun SorteosScreen(
                                                     } else if (idsConvocados.size < totalJugadoresSeleccionados) {
                                                         idsConvocados.add(j.id)
                                                     }
-                                                }
-                                                .padding(vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Checkbox(
-                                                checked = seleccionado,
-                                                onCheckedChange = { check ->
-                                                    if (check) {
-                                                        if (!idsConvocados.contains(j.id) && idsConvocados.size < totalJugadoresSeleccionados) {
-                                                            idsConvocados.add(j.id)
-                                                        }
-                                                    } else {
-                                                        idsConvocados.remove(j.id)
-                                                    }
                                                 },
-                                                colors = CheckboxDefaults.colors(
-                                                    checkedColor = LimeVolt,
-                                                    checkmarkColor = Color.Black
-                                                )
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (seleccionado) LimeVolt.copy(alpha = 0.08f) else DarkCard
+                                            ),
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (seleccionado) LimeVolt.copy(alpha = 0.5f) else DarkCardBorder
                                             )
-
-                                            Spacer(modifier = Modifier.width(4.dp))
-
-                                            JugadorAvatar(
-                                                fotoUri = j.fotoUri,
-                                                nombre = j.nombre,
-                                                tamano = 36.dp,
-                                                permitirZoom = true
-                                            )
-
-                                            Spacer(modifier = Modifier.width(10.dp))
-
-                                            Column(
-                                                modifier = Modifier.weight(1f),
-                                                verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(j.nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                val totalPos = j.posicionesPrimarias + j.posicionesSecundarias
-                                                if (totalPos.isEmpty()) {
-                                                    Text("Sin posición", fontSize = 10.sp, color = TextSecondary)
-                                                } else {
-                                                    Row(
-                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        j.posicionesPrimarias.forEach { pos ->
-                                                            BadgePosicion(label = pos.name, esPrimaria = true)
+                                                Checkbox(
+                                                    checked = seleccionado,
+                                                    onCheckedChange = { check ->
+                                                        if (check) {
+                                                            if (!idsConvocados.contains(j.id) && idsConvocados.size < totalJugadoresSeleccionados) {
+                                                                idsConvocados.add(j.id)
+                                                            }
+                                                        } else {
+                                                            idsConvocados.remove(j.id)
                                                         }
-                                                        j.posicionesSecundarias.forEach { pos ->
-                                                            BadgePosicion(label = pos.name, esPrimaria = false)
+                                                    },
+                                                    colors = CheckboxDefaults.colors(
+                                                        checkedColor = LimeVolt,
+                                                        checkmarkColor = Color.Black
+                                                    )
+                                                )
+
+                                                Spacer(modifier = Modifier.width(6.dp))
+
+                                                JugadorAvatar(
+                                                    fotoUri = j.fotoUri,
+                                                    nombre = j.nombre,
+                                                    tamano = 42.dp,
+                                                    permitirZoom = true
+                                                )
+
+                                                Spacer(modifier = Modifier.width(10.dp))
+
+                                                Column(
+                                                    modifier = Modifier.weight(1f),
+                                                    verticalArrangement = Arrangement.Center
+                                                ) {
+                                                    Text(j.nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    val totalPos = j.posicionesPrimarias + j.posicionesSecundarias
+                                                    if (totalPos.isEmpty()) {
+                                                        Text("Sin posición", fontSize = 10.sp, color = TextSecondary)
+                                                    } else {
+                                                        Row(
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            j.posicionesPrimarias.forEach { pos ->
+                                                                BadgePosicion(label = pos.name, esPrimaria = true)
+                                                            }
+                                                            j.posicionesSecundarias.forEach { pos ->
+                                                                BadgePosicion(label = pos.name, esPrimaria = false)
+                                                            }
                                                         }
                                                     }
                                                 }
-                                            }
 
-                                            if (j.esFavorito) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Star,
-                                                    contentDescription = "Favorito",
-                                                    tint = Color(0xFFFFD700),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
+                                                if (j.esFavorito) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Star,
+                                                        contentDescription = "Favorito",
+                                                        tint = Color(0xFFFFD700),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -788,44 +1130,103 @@ fun SorteosScreen(
 
             // Resultados del sorteo
             if (sorteoRealizado) {
+                // Banner informativo / feedback de arrastre o pulsación
                 item {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        color = LimeVolt.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SwapHoriz,
+                                contentDescription = null,
+                                tint = LimeVolt,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (jugadorSeleccionadoParaMover != null) {
+                                    "Seleccionado: ${jugadorSeleccionadoParaMover?.nombreConTu()}. Toca otro jugador para intercambiar."
+                                } else {
+                                    "Arrastra jugadores entre listas o tócalos para intercambiarlos"
+                                },
+                                color = if (jugadorSeleccionadoParaMover != null) LimeVolt else Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = if (jugadorSeleccionadoParaMover != null) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    val listaMostradaClaro = mapaCampoClaro?.entries
+                        ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
+                        ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                        ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro.sortedBy { it.first.ordinal } else equipoClaro.map { Posicion.DC to it })
+
+                    val listaMostradaOscuro = mapaCampoOscuro?.entries
+                        ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
+                        ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                        ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro.sortedBy { it.first.ordinal } else equipoOscuro.map { Posicion.DC to it })
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Card(
                             modifier = Modifier.weight(1f),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE)),
-                            border = BorderStroke(1.5.dp, Color.White)
+                            border = BorderStroke(1.5.dp, Color.White),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(10.dp)) {
                                 Text("⚪ Equipo claro", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 13.sp)
                                 if (formacionSugeridaClaro != null) {
                                     Text("Formación: ${formacionSugeridaClaro?.nombre}", fontSize = 11.sp, color = Color.DarkGray)
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                val listaMostradaClaro = mapaCampoClaro?.entries
-                                    ?.sortedBy { it.key.second.second }
-                                    ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
-                                    ?: (if (asignacionesClaro.isNotEmpty()) asignacionesClaro else equipoClaro.map { Posicion.DC to it })
 
                                 listaMostradaClaro.forEachIndexed { index, (pos, jugador) ->
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 1.5.dp)) {
-                                        Surface(
-                                            color = Color.Black.copy(alpha = 0.12f),
-                                            shape = RoundedCornerShape(3.dp),
-                                            modifier = Modifier.padding(end = 5.dp)
-                                        ) {
-                                            Text(
-                                                text = pos.name,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = Color.Black,
-                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                            )
+                                    ItemJugadorSorteo(
+                                        index = index,
+                                        jugador = jugador,
+                                        posicion = pos,
+                                        esEquipoClaro = true,
+                                        esSeleccionado = jugadorSeleccionadoParaMover?.id == jugador.id,
+                                        onDragAEquipoContrario = { dragY ->
+                                            val itemHeightPx = 44.dp.toPx()
+                                            val targetIndex = (index + (dragY / itemHeightPx).roundToInt()).coerceIn(0, listaMostradaOscuro.size - 1)
+                                            if (targetIndex in listaMostradaOscuro.indices) {
+                                                intercambiarJugadores(jugador, listaMostradaOscuro[targetIndex].second)
+                                            }
+                                        },
+                                        onDragVerticalMismoEquipo = { dragY ->
+                                            val itemHeightPx = 44.dp.toPx()
+                                            val targetIndex = (index + (dragY / itemHeightPx).roundToInt()).coerceIn(0, listaMostradaClaro.size - 1)
+                                            if (targetIndex != index && targetIndex in listaMostradaClaro.indices) {
+                                                intercambiarJugadores(jugador, listaMostradaClaro[targetIndex].second)
+                                            }
+                                        },
+                                        onClick = {
+                                            if (jugadorSeleccionadoParaMover == null) {
+                                                jugadorSeleccionadoParaMover = jugador
+                                            } else if (jugadorSeleccionadoParaMover?.id == jugador.id) {
+                                                jugadorSeleccionadoParaMover = null
+                                            } else {
+                                                intercambiarJugadores(jugadorSeleccionadoParaMover!!, jugador)
+                                                jugadorSeleccionadoParaMover = null
+                                            }
                                         }
-                                        Text("${index + 1}. ${jugador.nombreConTu()}", fontSize = 12.sp, color = Color.DarkGray)
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -833,36 +1234,48 @@ fun SorteosScreen(
                         Card(
                             modifier = Modifier.weight(1f),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF2C3430)),
-                            border = BorderStroke(1.5.dp, Color.Black)
+                            border = BorderStroke(1.5.dp, Color.Black),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(10.dp)) {
                                 Text("⚫ Equipo oscuro", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
                                 if (formacionSugeridaOscuro != null) {
                                     Text("Formación: ${formacionSugeridaOscuro?.nombre}", fontSize = 11.sp, color = LimeVolt)
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                val listaMostradaOscuro = mapaCampoOscuro?.entries
-                                    ?.sortedBy { it.key.second.second }
-                                    ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
-                                    ?: (if (asignacionesOscuro.isNotEmpty()) asignacionesOscuro else equipoOscuro.map { Posicion.DC to it })
 
                                 listaMostradaOscuro.forEachIndexed { index, (pos, jugador) ->
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 1.5.dp)) {
-                                        Surface(
-                                            color = LimeVolt.copy(alpha = 0.2f),
-                                            shape = RoundedCornerShape(3.dp),
-                                            modifier = Modifier.padding(end = 5.dp)
-                                        ) {
-                                            Text(
-                                                text = pos.name,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = LimeVolt,
-                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                            )
+                                    ItemJugadorSorteo(
+                                        index = index,
+                                        jugador = jugador,
+                                        posicion = pos,
+                                        esEquipoClaro = false,
+                                        esSeleccionado = jugadorSeleccionadoParaMover?.id == jugador.id,
+                                        onDragAEquipoContrario = { dragY ->
+                                            val itemHeightPx = 44.dp.toPx()
+                                            val targetIndex = (index + (dragY / itemHeightPx).roundToInt()).coerceIn(0, listaMostradaClaro.size - 1)
+                                            if (targetIndex in listaMostradaClaro.indices) {
+                                                intercambiarJugadores(jugador, listaMostradaClaro[targetIndex].second)
+                                            }
+                                        },
+                                        onDragVerticalMismoEquipo = { dragY ->
+                                            val itemHeightPx = 44.dp.toPx()
+                                            val targetIndex = (index + (dragY / itemHeightPx).roundToInt()).coerceIn(0, listaMostradaOscuro.size - 1)
+                                            if (targetIndex != index && targetIndex in listaMostradaOscuro.indices) {
+                                                intercambiarJugadores(jugador, listaMostradaOscuro[targetIndex].second)
+                                            }
+                                        },
+                                        onClick = {
+                                            if (jugadorSeleccionadoParaMover == null) {
+                                                jugadorSeleccionadoParaMover = jugador
+                                            } else if (jugadorSeleccionadoParaMover?.id == jugador.id) {
+                                                jugadorSeleccionadoParaMover = null
+                                            } else {
+                                                intercambiarJugadores(jugadorSeleccionadoParaMover!!, jugador)
+                                                jugadorSeleccionadoParaMover = null
+                                            }
                                         }
-                                        Text("${index + 1}. ${jugador.nombreConTu()}", fontSize = 12.sp, color = Color.LightGray)
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -973,23 +1386,7 @@ fun SorteosScreen(
                                 alineacion = mapa,
                                 colorBordeFicha = if (tabEquipoAlineacion == 0) Color.White else Color.Black,
                                 modifier = Modifier.fillMaxWidth(),
-                                onJugadorIntercambiado = { pos1, pos2 ->
-                                    if (tabEquipoAlineacion == 0) {
-                                        val j1 = mapaCampoClaro?.get(pos1)
-                                        val j2 = mapaCampoClaro?.get(pos2)
-                                        mapaCampoClaro = mapaCampoClaro?.toMutableMap()?.apply {
-                                            put(pos1, j2)
-                                            put(pos2, j1)
-                                        }
-                                    } else {
-                                        val j1 = mapaCampoOscuro?.get(pos1)
-                                        val j2 = mapaCampoOscuro?.get(pos2)
-                                        mapaCampoOscuro = mapaCampoOscuro?.toMutableMap()?.apply {
-                                            put(pos1, j2)
-                                            put(pos2, j1)
-                                        }
-                                    }
-                                }
+                                onJugadorIntercambiado = null
                             )
                         }
                     }
@@ -1012,4 +1409,140 @@ private fun Jugador.zonaPrincipal(): ZonaTactica {
     val primera = posicionesPrimarias.firstOrNull() ?: posicionesSecundarias.firstOrNull()
     return primera?.toZonaTactica() ?: ZonaTactica.OTRO
 }
+
+@Composable
+private fun ItemJugadorSorteo(
+    index: Int,
+    jugador: Jugador,
+    posicion: Posicion,
+    esEquipoClaro: Boolean,
+    esSeleccionado: Boolean,
+    onDragAEquipoContrario: Density.(dragY: Float) -> Unit,
+    onDragVerticalMismoEquipo: Density.(dragY: Float) -> Unit,
+    onClick: () -> Unit
+) {
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+
+    val bgColor = when {
+        esSeleccionado -> LimeVolt.copy(alpha = 0.28f)
+        isDragging -> if (esEquipoClaro) Color.White else Color(0xFF333E38)
+        esEquipoClaro -> Color.White.copy(alpha = 0.95f)
+        else -> Color(0xFF202723)
+    }
+
+    val borderColor = when {
+        esSeleccionado -> LimeVolt
+        isDragging -> LimeVolt
+        esEquipoClaro -> Color(0xFFD4D4D4)
+        else -> Color(0xFF3B4842)
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.5.dp)
+            .zIndex(if (isDragging) 99f else 1f)
+            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+            .pointerInput(jugador.id) {
+                detectDragGestures(
+                    onDragStart = {
+                        isDragging = true
+                    },
+                    onDragEnd = {
+                        val dragX = offsetX
+                        val dragY = offsetY
+                        isDragging = false
+                        offsetX = 0f
+                        offsetY = 0f
+
+                        val umbralHorizontal = 45.dp.toPx()
+                        val umbralVertical = 25.dp.toPx()
+
+                        if (esEquipoClaro && dragX > umbralHorizontal) {
+                            onDragAEquipoContrario(dragY)
+                        } else if (!esEquipoClaro && dragX < -umbralHorizontal) {
+                            onDragAEquipoContrario(dragY)
+                        } else if (kotlin.math.abs(dragY) > umbralVertical) {
+                            onDragVerticalMismoEquipo(dragY)
+                        }
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        offsetX = 0f
+                        offsetY = 0f
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        offsetX += dragAmount.x
+                        offsetY += dragAmount.y
+                    }
+                )
+            }
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        color = bgColor,
+        border = BorderStroke(if (esSeleccionado || isDragging) 1.5.dp else 1.dp, borderColor),
+        shadowElevation = if (isDragging) 6.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.DragHandle,
+                contentDescription = "Arrastrar",
+                tint = if (esEquipoClaro) Color.Gray else Color(0xFF888888),
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "${index + 1}.",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (esEquipoClaro) Color.DarkGray else Color(0xFFCCCCCC)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            JugadorAvatar(
+                fotoUri = jugador.fotoUri,
+                nombre = jugador.nombre,
+                tamano = 22.dp
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = jugador.nombreConTu(),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (esEquipoClaro) Color.Black else Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Surface(
+                color = if (esEquipoClaro) Color(0xFFEEEEEE) else Color(0xFF13151E),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.width(36.dp).height(20.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = posicion.name,
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                        ),
+                        color = if (esEquipoClaro) Color(0xFF333333) else LimeVolt,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.offset(y = (-1).dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 

@@ -11,8 +11,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.diegoguerrero.futtracker.domain.model.Estadio
 import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Partido
+import com.diegoguerrero.futtracker.ui.screens.estadios.EstadiosScreen
 import com.diegoguerrero.futtracker.ui.screens.jugadores.JugadoresScreen
 import com.diegoguerrero.futtracker.ui.screens.partidos.PartidosScreen
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
@@ -25,16 +27,20 @@ import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 fun DatosScreen(
     jugadores: List<Jugador>,
     partidos: List<Partido>,
+    estadios: List<Estadio> = emptyList(),
     onAgregarJugador: (Jugador) -> Unit,
     onActualizarJugador: (Jugador) -> Unit,
     onEliminarJugador: (Jugador) -> Unit,
     onToggleFavorito: (Jugador) -> Unit,
     onAgregarPartido: (Partido) -> Unit,
     onActualizarPartido: (Partido) -> Unit,
-    onEliminarPartido: (Partido) -> Unit
+    onEliminarPartido: (Partido) -> Unit,
+    onAgregarEstadio: (Estadio) -> Unit = {},
+    onActualizarEstadio: (Estadio) -> Unit = {},
+    onEliminarEstadio: (Estadio) -> Unit = {}
 ) {
     var tabSeleccionada by remember { mutableStateOf(0) }
-    val tabs = listOf("Jugadores", "Partidos")
+    val tabs = listOf("Jugadores", "Partidos", "Estadios")
 
     Scaffold(
         topBar = {
@@ -95,10 +101,17 @@ fun DatosScreen(
                     1 -> PartidosScreen(
                         partidos = partidos,
                         jugadores = jugadores,
+                        estadios = estadios,
                         onAgregarPartido = onAgregarPartido,
                         onActualizarPartido = onActualizarPartido,
                         onEliminarPartido = onEliminarPartido,
                         mostrarTopBar = false
+                    )
+                    2 -> EstadiosScreen(
+                        estadios = estadios,
+                        onAgregarEstadio = onAgregarEstadio,
+                        onActualizarEstadio = onActualizarEstadio,
+                        onEliminarEstadio = onEliminarEstadio
                     )
                 }
             }

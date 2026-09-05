@@ -2,6 +2,8 @@ package com.diegoguerrero.futtracker.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.diegoguerrero.futtracker.domain.model.Clima
+import com.diegoguerrero.futtracker.domain.model.EquipoColor
 import com.diegoguerrero.futtracker.domain.model.Partido
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.TipoFutbol
@@ -15,6 +17,7 @@ data class PartidoEntity(
     val golesEnContra: Int,
     val posicionJugada: String,
     val posicionesJugadas: String = "",
+    val posicionesSecundarias: String = "",
     val goles: Int,
     val asistencias: Int,
     val tirosAlPalo: Int = 0,
@@ -30,12 +33,24 @@ data class PartidoEntity(
     val golesTacon: Int = 0,
     val golesFueraArea: Int = 0,
     val duracionMinutos: Int = 60,
-    val jugadoPorMi: Boolean = true
+    val jugadoPorMi: Boolean = true,
+    val esFavorito: Boolean = false,
+    val clima: String = "SOLEADO",
+    val fotoUri: String? = null,
+    val equipoJugado: String? = null,
+    val estadioId: Long? = null
 ) {
     fun toDomain(): Partido {
         val posJugada = runCatching { Posicion.valueOf(posicionJugada) }.getOrDefault(Posicion.DC)
+        val posSecundarias = if (posicionesSecundarias.isBlank()) {
+            emptySet()
+        } else {
+            posicionesSecundarias.split(",")
+                .mapNotNull { name -> runCatching { Posicion.valueOf(name.trim()) }.getOrNull() }
+                .toSet()
+        }
         val posJugadas = if (posicionesJugadas.isBlank()) {
-            setOf(posJugada)
+            setOf(posJugada) + posSecundarias
         } else {
             posicionesJugadas.split(",")
                 .mapNotNull { name -> runCatching { Posicion.valueOf(name.trim()) }.getOrNull() }
@@ -46,6 +61,9 @@ data class PartidoEntity(
         val idsMiEquipo = if (jugadoresMiEquipo.isBlank()) idsGeneral else jugadoresMiEquipo.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         val idsRival = if (jugadoresEquipoRival.isBlank()) emptyList() else jugadoresEquipoRival.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
+        val climaEnum = runCatching { Clima.valueOf(clima) }.getOrDefault(Clima.SOLEADO)
+        val equipoEnum = equipoJugado?.let { runCatching { EquipoColor.valueOf(it) }.getOrNull() }
+
         return Partido(
             id = id,
             fecha = fecha,
@@ -54,6 +72,7 @@ data class PartidoEntity(
             golesEnContra = golesEnContra,
             posicionJugada = posJugada,
             posicionesJugadas = posJugadas,
+            posicionesSecundarias = posSecundarias,
             goles = goles,
             asistencias = asistencias,
             tirosAlPalo = tirosAlPalo,
@@ -69,14 +88,20 @@ data class PartidoEntity(
             golesTacon = golesTacon,
             golesFueraArea = golesFueraArea,
             duracionMinutos = duracionMinutos,
-            jugadoPorMi = jugadoPorMi
+            jugadoPorMi = jugadoPorMi,
+            esFavorito = esFavorito,
+            clima = climaEnum,
+            fotoUri = fotoUri,
+            equipoJugado = equipoEnum,
+            estadioId = estadioId
         )
     }
 }
 
 fun Partido.toEntity(): PartidoEntity {
-    val posJugadasStr = posicionesJugadas.joinToString(",") { it.name }
-    val primaryPos = posicionesJugadas.firstOrNull() ?: posicionJugada
+    val allPos = (setOf(posicionJugada) + posicionesJugadas + posicionesSecundarias)
+    val posJugadasStr = allPos.joinToString(",") { it.name }
+    val posSecundariasStr = posicionesSecundarias.joinToString(",") { it.name }
 
     return PartidoEntity(
         id = id,
@@ -84,8 +109,9 @@ fun Partido.toEntity(): PartidoEntity {
         modoJuego = modoJuego.name,
         golesAFavor = golesAFavor,
         golesEnContra = golesEnContra,
-        posicionJugada = primaryPos.name,
+        posicionJugada = posicionJugada.name,
         posicionesJugadas = posJugadasStr,
+        posicionesSecundarias = posSecundariasStr,
         goles = goles,
         asistencias = asistencias,
         tirosAlPalo = tirosAlPalo,
@@ -101,6 +127,11 @@ fun Partido.toEntity(): PartidoEntity {
         golesTacon = golesTacon,
         golesFueraArea = golesFueraArea,
         duracionMinutos = duracionMinutos,
-        jugadoPorMi = jugadoPorMi
+        jugadoPorMi = jugadoPorMi,
+        esFavorito = esFavorito,
+        clima = clima.name,
+        fotoUri = fotoUri,
+        equipoJugado = equipoJugado?.name,
+        estadioId = estadioId
     )
 }

@@ -16,12 +16,14 @@ import androidx.navigation.compose.rememberNavController
 import com.diegoguerrero.futtracker.ui.navigation.BottomNavigationBar
 import com.diegoguerrero.futtracker.ui.navigation.Screen
 import com.diegoguerrero.futtracker.ui.screens.alineacion.AlineacionScreen
+import com.diegoguerrero.futtracker.ui.screens.estadios.EstadiosViewModel
 import com.diegoguerrero.futtracker.ui.screens.jugadores.JugadoresScreen
 import com.diegoguerrero.futtracker.ui.screens.jugadores.JugadoresViewModel
 import com.diegoguerrero.futtracker.ui.screens.partidos.PartidosScreen
 import com.diegoguerrero.futtracker.ui.screens.partidos.PartidosViewModel
 import com.diegoguerrero.futtracker.ui.screens.perfil.PerfilScreen
 import com.diegoguerrero.futtracker.ui.screens.perfil.PerfilViewModel
+import com.diegoguerrero.futtracker.ui.screens.rankings.RankingsScreen
 import com.diegoguerrero.futtracker.ui.screens.sorteos.SorteosScreen
 import com.diegoguerrero.futtracker.ui.screens.splash.SplashScreen
 import com.diegoguerrero.futtracker.ui.theme.DarkBackground
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
     private val partidosViewModel: PartidosViewModel by viewModels()
     private val perfilViewModel: PerfilViewModel by viewModels()
     private val enfrentamientosViewModel: com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosViewModel by viewModels()
+    private val estadiosViewModel: EstadiosViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +53,8 @@ class MainActivity : ComponentActivity() {
                             jugadoresViewModel = jugadoresViewModel,
                             partidosViewModel = partidosViewModel,
                             perfilViewModel = perfilViewModel,
-                            enfrentamientosViewModel = enfrentamientosViewModel
+                            enfrentamientosViewModel = enfrentamientosViewModel,
+                            estadiosViewModel = estadiosViewModel
                         )
                     }
                 }
@@ -64,11 +68,13 @@ fun MainAppLayout(
     jugadoresViewModel: JugadoresViewModel,
     partidosViewModel: PartidosViewModel,
     perfilViewModel: PerfilViewModel,
-    enfrentamientosViewModel: com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosViewModel
+    enfrentamientosViewModel: com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosViewModel,
+    estadiosViewModel: EstadiosViewModel
 ) {
     val navController = rememberNavController()
     val jugadores by jugadoresViewModel.jugadores.collectAsStateWithLifecycle()
     val partidos by partidosViewModel.partidos.collectAsStateWithLifecycle()
+    val estadios by estadiosViewModel.estadios.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = DarkBackground,
@@ -83,13 +89,17 @@ fun MainAppLayout(
                 com.diegoguerrero.futtracker.ui.screens.datos.DatosScreen(
                     jugadores = jugadores,
                     partidos = partidos,
+                    estadios = estadios,
                     onAgregarJugador = { jugadoresViewModel.agregarJugador(it) },
                     onActualizarJugador = { jugadoresViewModel.actualizarJugador(it) },
                     onEliminarJugador = { jugadoresViewModel.eliminarJugador(it) },
                     onToggleFavorito = { jugadoresViewModel.toggleFavorito(it) },
                     onAgregarPartido = { partidosViewModel.agregarPartido(it) },
                     onActualizarPartido = { partidosViewModel.actualizarPartido(it) },
-                    onEliminarPartido = { partidosViewModel.eliminarPartido(it) }
+                    onEliminarPartido = { partidosViewModel.eliminarPartido(it) },
+                    onAgregarEstadio = { estadiosViewModel.agregarEstadio(it) },
+                    onActualizarEstadio = { estadiosViewModel.actualizarEstadio(it) },
+                    onEliminarEstadio = { estadiosViewModel.eliminarEstadio(it) }
                 )
             }
             composable(Screen.Alineacion.route) {
@@ -119,6 +129,7 @@ fun MainAppLayout(
                 PartidosScreen(
                     partidos = partidos,
                     jugadores = jugadores,
+                    estadios = estadios,
                     onAgregarPartido = { partidosViewModel.agregarPartido(it) },
                     onActualizarPartido = { partidosViewModel.actualizarPartido(it) },
                     onEliminarPartido = { partidosViewModel.eliminarPartido(it) }
@@ -126,6 +137,9 @@ fun MainAppLayout(
             }
             composable(Screen.Estadisticas.route) {
                 com.diegoguerrero.futtracker.ui.screens.estadisticas.EstadisticasScreen()
+            }
+            composable(Screen.Rankings.route) {
+                RankingsScreen()
             }
             composable(Screen.Versus.route) {
                 com.diegoguerrero.futtracker.ui.screens.enfrentamientos.EnfrentamientosScreen(

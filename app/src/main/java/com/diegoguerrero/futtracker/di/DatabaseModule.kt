@@ -3,12 +3,15 @@ package com.diegoguerrero.futtracker.di
 import android.content.Context
 import androidx.room.Room
 import com.diegoguerrero.futtracker.data.local.AppDatabase
+import com.diegoguerrero.futtracker.data.local.dao.EstadioDao
 import com.diegoguerrero.futtracker.data.local.dao.JugadorDao
 import com.diegoguerrero.futtracker.data.local.dao.PartidoDao
 import com.diegoguerrero.futtracker.data.local.dao.PerfilDao
+import com.diegoguerrero.futtracker.data.repository.EstadioRepositoryImpl
 import com.diegoguerrero.futtracker.data.repository.JugadorRepositoryImpl
 import com.diegoguerrero.futtracker.data.repository.PartidoRepositoryImpl
 import com.diegoguerrero.futtracker.data.repository.PerfilRepositoryImpl
+import com.diegoguerrero.futtracker.domain.repository.EstadioRepository
 import com.diegoguerrero.futtracker.domain.repository.JugadorRepository
 import com.diegoguerrero.futtracker.domain.repository.PartidoRepository
 import com.diegoguerrero.futtracker.domain.repository.PerfilRepository
@@ -38,7 +41,10 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6,
                 AppDatabase.MIGRATION_6_7,
-                AppDatabase.MIGRATION_7_8
+                AppDatabase.MIGRATION_7_8,
+                AppDatabase.MIGRATION_8_9,
+                AppDatabase.MIGRATION_9_10,
+                AppDatabase.MIGRATION_10_11
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -92,5 +98,17 @@ object DatabaseModule {
         enfrentamientosDao: com.diegoguerrero.futtracker.data.local.dao.EnfrentamientosDao
     ): com.diegoguerrero.futtracker.domain.repository.EnfrentamientosRepository {
         return com.diegoguerrero.futtracker.data.repository.EnfrentamientosRepositoryImpl(enfrentamientosDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEstadioDao(database: AppDatabase): EstadioDao {
+        return database.estadioDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideEstadioRepository(estadioDao: EstadioDao): EstadioRepository {
+        return EstadioRepositoryImpl(estadioDao)
     }
 }

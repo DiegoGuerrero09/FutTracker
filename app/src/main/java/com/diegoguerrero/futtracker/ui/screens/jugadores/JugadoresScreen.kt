@@ -10,11 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +35,8 @@ import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
 import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
+import com.diegoguerrero.futtracker.ui.theme.LimeVoltSolid
+import androidx.compose.material.icons.filled.SortByAlpha
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import java.io.File
 import java.io.FileOutputStream
@@ -58,12 +56,22 @@ fun JugadoresScreen(
     var jugadorAEliminar by remember { mutableStateOf<Jugador?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
-    var selectedPosicionFilter by remember { mutableStateOf<Posicion?>(null) }
     var soloFavoritosFilter by remember { mutableStateOf(false) }
+    var selectedPosicionFilter by remember { mutableStateOf<Posicion?>(null) }
     var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
+    var ordenNombreAscendente by remember { mutableStateOf<Boolean?>(null) }
+    var ordenFechaDescendente by remember { mutableStateOf<Boolean?>(null) }
 
-    val jugadoresFiltrados = remember(jugadores, searchQuery, selectedPosicionFilter, soloFavoritosFilter, soloPosicionPrincipalFilter) {
-        jugadores.filter { jugador ->
+    val jugadoresFiltrados = remember(
+        jugadores,
+        searchQuery,
+        selectedPosicionFilter,
+        soloFavoritosFilter,
+        soloPosicionPrincipalFilter,
+        ordenNombreAscendente,
+        ordenFechaDescendente
+    ) {
+        val filtrados = jugadores.filter { jugador ->
             val coincideBusqueda = searchQuery.isBlank() ||
                 jugador.nombre.contains(searchQuery, ignoreCase = true)
 
@@ -78,11 +86,30 @@ fun JugadoresScreen(
             val coincideFavorito = !soloFavoritosFilter || jugador.esFavorito
 
             coincideBusqueda && coincidePosicion && coincideFavorito
-        }.sortedWith(
-            compareByDescending<Jugador> { it.esUsuarioPropio }
-                .thenByDescending { it.esFavorito }
-                .thenBy { it.nombre.lowercase() }
-        )
+        }
+        when {
+            ordenFechaDescendente == true -> filtrados.sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio }
+                    .thenByDescending { it.fechaCreacion }
+            )
+            ordenFechaDescendente == false -> filtrados.sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio }
+                    .thenBy { it.fechaCreacion }
+            )
+            ordenNombreAscendente == true -> filtrados.sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio }
+                    .thenBy { it.nombre.lowercase() }
+            )
+            ordenNombreAscendente == false -> filtrados.sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio }
+                    .thenByDescending { it.nombre.lowercase() }
+            )
+            else -> filtrados.sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio }
+                    .thenByDescending { it.esFavorito }
+                    .thenBy { it.nombre.lowercase() }
+            )
+        }
     }
 
     Scaffold(
@@ -97,7 +124,7 @@ fun JugadoresScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { mostrarDialogoCrear = true },
-                containerColor = LimeVolt,
+                containerColor = LimeVoltSolid,
                 contentColor = Color.Black
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir jugador", tint = Color.Black)
@@ -129,32 +156,102 @@ fun JugadoresScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Fila 1: Ordenar y Favoritos (Favoritos primero, luego Nombre, luego Fecha)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
+                contentPadding = PaddingValues(vertical = 2.dp)
             ) {
                 item {
                     FilterChip(
                         selected = soloFavoritosFilter,
                         onClick = { soloFavoritosFilter = !soloFavoritosFilter },
-                        label = { Text("Favoritos") },
+                        label = { Text("Favoritos", fontSize = 12.sp) },
                         leadingIcon = {
                             Icon(
                                 imageVector = if (soloFavoritosFilter) Icons.Default.Star else Icons.Outlined.StarOutline,
                                 contentDescription = null,
-                                tint = if (soloFavoritosFilter) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
+                                tint = if (soloFavoritosFilter) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     )
                 }
                 item {
                     FilterChip(
-                        selected = selectedPosicionFilter == null && !soloFavoritosFilter,
+                        selected = ordenNombreAscendente != null,
                         onClick = {
-                            selectedPosicionFilter = null
-                            soloFavoritosFilter = false
+                            ordenFechaDescendente = null
+                            ordenNombreAscendente = when (ordenNombreAscendente) {
+                                null -> true
+                                true -> false
+                                false -> null
+                            }
                         },
-                        label = { Text("Todos") }
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.SortByAlpha,
+                                contentDescription = "Ordenar por nombre",
+                                tint = if (ordenNombreAscendente != null) LimeVolt else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = when (ordenNombreAscendente) {
+                                    true -> "Nombre: A-Z"
+                                    false -> "Nombre: Z-A"
+                                    null -> "Nombre"
+                                },
+                                fontSize = 12.sp
+                            )
+                        }
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = ordenFechaDescendente != null,
+                        onClick = {
+                            ordenNombreAscendente = null
+                            ordenFechaDescendente = when (ordenFechaDescendente) {
+                                null -> true
+                                true -> false
+                                false -> null
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Ordenar por fecha",
+                                tint = if (ordenFechaDescendente != null) LimeVolt else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = when (ordenFechaDescendente) {
+                                    true -> "Añadido recientemente"
+                                    false -> "Más antiguos primero"
+                                    null -> "Fecha añadido"
+                                },
+                                fontSize = 12.sp
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Fila 2: Filtrar por posición
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 2.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedPosicionFilter == null,
+                        onClick = { selectedPosicionFilter = null },
+                        label = { Text("Todas", fontSize = 12.sp) }
                     )
                 }
                 items(Posicion.entries.toTypedArray()) { pos ->
@@ -163,7 +260,7 @@ fun JugadoresScreen(
                         onClick = {
                             selectedPosicionFilter = if (selectedPosicionFilter == pos) null else pos
                         },
-                        label = { Text(pos.name) }
+                        label = { Text(pos.name, fontSize = 12.sp) }
                     )
                 }
             }
@@ -294,19 +391,19 @@ private fun JugadorItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 14.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 JugadorAvatar(
                     fotoUri = jugador.fotoUri,
                     nombre = jugador.nombre,
-                    tamano = 44.dp,
+                    tamano = 48.dp,
                     permitirZoom = true
                 )
 
@@ -322,7 +419,7 @@ private fun JugadorItem(
                         lineHeight = 20.sp
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -384,14 +481,24 @@ private fun BadgePosicion(label: String, esPrimaria: Boolean) {
         color = bgColor,
         shape = RoundedCornerShape(4.dp)
     ) {
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = if (esPrimaria) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            lineHeight = 14.sp
-        )
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minWidth = 34.dp)
+                .height(20.dp)
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = textColor,
+                fontSize = 10.sp,
+                fontWeight = if (esPrimaria) FontWeight.Bold else FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                style = androidx.compose.ui.text.TextStyle(
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                )
+            )
+        }
     }
 }
 
@@ -466,7 +573,8 @@ private fun DialogoJugador(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre") },
+                    label = { Text("Nombre / Apodo") },
+                    placeholder = { Text("Nombre / Apodo") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

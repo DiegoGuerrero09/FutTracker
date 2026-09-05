@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
@@ -27,6 +28,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.SwapHoriz
+import kotlin.math.roundToInt
 import com.diegoguerrero.futtracker.domain.model.*
 import com.diegoguerrero.futtracker.domain.usecase.GenerarAlineacionUseCase
 import com.diegoguerrero.futtracker.ui.components.CampoFutbol
@@ -45,6 +57,10 @@ fun AlineacionScreen(
     var searchQuery by remember { mutableStateOf("") }
     var soloFavoritos by remember { mutableStateOf(false) }
     var posicionFiltro by remember { mutableStateOf<Posicion?>(null) }
+    var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
+    var ordenNombreAscendente by remember { mutableStateOf<Boolean?>(null) }
+    var ordenFechaDescendente by remember { mutableStateOf<Boolean?>(null) }
+    var jugadorSeleccionadoPizarraParaMover by remember { mutableStateOf<Jugador?>(null) }
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -54,10 +70,8 @@ fun AlineacionScreen(
         plantillaCompleta.distinctBy { it.id }
     }
 
-    var soloPosicionPrincipalFilter by remember { mutableStateOf(false) }
-
-    val plantillaOrdenada = remember(plantillaUnica, searchQuery, soloFavoritos, posicionFiltro, soloPosicionPrincipalFilter) {
-        plantillaUnica.filter { jugador ->
+    val plantillaOrdenada = remember(plantillaUnica, searchQuery, soloFavoritos, posicionFiltro, soloPosicionPrincipalFilter, ordenNombreAscendente, ordenFechaDescendente) {
+        val filtrados = plantillaUnica.filter { jugador ->
             val coincideBusqueda = searchQuery.isBlank() || jugador.nombre.contains(searchQuery, ignoreCase = true)
             val coincideFav = !soloFavoritos || jugador.esFavorito
             val coincidePos = posicionFiltro == null ||
@@ -68,11 +82,28 @@ fun AlineacionScreen(
                     posicionFiltro in jugador.posicionesSecundarias
                 }
             coincideBusqueda && coincideFav && coincidePos
-        }.sortedWith(
-            compareByDescending<Jugador> { it.esUsuarioPropio }
-                .thenByDescending { it.esFavorito }
-                .thenBy { it.nombre.lowercase() }
-        )
+        }
+        filtrados.sortedWith { a, b ->
+            when {
+                ordenNombreAscendente != null -> {
+                    if (ordenNombreAscendente == true) a.nombre.compareTo(b.nombre, ignoreCase = true)
+                    else b.nombre.compareTo(a.nombre, ignoreCase = true)
+                }
+                ordenFechaDescendente != null -> {
+                    if (ordenFechaDescendente == true) b.fechaCreacion.compareTo(a.fechaCreacion)
+                    else a.fechaCreacion.compareTo(b.fechaCreacion)
+                }
+                else -> {
+                    val userA = a.esUsuarioPropio
+                    val userB = b.esUsuarioPropio
+                    if (userA != userB) return@sortedWith if (userB) 1 else -1
+                    val favA = a.esFavorito
+                    val favB = b.esFavorito
+                    if (favA != favB) return@sortedWith if (favB) 1 else -1
+                    a.nombre.compareTo(b.nombre, ignoreCase = true)
+                }
+            }
+        }
     }
 
     val formacionesDisponibles = remember(tipoFutbol) {
@@ -152,7 +183,6 @@ fun AlineacionScreen(
                 FilterChip(
                     selected = tipoFutbol == tipo,
                     onClick = { tipoFutbol = tipo },
-                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = tipoFutbol == tipo, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
                     label = {
                         Text(
                             text = label,
@@ -242,13 +272,21 @@ fun AlineacionScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        val listaAlineados = remember(alineacionMapaCampo) {
+            alineacionMapaCampo?.entries
+                ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
+                ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                ?: emptyList()
+        }
+
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Si la alineación está generada, aparece arriba inmediatamente
-            alineacionMapaCampo?.let { mapaAlineacion ->
+            val mapaAlineacion = alineacionMapaCampo
+            if (mapaAlineacion != null) {
                 item {
                     Text(
                         text = "Alineación (${formacionSeleccionada.nombre})",
@@ -261,14 +299,86 @@ fun AlineacionScreen(
                     CampoFutbol(
                         alineacion = mapaAlineacion,
                         modifier = Modifier.fillMaxWidth(),
-                        onJugadorIntercambiado = { key1, key2 ->
-                            val nuevoMapa = mapaAlineacion.toMutableMap()
-                            val temp = nuevoMapa[key1]
-                            nuevoMapa[key1] = nuevoMapa[key2]
-                            nuevoMapa[key2] = temp
-                            alineacionMapaCampo = nuevoMapa
-                        }
+                        onJugadorIntercambiado = null
                     )
+                }
+
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = DarkCard),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SwapHoriz,
+                                    contentDescription = null,
+                                    tint = LimeVolt,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (jugadorSeleccionadoPizarraParaMover != null) {
+                                        "Seleccionado: ${jugadorSeleccionadoPizarraParaMover?.nombreConTu()}. Toca otro para intercambiar."
+                                    } else {
+                                        "Arrastra o toca jugadores para intercambiar posiciones"
+                                    },
+                                    color = if (jugadorSeleccionadoPizarraParaMover != null) LimeVolt else Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (jugadorSeleccionadoPizarraParaMover != null) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            listaAlineados.forEachIndexed { index, (pos, jugador) ->
+                                ItemJugadorAlineado(
+                                    index = index,
+                                    jugador = jugador,
+                                    posicion = pos,
+                                    esSeleccionado = jugadorSeleccionadoPizarraParaMover?.id == jugador.id,
+                                    onDragVertical = { dragY ->
+                                        val offsetItems = (dragY / 36.dp.toPx()).roundToInt()
+                                        val targetIdx = (index + offsetItems).coerceIn(0, listaAlineados.lastIndex)
+                                        if (targetIdx != index) {
+                                            val targetJugador = listaAlineados[targetIdx].second
+                                            val nuevoMapa = mapaAlineacion.toMutableMap()
+                                            val key1 = nuevoMapa.entries.firstOrNull { it.value?.id == jugador.id }?.key
+                                            val key2 = nuevoMapa.entries.firstOrNull { it.value?.id == targetJugador.id }?.key
+                                            if (key1 != null && key2 != null) {
+                                                nuevoMapa[key1] = targetJugador
+                                                nuevoMapa[key2] = jugador
+                                                alineacionMapaCampo = nuevoMapa
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        if (jugadorSeleccionadoPizarraParaMover == null) {
+                                            jugadorSeleccionadoPizarraParaMover = jugador
+                                        } else if (jugadorSeleccionadoPizarraParaMover?.id == jugador.id) {
+                                            jugadorSeleccionadoPizarraParaMover = null
+                                        } else {
+                                            val seleccionado = jugadorSeleccionadoPizarraParaMover!!
+                                            val nuevoMapa = mapaAlineacion.toMutableMap()
+                                            val key1 = nuevoMapa.entries.firstOrNull { it.value?.id == seleccionado.id }?.key
+                                            val key2 = nuevoMapa.entries.firstOrNull { it.value?.id == jugador.id }?.key
+                                            if (key1 != null && key2 != null) {
+                                                nuevoMapa[key1] = jugador
+                                                nuevoMapa[key2] = seleccionado
+                                                alineacionMapaCampo = nuevoMapa
+                                            }
+                                            jugadorSeleccionadoPizarraParaMover = null
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -338,7 +448,7 @@ fun AlineacionScreen(
                         }
                     }
 
-                    // Filtros por Favoritos y Posición
+                    // Fila 1: Favoritos y Ordenar
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         contentPadding = PaddingValues(vertical = 2.dp)
@@ -361,12 +471,79 @@ fun AlineacionScreen(
 
                         item {
                             FilterChip(
-                                selected = posicionFiltro == null && !soloFavoritos,
+                                selected = ordenNombreAscendente != null,
                                 onClick = {
-                                    posicionFiltro = null
-                                    soloFavoritos = false
+                                    ordenFechaDescendente = null
+                                    ordenNombreAscendente = when (ordenNombreAscendente) {
+                                        null -> true
+                                        true -> false
+                                        false -> null
+                                    }
                                 },
-                                label = { Text("Todos", fontSize = 11.sp) }
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Sort,
+                                        contentDescription = "Ordenar por nombre",
+                                        tint = if (ordenNombreAscendente != null) LimeVolt else TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = when (ordenNombreAscendente) {
+                                            true -> "Nombre (A-Z)"
+                                            false -> "Nombre (Z-A)"
+                                            null -> "Nombre"
+                                        },
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            )
+                        }
+
+                        item {
+                            FilterChip(
+                                selected = ordenFechaDescendente != null,
+                                onClick = {
+                                    ordenNombreAscendente = null
+                                    ordenFechaDescendente = when (ordenFechaDescendente) {
+                                        null -> true
+                                        true -> false
+                                        false -> null
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DateRange,
+                                        contentDescription = "Ordenar por fecha",
+                                        tint = if (ordenFechaDescendente != null) LimeVolt else TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = when (ordenFechaDescendente) {
+                                            true -> "Añadido recientemente"
+                                            false -> "Más antiguos primero"
+                                            null -> "Fecha"
+                                        },
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    // Fila 2: Posiciones
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 2.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = posicionFiltro == null,
+                                onClick = { posicionFiltro = null },
+                                label = { Text("Todas", fontSize = 11.sp) }
                             )
                         }
 
@@ -380,6 +557,7 @@ fun AlineacionScreen(
                             )
                         }
                     }
+
                     if (posicionFiltro != null) {
                         Row(
                             modifier = Modifier
@@ -411,7 +589,7 @@ fun AlineacionScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 3.dp),
+                        .padding(vertical = 4.dp),
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
                     border = BorderStroke(
                         width = 1.dp,
@@ -430,7 +608,7 @@ fun AlineacionScreen(
                                     }
                                 }
                             }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
@@ -451,12 +629,12 @@ fun AlineacionScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
 
                         JugadorAvatar(
                             fotoUri = jugador.fotoUri,
                             nombre = jugador.nombreConTu(),
-                            tamano = 38.dp,
+                            tamano = 44.dp,
                             permitirZoom = true
                         )
 
@@ -512,4 +690,105 @@ fun AlineacionScreen(
         }
     }
 }
+}
+
+@Composable
+private fun ItemJugadorAlineado(
+    index: Int,
+    jugador: Jugador,
+    posicion: Posicion,
+    esSeleccionado: Boolean,
+    onDragVertical: Density.(dragY: Float) -> Unit,
+    onClick: () -> Unit
+) {
+    var offsetY by remember { mutableStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 1.dp)
+            .zIndex(if (isDragging) 99f else 1f)
+            .offset { IntOffset(0, offsetY.roundToInt()) }
+            .pointerInput(jugador.id) {
+                detectDragGestures(
+                    onDragStart = { isDragging = true },
+                    onDragEnd = {
+                        val dragY = offsetY
+                        isDragging = false
+                        offsetY = 0f
+                        val umbralVertical = 20.dp.toPx()
+                        if (kotlin.math.abs(dragY) > umbralVertical) {
+                            onDragVertical(dragY)
+                        }
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        offsetY = 0f
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        offsetY += dragAmount.y
+                    }
+                )
+            }
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        color = if (esSeleccionado) LimeVolt.copy(alpha = 0.28f) else DarkCard,
+        border = BorderStroke(if (esSeleccionado || isDragging) 1.5.dp else 1.dp, if (esSeleccionado || isDragging) LimeVolt else DarkCardBorder),
+        shadowElevation = if (isDragging) 6.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.DragHandle,
+                contentDescription = "Arrastrar",
+                tint = TextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "${index + 1}.",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            JugadorAvatar(
+                fotoUri = jugador.fotoUri,
+                nombre = jugador.nombre,
+                tamano = 26.dp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = jugador.nombreConTu(),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Surface(
+                color = Color(0xFF13151E),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.width(36.dp).height(20.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = posicion.name,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LimeVolt,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
 }

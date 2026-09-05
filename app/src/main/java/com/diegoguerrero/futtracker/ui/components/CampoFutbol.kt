@@ -104,7 +104,7 @@ fun CampoFutbol(
         }
 
         val iconWidth = 88.dp
-        val iconHeight = 62.dp
+        val iconHeight = 70.dp
 
         // Renderizado de jugadores / posiciones
         alineacion.forEach { (posConCoords, jugador) ->
@@ -204,13 +204,13 @@ fun CampoFutbol(
                             bordeAncho = 1.5.dp
                         )
 
-                        // Placa pequeña cuadrada en la esquina inferior para no tapar los rostros
+                        // Placa pequeña cuadrada con tamaño uniforme (referencia DFC) y texto subido
                         Surface(
                             color = if (jugador != null) fichaBorder else Color.Black.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
-                                .offset(x = 2.dp, y = 2.dp)
-                                .size(width = 19.dp, height = 15.5.dp)
+                                .offset(x = 2.dp, y = (-2).dp)
+                                .size(width = 22.dp, height = 14.5.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -219,7 +219,10 @@ fun CampoFutbol(
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.offset(y = (-2.5).dp)
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                    ),
+                                    modifier = Modifier.offset(y = (-0.5).dp)
                                 )
                             }
                         }
