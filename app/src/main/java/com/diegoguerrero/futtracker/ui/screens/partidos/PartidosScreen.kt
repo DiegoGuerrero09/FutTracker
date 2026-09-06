@@ -2357,38 +2357,44 @@ fun PizarraColocacionPartido(
                                 verticalArrangement = Arrangement.Top
                             ) {
                                 Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.size(30.dp)
+                                    modifier = Modifier.size(width = 34.dp, height = 30.dp),
+                                    contentAlignment = Alignment.TopStart
                                 ) {
-                                    if (esSeleccionadoSwap) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .border(2.dp, LimeVolt, CircleShape)
-                                        )
-                                    } else if (esFav) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(29.dp)
-                                                .border(1.dp, Color(0xFFFFD700), CircleShape)
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .align(Alignment.TopStart)
+                                    ) {
+                                        if (esSeleccionadoSwap) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(30.dp)
+                                                    .border(2.dp, LimeVolt, CircleShape)
+                                            )
+                                        } else if (esFav) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .border(1.dp, Color(0xFFFFD700), CircleShape)
+                                            )
+                                        }
+                                        JugadorAvatar(
+                                            fotoUri = jugador.fotoUri,
+                                            nombre = jugador.nombre,
+                                            tamano = 26.dp,
+                                            fontSize = 8.5.sp,
+                                            bordeColor = fichaBorder,
+                                            bordeAncho = fichaBordeAncho,
+                                            esPorDefecto = esDefecto
                                         )
                                     }
-                                    JugadorAvatar(
-                                        fotoUri = jugador.fotoUri,
-                                        nombre = jugador.nombre,
-                                        tamano = 26.dp,
-                                        fontSize = 8.5.sp,
-                                        bordeColor = fichaBorder,
-                                        bordeAncho = fichaBordeAncho,
-                                        esPorDefecto = esDefecto
-                                    )
                                     val badgeColor = colorBordeFicha ?: LimeVolt
                                     Surface(
                                         color = badgeColor,
                                         shape = RoundedCornerShape(2.dp),
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .offset(x = 1.dp, y = 0.dp)
                                             .size(width = 17.dp, height = 12.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
@@ -2400,8 +2406,7 @@ fun PizarraColocacionPartido(
                                                 textAlign = TextAlign.Center,
                                                 style = androidx.compose.ui.text.TextStyle(
                                                     platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
-                                                ),
-                                                modifier = Modifier.offset(y = 0.dp)
+                                                )
                                             )
                                         }
                                     }
@@ -2418,7 +2423,7 @@ fun PizarraColocacionPartido(
                                     style = androidx.compose.ui.text.TextStyle(
                                         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                                     ),
-                                    modifier = Modifier.offset(y = (-2).dp)
+                                    modifier = Modifier.offset(y = 1.dp)
                                 )
                             }
                         }
@@ -2529,10 +2534,11 @@ fun DialogoPartido(
                 val existentes = partidoExistente.jugadoresMiEquipo.ifEmpty { partidoExistente.jugadoresIds }
                 val saneados = existentes.map { if (it in usuarioIds) canonicalUserId else it }.distinct().toMutableList()
                 if (jugadoPorMi) {
-                    saneados.removeAll { it in usuarioIds }
-                    saneados.add(0, canonicalUserId)
+                    if (!saneados.contains(canonicalUserId)) {
+                        saneados.add(canonicalUserId)
+                    }
                 } else {
-                    saneados.removeAll { it in usuarioIds }
+                    saneados.removeAll { it in usuarioIds || it == canonicalUserId }
                 }
                 addAll(saneados)
             } else {
@@ -2549,7 +2555,7 @@ fun DialogoPartido(
             if (partidoExistente != null) {
                 val saneados = partidoExistente.jugadoresEquipoRival.map { if (it in usuarioIds) canonicalUserId else it }.distinct().toMutableList()
                 if (!jugadoPorMi) {
-                    saneados.removeAll { it in usuarioIds }
+                    saneados.removeAll { it in usuarioIds || it == canonicalUserId }
                 }
                 addAll(saneados)
             }
@@ -2575,7 +2581,7 @@ fun DialogoPartido(
                 }
             }
             if (esMiEquipo && jugadoPorMi && !usuarioIncluido) {
-                resultado.add(0, canonicalUserId)
+                resultado.add(canonicalUserId)
             }
             return resultado
         }
@@ -2625,6 +2631,10 @@ fun DialogoPartido(
         mutableStateMapOf<String, EstadisticasJugadorPartido>().apply {
             partidoExistente?.jugadoresDetalle?.forEach { det ->
                 put(det.jugadorId, det)
+                if (det.jugadorId in usuarioIds || det.jugadorId == canonicalUserId) {
+                    put(canonicalUserId, det)
+                    usuario?.id?.let { put(it, det) }
+                }
             }
         }
     }
@@ -3938,11 +3948,8 @@ fun DialogoPartido(
                             }
                         }
 
-                        val ejecutarSwapParaJugador = { jDestino: Jugador ->
-                            if (jugadorSwapPizarraOrigen?.id == jDestino.id) {
-                                jugadorSwapPizarraOrigen = null
-                            } else if (jugadorSwapPizarraOrigen != null) {
-                                val jOrigen = jugadorSwapPizarraOrigen!!
+                        val intercambiarJugadoresEnPizarra = { jOrigen: Jugador, jDestino: Jugador ->
+                            if (jOrigen.id != jDestino.id) {
                                 val equipoLista = if (tabEquipoJugadores == 0) jugadoresMiEquipo else jugadoresEquipoRival
                                 val idx1 = equipoLista.indexOfFirst { it == jOrigen.id || (jOrigen.id in usuarioIds && it in usuarioIds) }
                                 val idx2 = equipoLista.indexOfFirst { it == jDestino.id || (jDestino.id in usuarioIds && it in usuarioIds) }
@@ -3954,39 +3961,47 @@ fun DialogoPartido(
                                     listCopy[idx2] = temp
                                     equipoLista.clear()
                                     equipoLista.addAll(listCopy)
-                                }
 
-                                val id1 = if (jOrigen.id in usuarioIds) canonicalUserId else jOrigen.id
-                                val id2 = if (jDestino.id in usuarioIds) canonicalUserId else jDestino.id
-                                val pos1Fallback = coordsActuales.getOrNull(idx1)?.first ?: (jOrigen.posicionesPrimarias.firstOrNull() ?: Posicion.DC)
-                                val pos2Fallback = coordsActuales.getOrNull(idx2)?.first ?: (jDestino.posicionesPrimarias.firstOrNull() ?: Posicion.DC)
-                                val s1 = detallesJugadores[id1] ?: EstadisticasJugadorPartido(
-                                    jugadorId = id1,
-                                    esMiEquipo = tabEquipoJugadores == 0,
-                                    posicionPrincipal = pos1Fallback,
-                                    posicionesSecundarias = jOrigen.posicionesSecundarias.toSet(),
-                                    posX = coordsActuales.getOrNull(idx1)?.second?.first ?: 0.5f,
-                                    posY = coordsActuales.getOrNull(idx1)?.second?.second ?: 0.5f
-                                )
-                                val s2 = detallesJugadores[id2] ?: EstadisticasJugadorPartido(
-                                    jugadorId = id2,
-                                    esMiEquipo = tabEquipoJugadores == 0,
-                                    posicionPrincipal = pos2Fallback,
-                                    posicionesSecundarias = jDestino.posicionesSecundarias.toSet(),
-                                    posX = coordsActuales.getOrNull(idx2)?.second?.first ?: 0.5f,
-                                    posY = coordsActuales.getOrNull(idx2)?.second?.second ?: 0.5f
-                                )
-                                val posTemp = s1.posicionPrincipal
-                                val xTemp = s1.posX
-                                val yTemp = s1.posY
-                                detallesJugadores[id1] = s1.copy(posicionPrincipal = s2.posicionPrincipal, posX = s2.posX, posY = s2.posY)
-                                detallesJugadores[id2] = s2.copy(posicionPrincipal = posTemp, posX = xTemp, posY = yTemp)
-                                if (jOrigen.esUsuarioPropio && jugadoPorMi) {
-                                    posicionPrincipal = s2.posicionPrincipal
+                                    val id1 = if (jOrigen.id in usuarioIds) canonicalUserId else jOrigen.id
+                                    val id2 = if (jDestino.id in usuarioIds) canonicalUserId else jDestino.id
+                                    val pos1Fallback = coordsActuales.getOrNull(idx1)?.first ?: (jOrigen.posicionesPrimarias.firstOrNull() ?: Posicion.DC)
+                                    val pos2Fallback = coordsActuales.getOrNull(idx2)?.first ?: (jDestino.posicionesPrimarias.firstOrNull() ?: Posicion.DC)
+                                    val s1 = detallesJugadores[id1] ?: EstadisticasJugadorPartido(
+                                        jugadorId = id1,
+                                        esMiEquipo = tabEquipoJugadores == 0,
+                                        posicionPrincipal = pos1Fallback,
+                                        posicionesSecundarias = jOrigen.posicionesSecundarias.toSet(),
+                                        posX = coordsActuales.getOrNull(idx1)?.second?.first ?: 0.5f,
+                                        posY = coordsActuales.getOrNull(idx1)?.second?.second ?: 0.5f
+                                    )
+                                    val s2 = detallesJugadores[id2] ?: EstadisticasJugadorPartido(
+                                        jugadorId = id2,
+                                        esMiEquipo = tabEquipoJugadores == 0,
+                                        posicionPrincipal = pos2Fallback,
+                                        posicionesSecundarias = jDestino.posicionesSecundarias.toSet(),
+                                        posX = coordsActuales.getOrNull(idx2)?.second?.first ?: 0.5f,
+                                        posY = coordsActuales.getOrNull(idx2)?.second?.second ?: 0.5f
+                                    )
+                                    val posTemp = s1.posicionPrincipal
+                                    val xTemp = s1.posX
+                                    val yTemp = s1.posY
+                                    detallesJugadores[id1] = s1.copy(posicionPrincipal = s2.posicionPrincipal, posX = s2.posX, posY = s2.posY)
+                                    detallesJugadores[id2] = s2.copy(posicionPrincipal = posTemp, posX = xTemp, posY = yTemp)
+                                    if (jOrigen.esUsuarioPropio && jugadoPorMi) {
+                                        posicionPrincipal = s2.posicionPrincipal
+                                    }
+                                    if (jDestino.esUsuarioPropio && jugadoPorMi) {
+                                        posicionPrincipal = posTemp
+                                    }
                                 }
-                                if (jDestino.esUsuarioPropio && jugadoPorMi) {
-                                    posicionPrincipal = posTemp
-                                }
+                            }
+                        }
+
+                        val ejecutarSwapParaJugador = { jDestino: Jugador ->
+                            if (jugadorSwapPizarraOrigen?.id == jDestino.id) {
+                                jugadorSwapPizarraOrigen = null
+                            } else if (jugadorSwapPizarraOrigen != null) {
+                                intercambiarJugadoresEnPizarra(jugadorSwapPizarraOrigen!!, jDestino)
                                 jugadorSwapPizarraOrigen = null
                             } else {
                                 jugadorSwapPizarraOrigen = jDestino
@@ -4039,58 +4054,95 @@ fun DialogoPartido(
                                     val stats = detallesJugadores[jId] ?: (if (jId in usuarioIds) detallesJugadores[canonicalUserId] else null) ?: EstadisticasJugadorPartido(
                                         jugadorId = jId,
                                         esMiEquipo = tabEquipoJugadores == 0,
-                                        posicionPrincipal = posFallback,
-                                        posicionesSecundarias = jObj.posicionesSecundarias.toSet(),
+                                        posicionPrincipal = if (jObj.esUsuarioPropio && jugadoPorMi) posicionPrincipal else posFallback,
+                                        posicionesSecundarias = if (jObj.esUsuarioPropio && jugadoPorMi) posicionesSecundarias.toSet() else jObj.posicionesSecundarias.toSet(),
                                         posX = coordsActuales.getOrNull(idx)?.second?.first ?: 0.5f,
                                         posY = coordsActuales.getOrNull(idx)?.second?.second ?: 0.5f
                                     )
                                     val esSeleccionadoSwap = jugadorSwapPizarraOrigen?.id == jObj.id
                                     val esFav = jObj.esFavorito
 
-                                    Surface(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                if (jugadorSwapPizarraOrigen != null) {
-                                                    ejecutarSwapParaJugador(jObj)
-                                                } else if (!esDefecto) {
-                                                    jugadorParaEditarStats = jObj
-                                                }
-                                            },
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (esSeleccionadoSwap) LimeVolt.copy(alpha = 0.18f) else DarkCard,
-                                        border = BorderStroke(
-                                            width = if (esSeleccionadoSwap) 1.5.dp else 1.dp,
-                                            color = when {
-                                                esSeleccionadoSwap -> LimeVolt
-                                                esFav -> Color(0xFFFFD700)
-                                                else -> Color.Gray.copy(alpha = 0.35f)
-                                            }
-                                        )
-                                    ) {
-                                        Column(
+                                    key(jObj.id) {
+                                        var offsetY by remember { mutableStateOf(0f) }
+                                        var isDragging by remember { mutableStateOf(false) }
+
+                                        Surface(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                .zIndex(if (isDragging) 99f else 1f)
+                                                .offset { IntOffset(0, offsetY.roundToInt()) }
+                                                .clickable {
+                                                    if (jugadorSwapPizarraOrigen != null) {
+                                                        ejecutarSwapParaJugador(jObj)
+                                                    } else if (!esDefecto) {
+                                                        jugadorParaEditarStats = jObj
+                                                    }
+                                                },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (esSeleccionadoSwap || isDragging) LimeVolt.copy(alpha = 0.18f) else DarkCard,
+                                            border = BorderStroke(
+                                                width = if (esSeleccionadoSwap || isDragging) 1.5.dp else 1.dp,
+                                                color = when {
+                                                    esSeleccionadoSwap || isDragging -> LimeVolt
+                                                    esFav -> Color(0xFFFFD700)
+                                                    else -> Color.Gray.copy(alpha = 0.35f)
+                                                }
+                                            ),
+                                            shadowElevation = if (isDragging) 8.dp else 0.dp
                                         ) {
-                                            // Línea 1: Swap, Avatar, Badge Posición (tamaño uniforme 52x24), Nombre (weight 1f), Botón Editar (solo si no es por defecto)
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                IconButton(
-                                                    onClick = { ejecutarSwapParaJugador(jObj) },
-                                                    modifier = Modifier.size(24.dp)
+                                                // Línea 1: DragHandle/Swap, Avatar, Badge Posición (tamaño uniforme 52x24), Nombre (weight 1f), Botón Editar (solo si no es por defecto)
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
                                                     Icon(
-                                                        imageVector = if (esSeleccionadoSwap) Icons.Default.CheckCircle else Icons.Default.SwapVert,
-                                                        contentDescription = "Intercambiar",
-                                                        tint = if (esSeleccionadoSwap) LimeVolt else TextSecondary,
-                                                        modifier = Modifier.size(18.dp)
+                                                        imageVector = if (esSeleccionadoSwap) Icons.Default.CheckCircle else Icons.Default.DragHandle,
+                                                        contentDescription = "Arrastrar para intercambiar",
+                                                        tint = if (esSeleccionadoSwap || isDragging) LimeVolt else TextSecondary,
+                                                        modifier = Modifier
+                                                            .size(24.dp)
+                                                            .pointerInput(jObj.id, jugadoresParaPizarra.size) {
+                                                                detectDragGestures(
+                                                                    onDragStart = {
+                                                                        isDragging = true
+                                                                    },
+                                                                    onDragEnd = {
+                                                                        val dragY = offsetY
+                                                                        isDragging = false
+                                                                        offsetY = 0f
+                                                                        val umbralVertical = 20.dp.toPx()
+                                                                        if (kotlin.math.abs(dragY) > umbralVertical) {
+                                                                            val itemHeightPx = 62.dp.toPx()
+                                                                            val targetIndex = (idx + (dragY / itemHeightPx).roundToInt()).coerceIn(0, jugadoresParaPizarra.size - 1)
+                                                                            if (targetIndex != idx && targetIndex in jugadoresParaPizarra.indices) {
+                                                                                intercambiarJugadoresEnPizarra(jObj, jugadoresParaPizarra[targetIndex])
+                                                                                jugadorSwapPizarraOrigen = null
+                                                                            }
+                                                                        } else {
+                                                                            ejecutarSwapParaJugador(jObj)
+                                                                        }
+                                                                    },
+                                                                    onDragCancel = {
+                                                                        isDragging = false
+                                                                        offsetY = 0f
+                                                                    },
+                                                                    onDrag = { change, dragAmount ->
+                                                                        change.consume()
+                                                                        offsetY += dragAmount.y
+                                                                    }
+                                                                )
+                                                            }
+                                                            .clickable {
+                                                                ejecutarSwapParaJugador(jObj)
+                                                            }
                                                     )
-                                                }
 
                                                 val colorBordeEquipo = if (tabEquipoJugadores == 0) {
                                                     if (equipoJugado == EquipoColor.CLARO) Color.White else Color.Black
@@ -4375,6 +4427,7 @@ fun DialogoPartido(
                                     }
                                 }
                             }
+                            }
 
                             // Banner de intercambio DEBAJO del listado
                             if (jugadorSwapPizarraOrigen != null) {
@@ -4436,20 +4489,24 @@ fun DialogoPartido(
                         val esDefecto = esIdDefecto(jId)
                         val esUsuario = jId in usuarioIds
                         val posObj = if (esDefecto) null else jugadoresDisponibles.firstOrNull { it.id == jId || (esUsuario && (it.esUsuarioPropio || it.id in usuarioIds)) }
-                        val detActual = detallesJugadores[jId] ?: (if (esUsuario) detallesJugadores[canonicalUserId] else null)
+                        val idKey = if (esUsuario) canonicalUserId else jId
+                        val detActual = detallesJugadores[idKey] ?: detallesJugadores[jId]
                         val slotPos = coords1.getOrNull(idx)?.first ?: Posicion.DC
                         val slotCoord = coords1.getOrNull(idx)?.second ?: (0.5f to 0.5f)
+
+                        val posPrincipalFinal = if (esUsuario && jugadoPorMi) posicionPrincipal else (detActual?.posicionPrincipal ?: slotPos)
+                        val posSecundariasFinal = if (esUsuario && jugadoPorMi) posicionesSecundarias.toSet() else (detActual?.posicionesSecundarias ?: (posObj?.posicionesSecundarias?.toSet() ?: emptySet()))
 
                         if (esDefecto) {
                             listaDetallesFinal.add(
                                 EstadisticasJugadorPartido(
                                     jugadorId = jId,
                                     esMiEquipo = true,
-                                    posicionPrincipal = detActual?.posicionPrincipal ?: slotPos,
-                                    posicionesSecundarias = detActual?.posicionesSecundarias ?: emptySet(),
+                                    posicionPrincipal = posPrincipalFinal,
+                                    posicionesSecundarias = posSecundariasFinal,
                                     statsRegistradas = false,
-                                    posX = detActual?.posX ?: slotCoord.first,
-                                    posY = detActual?.posY ?: slotCoord.second
+                                    posX = slotCoord.first,
+                                    posY = slotCoord.second
                                 )
                             )
                         } else if (esUsuario && jugadoPorMi) {
@@ -4460,8 +4517,8 @@ fun DialogoPartido(
                                     posicionPrincipal = posicionPrincipal,
                                     posicionesSecundarias = posicionesSecundarias.toSet(),
                                     statsRegistradas = true,
-                                    posX = detActual?.posX ?: slotCoord.first,
-                                    posY = detActual?.posY ?: slotCoord.second,
+                                    posX = slotCoord.first,
+                                    posY = slotCoord.second,
                                     goles = misGoles,
                                     asistencias = misAsistencias,
                                     tirosAlPalo = tirosAlPalo,
@@ -4476,16 +4533,20 @@ fun DialogoPartido(
                                 )
                             )
                         } else {
-                            val jugoPort = detActual?.let { it.posicionPrincipal == Posicion.POR || it.posicionesSecundarias.contains(Posicion.POR) } ?: false
+                            val jugoPort = posPrincipalFinal == Posicion.POR || posSecundariasFinal.contains(Posicion.POR)
                             listaDetallesFinal.add(
                                 detActual?.copy(
                                     esMiEquipo = true,
+                                    posicionPrincipal = posPrincipalFinal,
+                                    posicionesSecundarias = posSecundariasFinal,
+                                    posX = slotCoord.first,
+                                    posY = slotCoord.second,
                                     paradas = if (jugoPort) detActual.paradas else 0
                                 ) ?: EstadisticasJugadorPartido(
                                     jugadorId = jId,
                                     esMiEquipo = true,
-                                    posicionPrincipal = posObj?.posicionesPrimarias?.firstOrNull() ?: slotPos,
-                                    posicionesSecundarias = posObj?.posicionesSecundarias?.toSet() ?: emptySet(),
+                                    posicionPrincipal = posPrincipalFinal,
+                                    posicionesSecundarias = posSecundariasFinal,
                                     posX = slotCoord.first,
                                     posY = slotCoord.second
                                 )
@@ -4497,20 +4558,24 @@ fun DialogoPartido(
                         val esDefecto = esIdDefecto(jId)
                         val esUsuario = jId in usuarioIds
                         val posObj = if (esDefecto) null else jugadoresDisponibles.firstOrNull { it.id == jId || (esUsuario && (it.esUsuarioPropio || it.id in usuarioIds)) }
-                        val detActual = detallesJugadores[jId] ?: (if (esUsuario) detallesJugadores[canonicalUserId] else null)
+                        val idKey = if (esUsuario) canonicalUserId else jId
+                        val detActual = detallesJugadores[idKey] ?: detallesJugadores[jId]
                         val slotPos = coords2.getOrNull(idx)?.first ?: Posicion.DC
                         val slotCoord = coords2.getOrNull(idx)?.second ?: (0.5f to 0.5f)
+
+                        val posPrincipalFinal = if (esUsuario && jugadoPorMi) posicionPrincipal else (detActual?.posicionPrincipal ?: slotPos)
+                        val posSecundariasFinal = if (esUsuario && jugadoPorMi) posicionesSecundarias.toSet() else (detActual?.posicionesSecundarias ?: (posObj?.posicionesSecundarias?.toSet() ?: emptySet()))
 
                         if (esDefecto) {
                             listaDetallesFinal.add(
                                 EstadisticasJugadorPartido(
                                     jugadorId = jId,
                                     esMiEquipo = false,
-                                    posicionPrincipal = detActual?.posicionPrincipal ?: slotPos,
-                                    posicionesSecundarias = detActual?.posicionesSecundarias ?: emptySet(),
+                                    posicionPrincipal = posPrincipalFinal,
+                                    posicionesSecundarias = posSecundariasFinal,
                                     statsRegistradas = false,
-                                    posX = detActual?.posX ?: slotCoord.first,
-                                    posY = detActual?.posY ?: slotCoord.second
+                                    posX = slotCoord.first,
+                                    posY = slotCoord.second
                                 )
                             )
                         } else if (esUsuario && jugadoPorMi) {
@@ -4521,8 +4586,8 @@ fun DialogoPartido(
                                     posicionPrincipal = posicionPrincipal,
                                     posicionesSecundarias = posicionesSecundarias.toSet(),
                                     statsRegistradas = true,
-                                    posX = detActual?.posX ?: slotCoord.first,
-                                    posY = detActual?.posY ?: slotCoord.second,
+                                    posX = slotCoord.first,
+                                    posY = slotCoord.second,
                                     goles = misGoles,
                                     asistencias = misAsistencias,
                                     tirosAlPalo = tirosAlPalo,
@@ -4537,16 +4602,20 @@ fun DialogoPartido(
                                 )
                             )
                         } else {
-                            val jugoPort = detActual?.let { it.posicionPrincipal == Posicion.POR || it.posicionesSecundarias.contains(Posicion.POR) } ?: false
+                            val jugoPort = posPrincipalFinal == Posicion.POR || posSecundariasFinal.contains(Posicion.POR)
                             listaDetallesFinal.add(
                                 detActual?.copy(
                                     esMiEquipo = false,
+                                    posicionPrincipal = posPrincipalFinal,
+                                    posicionesSecundarias = posSecundariasFinal,
+                                    posX = slotCoord.first,
+                                    posY = slotCoord.second,
                                     paradas = if (jugoPort) detActual.paradas else 0
                                 ) ?: EstadisticasJugadorPartido(
                                     jugadorId = jId,
                                     esMiEquipo = false,
-                                    posicionPrincipal = posObj?.posicionesPrimarias?.firstOrNull() ?: slotPos,
-                                    posicionesSecundarias = posObj?.posicionesSecundarias?.toSet() ?: emptySet(),
+                                    posicionPrincipal = posPrincipalFinal,
+                                    posicionesSecundarias = posSecundariasFinal,
                                     posX = slotCoord.first,
                                     posY = slotCoord.second
                                 )
@@ -4605,51 +4674,66 @@ fun DialogoPartido(
     jugadorParaEditarStats?.let { jEdit ->
         if (!esIdDefecto(jEdit.id)) {
             val esMiEquipoDelJugador = jEdit.id in jugadoresMiEquipo || (jEdit.esUsuarioPropio && jugadoresMiEquipo.any { it in usuarioIds })
-        val statsActuales = detallesJugadores[jEdit.id] ?: EstadisticasJugadorPartido(
-            jugadorId = jEdit.id,
-            esMiEquipo = esMiEquipoDelJugador,
-            posicionPrincipal = if (jEdit.esUsuarioPropio && jugadoPorMi) posicionPrincipal else (jEdit.posicionesPrimarias.firstOrNull() ?: Posicion.DC),
-            posicionesSecundarias = if (jEdit.esUsuarioPropio && jugadoPorMi) posicionesSecundarias.toSet() else jEdit.posicionesSecundarias.toSet(),
-            goles = if (jEdit.esUsuarioPropio && jugadoPorMi) misGoles else 0,
-            asistencias = if (jEdit.esUsuarioPropio && jugadoPorMi) misAsistencias else 0,
-            tirosAlPalo = if (jEdit.esUsuarioPropio && jugadoPorMi) tirosAlPalo else 0,
-            paradas = if (jEdit.esUsuarioPropio && jugadoPorMi) (if (posicionPrincipal == Posicion.POR || Posicion.POR in posicionesSecundarias) misParadas else 0) else 0,
-            golesZurda = if (jEdit.esUsuarioPropio && jugadoPorMi) golesZurda else 0,
-            golesDiestra = if (jEdit.esUsuarioPropio && jugadoPorMi) golesDiestra else 0,
-            golesCabeza = if (jEdit.esUsuarioPropio && jugadoPorMi) golesCabeza else 0,
-            golesOtro = if (jEdit.esUsuarioPropio && jugadoPorMi) golesOtro else 0,
-            golesChilena = if (jEdit.esUsuarioPropio && jugadoPorMi) golesChilena else 0,
-            golesTacon = if (jEdit.esUsuarioPropio && jugadoPorMi) golesTacon else 0,
-            golesFueraArea = if (jEdit.esUsuarioPropio && jugadoPorMi) golesFueraArea else 0
-        )
+            val equipoLista = if (esMiEquipoDelJugador) jugadoresMiEquipo else jugadoresEquipoRival
+            val formActual = if (esMiEquipoDelJugador) formacionMiEquipo else formacionRival
+            val coordsForm = obtenerCoordenadas(formActual)
+            val idxEnLista = equipoLista.indexOfFirst { it == jEdit.id || (jEdit.id in usuarioIds && it in usuarioIds) }
+            val posEnPizarra = coordsForm.getOrNull(idxEnLista)?.first ?: (jEdit.posicionesPrimarias.firstOrNull() ?: Posicion.DC)
+            val coordEnPizarra = coordsForm.getOrNull(idxEnLista)?.second ?: (0.5f to 0.5f)
 
-        DialogoEditarStatsJugadorPartido(
-            jugador = jEdit,
-            statsActuales = statsActuales,
-            esMiEquipo = esMiEquipoDelJugador,
-            onDismiss = { jugadorParaEditarStats = null },
-            onGuardar = { nuevasStats ->
-                detallesJugadores[jEdit.id] = nuevasStats
-                if (jEdit.esUsuarioPropio || jEdit.id in usuarioIds || (usuario != null && jEdit.id == usuario.id)) {
-                    posicionPrincipal = nuevasStats.posicionPrincipal
-                    posicionesSecundarias.clear()
-                    posicionesSecundarias.addAll(nuevasStats.posicionesSecundarias)
-                    misGoles = nuevasStats.goles
-                    misAsistencias = nuevasStats.asistencias
-                    tirosAlPalo = nuevasStats.tirosAlPalo
-                    val jugoPort = nuevasStats.posicionPrincipal == Posicion.POR || Posicion.POR in nuevasStats.posicionesSecundarias
-                    misParadas = if (jugoPort) nuevasStats.paradas else 0
-                    golesZurda = nuevasStats.golesZurda
-                    golesDiestra = nuevasStats.golesDiestra
-                    golesCabeza = nuevasStats.golesCabeza
-                    golesOtro = nuevasStats.golesOtro
-                    golesChilena = nuevasStats.golesChilena
-                    golesTacon = nuevasStats.golesTacon
-                    golesFueraArea = nuevasStats.golesFueraArea
+            val idKey = if (jEdit.id in usuarioIds) canonicalUserId else jEdit.id
+            val detExistente = detallesJugadores[idKey] ?: detallesJugadores[jEdit.id]
+
+            val statsActuales = detExistente ?: EstadisticasJugadorPartido(
+                jugadorId = idKey,
+                esMiEquipo = esMiEquipoDelJugador,
+                posicionPrincipal = if (jEdit.esUsuarioPropio && jugadoPorMi) posicionPrincipal else posEnPizarra,
+                posicionesSecundarias = if (jEdit.esUsuarioPropio && jugadoPorMi) posicionesSecundarias.toSet() else jEdit.posicionesSecundarias.toSet(),
+                posX = coordEnPizarra.first,
+                posY = coordEnPizarra.second,
+                goles = if (jEdit.esUsuarioPropio && jugadoPorMi) misGoles else 0,
+                asistencias = if (jEdit.esUsuarioPropio && jugadoPorMi) misAsistencias else 0,
+                tirosAlPalo = if (jEdit.esUsuarioPropio && jugadoPorMi) tirosAlPalo else 0,
+                paradas = if (jEdit.esUsuarioPropio && jugadoPorMi) (if (posicionPrincipal == Posicion.POR || Posicion.POR in posicionesSecundarias) misParadas else 0) else 0,
+                golesZurda = if (jEdit.esUsuarioPropio && jugadoPorMi) golesZurda else 0,
+                golesDiestra = if (jEdit.esUsuarioPropio && jugadoPorMi) golesDiestra else 0,
+                golesCabeza = if (jEdit.esUsuarioPropio && jugadoPorMi) golesCabeza else 0,
+                golesOtro = if (jEdit.esUsuarioPropio && jugadoPorMi) golesOtro else 0,
+                golesChilena = if (jEdit.esUsuarioPropio && jugadoPorMi) golesChilena else 0,
+                golesTacon = if (jEdit.esUsuarioPropio && jugadoPorMi) golesTacon else 0,
+                golesFueraArea = if (jEdit.esUsuarioPropio && jugadoPorMi) golesFueraArea else 0
+            )
+
+            DialogoEditarStatsJugadorPartido(
+                jugador = jEdit,
+                statsActuales = statsActuales,
+                esMiEquipo = esMiEquipoDelJugador,
+                onDismiss = { jugadorParaEditarStats = null },
+                onGuardar = { nuevasStats ->
+                    detallesJugadores[idKey] = nuevasStats
+                    if (jEdit.id != idKey) {
+                        detallesJugadores[jEdit.id] = nuevasStats
+                    }
+                    if (jEdit.esUsuarioPropio || jEdit.id in usuarioIds || (usuario != null && jEdit.id == usuario.id)) {
+                        posicionPrincipal = nuevasStats.posicionPrincipal
+                        posicionesSecundarias.clear()
+                        posicionesSecundarias.addAll(nuevasStats.posicionesSecundarias)
+                        misGoles = nuevasStats.goles
+                        misAsistencias = nuevasStats.asistencias
+                        tirosAlPalo = nuevasStats.tirosAlPalo
+                        val jugoPort = nuevasStats.posicionPrincipal == Posicion.POR || Posicion.POR in nuevasStats.posicionesSecundarias
+                        misParadas = if (jugoPort) nuevasStats.paradas else 0
+                        golesZurda = nuevasStats.golesZurda
+                        golesDiestra = nuevasStats.golesDiestra
+                        golesCabeza = nuevasStats.golesCabeza
+                        golesOtro = nuevasStats.golesOtro
+                        golesChilena = nuevasStats.golesChilena
+                        golesTacon = nuevasStats.golesTacon
+                        golesFueraArea = nuevasStats.golesFueraArea
+                    }
+                    jugadorParaEditarStats = null
                 }
-                jugadorParaEditarStats = null
-            }
-        )
+            )
         }
     }
 }
