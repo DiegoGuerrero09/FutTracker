@@ -47,6 +47,10 @@ data class EstadisticasJugadorGeneral(
     val minutosJugados: Int = 0,
     val partidosConStats: Int = 0,
     val goles: Int = 0,
+    val golesDiestra: Int = 0,
+    val golesZurda: Int = 0,
+    val golesCabeza: Int = 0,
+    val golesOtro: Int = 0,
     val asistencias: Int = 0,
     val tirosAlPalo: Int = 0,
     val golesFueraArea: Int = 0,
@@ -58,6 +62,14 @@ data class EstadisticasJugadorGeneral(
 ) {
     val golesPorPartido: Float
         get() = if (partidosConStats > 0) goles.toFloat() / partidosConStats else 0f
+    val golesDiestraPorPartido: Float
+        get() = if (partidosConStats > 0) golesDiestra.toFloat() / partidosConStats else 0f
+    val golesZurdaPorPartido: Float
+        get() = if (partidosConStats > 0) golesZurda.toFloat() / partidosConStats else 0f
+    val golesCabezaPorPartido: Float
+        get() = if (partidosConStats > 0) golesCabeza.toFloat() / partidosConStats else 0f
+    val golesOtroPorPartido: Float
+        get() = if (partidosConStats > 0) golesOtro.toFloat() / partidosConStats else 0f
     val asistenciasPorPartido: Float
         get() = if (partidosConStats > 0) asistencias.toFloat() / partidosConStats else 0f
     val tirosAlPaloPorPartido: Float
@@ -84,6 +96,12 @@ data class StatsClima(
     val clima: Clima?,
     val total: Int,
     val porcentaje: Float,
+    val victorias: Int = 0,
+    val empates: Int = 0,
+    val derrotas: Int = 0,
+    val golesFavor: Int = 0,
+    val golesContra: Int = 0,
+    val ratioGoles: Float = 0f,
     val label: String = clima?.label ?: "Techado",
     val emoji: String = clima?.emoji ?: "🏠"
 )
@@ -149,6 +167,10 @@ enum class CriterioOrdenGeneral {
     EMPATES,
     DERROTAS,
     GOLES,
+    GOLES_DIESTRA,
+    GOLES_ZURDA,
+    GOLES_CABEZA,
+    GOLES_OTRO,
     ASISTENCIAS,
     TIROS_AL_PALO,
     FUERA_AREA,
@@ -905,6 +927,10 @@ class EstadisticasViewModel @Inject constructor(
             var d = 0
             var min = 0
             var goles = 0
+            var golesDiestra = 0
+            var golesZurda = 0
+            var golesCabeza = 0
+            var golesOtro = 0
             var asistencias = 0
             var tirosAlPalo = 0
             var fueraArea = 0
@@ -943,6 +969,10 @@ class EstadisticasViewModel @Inject constructor(
                 if (det != null && det.statsRegistradas) {
                     partidosConStats++
                     goles += det.goles
+                    golesDiestra += det.golesDiestra
+                    golesZurda += det.golesZurda
+                    golesCabeza += det.golesCabeza
+                    golesOtro += det.golesOtro
                     asistencias += det.asistencias
                     tirosAlPalo += det.tirosAlPalo
                     fueraArea += det.golesFueraArea
@@ -959,6 +989,10 @@ class EstadisticasViewModel @Inject constructor(
                 } else if (esUsuario && p.jugadoPorMi) {
                     partidosConStats++
                     goles += p.goles
+                    golesDiestra += p.golesDiestra
+                    golesZurda += p.golesZurda
+                    golesCabeza += p.golesCabeza
+                    golesOtro += p.golesOtro
                     asistencias += p.asistencias
                     tirosAlPalo += p.tirosAlPalo
                     fueraArea += p.golesFueraArea
@@ -989,6 +1023,10 @@ class EstadisticasViewModel @Inject constructor(
                 minutosJugados = min,
                 partidosConStats = partidosConStats,
                 goles = goles,
+                golesDiestra = golesDiestra,
+                golesZurda = golesZurda,
+                golesCabeza = golesCabeza,
+                golesOtro = golesOtro,
                 asistencias = asistencias,
                 tirosAlPalo = tirosAlPalo,
                 golesFueraArea = fueraArea,
@@ -1034,6 +1072,34 @@ class EstadisticasViewModel @Inject constructor(
             } else {
                 if (asc) filtrados.sortedWith(compareBy({ it.goles }, { it.golesPorPartido }, { it.jugador.nombre }))
                 else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.goles }.thenByDescending { it.golesPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.GOLES_DIESTRA -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesDiestraPorPartido }, { it.golesDiestra }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesDiestraPorPartido }.thenByDescending { it.golesDiestra }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesDiestra }, { it.golesDiestraPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesDiestra }.thenByDescending { it.golesDiestraPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.GOLES_ZURDA -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesZurdaPorPartido }, { it.golesZurda }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesZurdaPorPartido }.thenByDescending { it.golesZurda }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesZurda }, { it.golesZurdaPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesZurda }.thenByDescending { it.golesZurdaPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.GOLES_CABEZA -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesCabezaPorPartido }, { it.golesCabeza }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesCabezaPorPartido }.thenByDescending { it.golesCabeza }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesCabeza }, { it.golesCabezaPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesCabeza }.thenByDescending { it.golesCabezaPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.GOLES_OTRO -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesOtroPorPartido }, { it.golesOtro }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesOtroPorPartido }.thenByDescending { it.golesOtro }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesOtro }, { it.golesOtroPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesOtro }.thenByDescending { it.golesOtroPorPartido }.thenBy { it.jugador.nombre })
             }
             CriterioOrdenGeneral.ASISTENCIAS -> if (porPartido) {
                 if (asc) filtrados.sortedWith(compareBy({ it.asistenciasPorPartido }, { it.asistencias }, { it.jugador.nombre }))

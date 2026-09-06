@@ -1,6 +1,6 @@
 # ⚽ FutTracker & Lineup Generator
 
-App Android nativa moderna desarrollada con **Kotlin** y **Jetpack Compose** (Material 3). Diseñada para registrar partidos de fútbol (Futsal, Fútbol 6 y Fútbol 7), gestionar plantillas con fotos interactivas, realizar sorteos y alineaciones tácticas equilibradas por posiciones, analizar estadísticas detalladas individuales y globales, evaluar enfrentamientos y sinergias (H2H y Dúos) y realizar copias de seguridad de todos tus datos.
+App Android nativa moderna desarrollada con **Kotlin** y **Jetpack Compose** (Material 3). Diseñada para registrar partidos de fútbol (Futsal, Fútbol 6 y Fútbol 7), gestionar plantillas y estadios con fotos interactivas, realizar sorteos y alineaciones tácticas equilibradas por posiciones, analizar estadísticas detalladas individuales y globales, evaluar enfrentamientos y sinergias (H2H y Dúos) y realizar copias de seguridad de todos tus datos.
 
 ---
 
@@ -9,12 +9,12 @@ App Android nativa moderna desarrollada con **Kotlin** y **Jetpack Compose** (Ma
 La aplicación se organiza en una barra de navegación inferior con secciones clave optimizadas:
 
 ### 1. 📁 **Datos** (Pestaña Combinada Principal)
-Permite gestionar la base de datos de la app dividida en dos subpestañas:
+Permite gestionar la base de datos de la app dividida en tres subpestañas:
 - **Jugadores**:
   - Plantilla completa de amigos y compañeros.
   - Fotos de perfil con **herramienta interactiva de recorte (Cropping)** y **visualizador con zoom a pantalla completa** (gestos táctiles de pinza y doble toque).
   - Configuración de posiciones principales y secundarias (con chips visuales diferenciados y contraste mejorado).
-  - Marcado rápido de jugadores favoritos y buscador por nombre/posición.
+  - Marcado rápido de jugadores favoritos (con aro dorado distintivo) y buscador por nombre/posición.
   - Distintivo visual especial `(Tú)` para el usuario propio.
 - **Partidos**:
   - Registro de partidos por fecha, modalidad (Futsal, Fútbol 6, Fútbol 7) y duración personalizada (**60' por defecto, 90' o 120' min**).
@@ -23,8 +23,20 @@ Permite gestionar la base de datos de la app dividida en dos subpestañas:
   - Distintivo visual **Externo** en las tarjetas de partidos no jugados, ocultando las estadísticas personales y etiquetando a los participantes como *Equipo 1* y *Equipo 2*.
   - **Desglose exhaustivo de goles y jugadas**:
     - Distribución anatómica rigurosa: diestra, zurda, cabeza, tacón, chilena y otro.
-    - Atributos especiales: goles fuera del área, asistencias y tiros al palo.
+    - Atributos especiales: goles fuera del área, asistencias, tiros al palo y paradas de portero (`🧤`).
+  - **Pizarra táctica interactiva al crear/editar partido**:
+    - Asignación visual de jugadores en el campo de juego según la formación seleccionada (ej. 1-2-2, 1-3-1, 1-2-1-2).
+    - **Persistencia de formación**: La formación elegida para mi equipo y el equipo rival se guarda y restaura automáticamente.
+    - **Intercambio táctico (Swap)**: Permutación intuitiva de posiciones entre jugadores tanto desde la lista como pulsando directamente sobre las fichas en la cancha, con soporte completo entre jugadores de la misma posición.
+    - **Listado táctico a doble línea optimizado**:
+      - Fila 1: Botón de intercambio, avatar con borde del equipo (blanco/negro) y aro dorado en favoritos, selector de posición uniforme (52x24 dp), nombre y botón de edición de estadísticas individuales.
+      - Fila 2: Etiquetas de posiciones secundarias en contenedor gris y resumen de métricas registradas (`⚽`, `🅰️`, `🎯`, `🧤`).
   - Registro de notas y crónicas tácticas.
+- **Estadios**:
+  - Catálogo de recintos deportivos asociados a modalidades compatibles (Futsal, Fútbol 6, Fútbol 7).
+  - Sistema de estadios favoritos con priorización automática al inicio de la lista.
+  - Foto del campo y fecha de creación.
+  - Filtro dinámico por modalidad de fútbol.
 
 ### 2. 📋 **Pizarra (Alineaciones)**
 - Campo táctico interactivo para diseñar alineaciones ideales.
@@ -32,6 +44,7 @@ Permite gestionar la base de datos de la app dividida en dos subpestañas:
 - Selector de formación sugerida automática.
 - Visualización de dorsales, nombres y placas de posición elevadas para máxima legibilidad.
 - Filtro por posiciones principales o secundarias ("Ambas posiciones").
+- Intercambio directo entre jugadores manteniendo el equilibrio táctico.
 
 ### 3. 🎲 **Sorteos**
 - Generador de equipos equilibrados: modo **Equilibrado por posiciones** o modo **Aleatorio puro**.
@@ -39,13 +52,14 @@ Permite gestionar la base de datos de la app dividida en dos subpestañas:
 - **Pizarra interactiva tras el sorteo**:
   - Botón de **Alineación Sugerida** para colocar a los jugadores en su posición ideal automáticamente.
   - Posibilidad de cambiar la formación de cada equipo.
-  - **Intercambio táctico entre jugadores**: arrastra y suelta para permutar jugadores sin romper la formación.
+  - **Intercambio táctico entre jugadores**: selección y reubicación reactiva sin romper la formación.
 - Compartición gráfica del resultado como imagen en alta resolución lista para WhatsApp o redes sociales, reflejando fielmente cambios de formación y posiciones.
 
 ### 4. 📊 **Stats (Estadísticas)**
 - **Individual**:
   - Balance de resultados (victorias, empates, derrotas) con porcentaje de éxito coloreado dinámicamente mediante un **degradado de verde a rojo** según el rendimiento.
   - Filtros por modalidad y filtros temporales ampliados: Total, Temporadas (ej. 2026/27), Año natural, **Últimas 4 semanas**, **Últimos 3 meses** y rango de fechas personalizado.
+  - Contraste visual refinado con chips y selectores neutros para máxima legibilidad.
   - Gráficas de minutos totales y por semana, desglose de tipología de goles y promedios por encuentro.
 - **General**:
   - Ranking global de jugadores de la plantilla ordenado por partidos, victorias, empates, derrotas o minutos jugados.
@@ -66,14 +80,15 @@ Organizado en tres subpestañas especializadas:
   - Análisis de duplas y sinergias entre compañeros de equipo, con balance y porcentaje de victorias coloreado con degradado dinámico.
 - **H2H (Cara a Cara)**:
   - Historial directo frente a frente: estadísticas detalladas jugando juntos o como rivales.
+  - **Comparativa expandida**: Desglose minucioso de goles, asistencias, tiros al palo, goles fuera del área, goles de chilena, goles de tacón y goles encajados (como compañero y como rival, con valores a cero si no se han disputado partidos).
   - El usuario propio aparece como primera opción en el selector de jugador.
 
 ### 6. 👤 **Perfil**
 - Configuración de la ficha de jugador del usuario: nombre, posiciones principales y secundarias, y fotografía.
 - Sincronización transparente con la plantilla de jugadores identificada como `(Tú)`.
-- **Copia de seguridad en formato JSON**:
-  - **Exportar**: Genera un archivo `.json` completo con perfil, jugadores y partidos (compatible con Storage Access Framework y compartir directo).
-  - **Importar / Cargar**: Carga copias de seguridad existentes restaurando de forma íntegra toda la base de datos de la app.
+- **Copia de seguridad en formato JSON (v3)**:
+  - **Exportar**: Genera un archivo `.json` completo con perfil, jugadores, partidos (con paradas, formaciones mi equipo/rival y detalle posicional completo) y estadios (incluyendo favoritos y fechas).
+  - **Importar / Cargar**: Carga copias de seguridad existentes restaurando de forma íntegra toda la base de datos de la app sin pérdida de información.
 
 ---
 
@@ -84,6 +99,7 @@ Organizado en tres subpestañas especializadas:
 - **Codificación Semántica de Colores**:
   - Porcentajes de victoria representados mediante un degradado continuo desde verde (máximo éxito) hasta rojo (bajo rendimiento).
   - Compañeros identificados con tonos azules y el usuario propio resaltado en verde lima.
+  - Jugadores y estadios favoritos distinguidos con aro o borde dorado fino (`#FFD700`).
   - Partidos externos señalizados con distintivo gris neutro (*Slate*).
 
 ---
@@ -93,7 +109,7 @@ Organizado en tres subpestañas especializadas:
 - **Lenguaje:** Kotlin 2.0+
 - **UI:** Jetpack Compose con Material 3 y Navigation Compose.
 - **Inyección de Dependencias:** Dagger Hilt.
-- **Base de Datos Local:** Room Database con SQLite (versión 8 con migraciones automáticas).
+- **Base de Datos Local:** Room Database con SQLite (versión 15 con migraciones automáticas incrementales).
 - **Gestión Asíncrona:** Kotlin Coroutines, Flow, StateFlow.
 - **Renderizado Gráfico:** Jetpack Compose Canvas nativo y Android Graphics para exportación de alineaciones en mapa de bits.
 - **Almacenamiento:** Android Storage Access Framework para importación y exportación de backups JSON.

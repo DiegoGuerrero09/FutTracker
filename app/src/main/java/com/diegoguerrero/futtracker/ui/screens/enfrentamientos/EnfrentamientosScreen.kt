@@ -1262,31 +1262,29 @@ fun DialogoDetalleJugadorCruzado(
                             Text("${detalle.golesMarcadosComoCompanero}", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
 
-                        if (detalle.partidosComoCompanero > 0) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            TablaMetricasComparativas(
-                                targetNombre = nombreTarget,
-                                detalleNombre = nombreDetalle,
-                                golesTarget = detalle.golesTargetComoCompaneroInd,
-                                golesDetalle = detalle.golesComoCompaneroInd,
-                                asistenciasTarget = detalle.asistenciasTargetComoCompaneroInd,
-                                asistenciasDetalle = detalle.asistenciasComoCompaneroInd,
-                                palosTarget = detalle.tirosAlPaloTargetComoCompaneroInd,
-                                palosDetalle = detalle.tirosAlPaloComoCompaneroInd,
-                                fueraAreaTarget = detalle.fueraAreaTargetComoCompaneroInd,
-                                fueraAreaDetalle = detalle.fueraAreaComoCompaneroInd,
-                                chilenaTarget = detalle.chilenaTargetComoCompaneroInd,
-                                chilenaDetalle = detalle.chilenaComoCompaneroInd,
-                                taconTarget = detalle.taconTargetComoCompaneroInd,
-                                taconDetalle = detalle.taconComoCompaneroInd,
-                                haJugadoPorteroTarget = detalle.haJugadoPorteroTargetComoCompaneroInd,
-                                golesEncajadosTarget = detalle.golesEncajadosTargetComoCompaneroInd,
-                                haJugadoPorteroDetalle = detalle.haJugadoPorteroComoCompaneroInd,
-                                golesEncajadosDetalle = detalle.golesEncajadosComoCompaneroInd,
-                                paradasTarget = detalle.paradasTargetComoCompaneroInd,
-                                paradasDetalle = detalle.paradasComoCompaneroInd
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        TablaMetricasComparativas(
+                            targetNombre = nombreTarget,
+                            detalleNombre = nombreDetalle,
+                            golesTarget = detalle.golesTargetComoCompaneroInd,
+                            golesDetalle = detalle.golesComoCompaneroInd,
+                            asistenciasTarget = detalle.asistenciasTargetComoCompaneroInd,
+                            asistenciasDetalle = detalle.asistenciasComoCompaneroInd,
+                            palosTarget = detalle.tirosAlPaloTargetComoCompaneroInd,
+                            palosDetalle = detalle.tirosAlPaloComoCompaneroInd,
+                            fueraAreaTarget = detalle.fueraAreaTargetComoCompaneroInd,
+                            fueraAreaDetalle = detalle.fueraAreaComoCompaneroInd,
+                            chilenaTarget = detalle.chilenaTargetComoCompaneroInd,
+                            chilenaDetalle = detalle.chilenaComoCompaneroInd,
+                            taconTarget = detalle.taconTargetComoCompaneroInd,
+                            taconDetalle = detalle.taconComoCompaneroInd,
+                            haJugadoPorteroTarget = detalle.haJugadoPorteroTargetComoCompaneroInd,
+                            golesEncajadosTarget = detalle.golesEncajadosTargetComoCompaneroInd,
+                            haJugadoPorteroDetalle = detalle.haJugadoPorteroComoCompaneroInd,
+                            golesEncajadosDetalle = detalle.golesEncajadosComoCompaneroInd,
+                            paradasTarget = detalle.paradasTargetComoCompaneroInd,
+                            paradasDetalle = detalle.paradasComoCompaneroInd
+                        )
                     }
                 }
 
@@ -1357,31 +1355,29 @@ fun DialogoDetalleJugadorCruzado(
                             Text("${detalle.golesMarcadosComoRival}", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
 
-                        if (detalle.partidosComoRival > 0) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            TablaMetricasComparativas(
-                                targetNombre = nombreTarget,
-                                detalleNombre = nombreDetalle,
-                                golesTarget = detalle.golesTargetComoRivalInd,
-                                golesDetalle = detalle.golesComoRivalInd,
-                                asistenciasTarget = detalle.asistenciasTargetComoRivalInd,
-                                asistenciasDetalle = detalle.asistenciasComoRivalInd,
-                                palosTarget = detalle.tirosAlPaloTargetComoRivalInd,
-                                palosDetalle = detalle.tirosAlPaloComoRivalInd,
-                                fueraAreaTarget = detalle.fueraAreaTargetComoRivalInd,
-                                fueraAreaDetalle = detalle.fueraAreaComoRivalInd,
-                                chilenaTarget = detalle.chilenaTargetComoRivalInd,
-                                chilenaDetalle = detalle.chilenaComoRivalInd,
-                                taconTarget = detalle.taconTargetComoRivalInd,
-                                taconDetalle = detalle.taconComoRivalInd,
-                                haJugadoPorteroTarget = detalle.haJugadoPorteroTargetComoRivalInd,
-                                golesEncajadosTarget = detalle.golesEncajadosTargetComoRivalInd,
-                                haJugadoPorteroDetalle = detalle.haJugadoPorteroComoRivalInd,
-                                golesEncajadosDetalle = detalle.golesEncajadosComoRivalInd,
-                                paradasTarget = detalle.paradasTargetComoRivalInd,
-                                paradasDetalle = detalle.paradasComoRivalInd
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        TablaMetricasComparativas(
+                            targetNombre = nombreTarget,
+                            detalleNombre = nombreDetalle,
+                            golesTarget = detalle.golesTargetComoRivalInd,
+                            golesDetalle = detalle.golesComoRivalInd,
+                            asistenciasTarget = detalle.asistenciasTargetComoRivalInd,
+                            asistenciasDetalle = detalle.asistenciasComoRivalInd,
+                            palosTarget = detalle.tirosAlPaloTargetComoRivalInd,
+                            palosDetalle = detalle.tirosAlPaloComoRivalInd,
+                            fueraAreaTarget = detalle.fueraAreaTargetComoRivalInd,
+                            fueraAreaDetalle = detalle.fueraAreaComoRivalInd,
+                            chilenaTarget = detalle.chilenaTargetComoRivalInd,
+                            chilenaDetalle = detalle.chilenaComoRivalInd,
+                            taconTarget = detalle.taconTargetComoRivalInd,
+                            taconDetalle = detalle.taconComoRivalInd,
+                            haJugadoPorteroTarget = detalle.haJugadoPorteroTargetComoRivalInd,
+                            golesEncajadosTarget = detalle.golesEncajadosTargetComoRivalInd,
+                            haJugadoPorteroDetalle = detalle.haJugadoPorteroComoRivalInd,
+                            golesEncajadosDetalle = detalle.golesEncajadosComoRivalInd,
+                            paradasTarget = detalle.paradasTargetComoRivalInd,
+                            paradasDetalle = detalle.paradasComoRivalInd
+                        )
                     }
                 }
 
@@ -1469,24 +1465,11 @@ private fun TablaMetricasComparativas(
     FilaMetricaComparativa("🤸", "Chilena", "$chilenaTarget", "$chilenaDetalle")
     FilaMetricaComparativa("👟", "Tacón", "$taconTarget", "$taconDetalle")
 
-    val showEncajados = haJugadoPorteroTarget || haJugadoPorteroDetalle || golesEncajadosTarget > 0 || golesEncajadosDetalle > 0
-    if (showEncajados) {
-        FilaMetricaComparativa(
-            "🥅",
-            "Goles enc.",
-            if (haJugadoPorteroTarget || golesEncajadosTarget > 0) "$golesEncajadosTarget" else "-",
-            if (haJugadoPorteroDetalle || golesEncajadosDetalle > 0) "$golesEncajadosDetalle" else "-"
-        )
-    }
+    FilaMetricaComparativa("🥅", "Goles enc.", "$golesEncajadosTarget", "$golesEncajadosDetalle")
 
-    val showParadas = (haJugadoPorteroTarget && paradasTarget > 0) || (haJugadoPorteroDetalle && paradasDetalle > 0) || haJugadoPorteroTarget || haJugadoPorteroDetalle
+    val showParadas = haJugadoPorteroTarget || haJugadoPorteroDetalle || paradasTarget > 0 || paradasDetalle > 0
     if (showParadas) {
-        FilaMetricaComparativa(
-            "🧤",
-            "Paradas",
-            if (haJugadoPorteroTarget) "$paradasTarget" else "-",
-            if (haJugadoPorteroDetalle) "$paradasDetalle" else "-"
-        )
+        FilaMetricaComparativa("🧤", "Paradas", "$paradasTarget", "$paradasDetalle")
     }
 }
 

@@ -1,11 +1,20 @@
 package com.diegoguerrero.futtracker.domain.model
 
-enum class Posicion { POR, DFC, LI, LD, MC, EI, ED, DC }
+enum class Posicion(val nombreCompleto: String) {
+    POR("Portero"),
+    DFC("Defensa central"),
+    LI("Lateral izquierdo"),
+    LD("Lateral derecho"),
+    MC("Centrocampista"),
+    EI("Extremo izquierdo"),
+    ED("Extremo derecho"),
+    DC("Delantero centro")
+}
 
-enum class TipoFutbol(val nJugadoresCampo: Int) {
-    FUTSAL(5), // 4 de campo + 1 POR
-    FUT_6(6),  // 5 de campo + 1 POR
-    FUT_7(7)   // 6 de campo + 1 POR
+enum class TipoFutbol(val nJugadoresCampo: Int, val nombre: String) {
+    FUTSAL(5, "Futsal"), // 4 de campo + 1 POR
+    FUT_6(6, "Fútbol 6"),  // 5 de campo + 1 POR
+    FUT_7(7, "Fútbol 7")   // 6 de campo + 1 POR
 }
 
 data class Formacion(

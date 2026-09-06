@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Fondo Oscuro -->
+  <rect width="1024" height="1024" fill="#121212" />
+
+  <!-- Balón de Fútbol Minimalista (Centro X:512, Y:425) -->
+  <g fill="none" stroke="#C2FF04" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Circunferencia Exterior (Radio 250px) -->
+    <circle cx="512" cy="425" r="250" />
+
+    <!-- Pentágono Central Ampliado (Radio 125px) -->
+    <polygon points="
+      512,300 
+      631,386 
+      585,526 
+      439,526 
+      393,386" 
+      stroke-width="24" />
+
+    <!-- Líneas de Unión Recalculadas -->
+    <line x1="512" y1="300" x2="512" y2="175" />
+    <line x1="631" y1="386" x2="750" y2="348" />
+    <line x1="585" y1="526" x2="659" y2="627" />
+    <line x1="439" y1="526" x2="365" y2="627" />
+    <line x1="393" y1="386" x2="274" y2="348" />
+  </g>
+
+  <!-- Texto FUTTRACKER -->
+  <text x="512" y="795" 
+        fill="#C2FF04" 
+        font-family="'Montserrat', 'Inter', 'Roboto', sans-serif" 
+        font-size="92" 
+        font-weight="900" 
+        letter-spacing="4" 
+        text-anchor="middle">
+    FUTTRACKER
+  </text>
+</svg>

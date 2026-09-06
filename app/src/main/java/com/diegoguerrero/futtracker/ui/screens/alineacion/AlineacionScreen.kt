@@ -12,10 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SortByAlpha
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -276,8 +273,9 @@ fun AlineacionScreen(
 
         val listaAlineados = remember(alineacionMapaCampo) {
             alineacionMapaCampo?.entries
+                ?.filter { it.value != null }
                 ?.sortedWith(compareBy<Map.Entry<Pair<Posicion, Pair<Float, Float>>, Jugador?>> { it.key.first.ordinal }.thenBy { it.key.second.first })
-                ?.mapNotNull { entry -> entry.value?.let { entry.key.first to it } }
+                ?.map { entry -> JugadorAlineadoSlot(entry.key, entry.key.first, entry.value!!) }
                 ?: emptyList()
         }
 
@@ -302,12 +300,12 @@ fun AlineacionScreen(
                         alineacion = mapaAlineacion,
                         modifier = Modifier.fillMaxWidth(),
                         onJugadorIntercambiado = { key1, key2 ->
-                            val nuevoMapa = mapaAlineacion.toMutableMap()
-                            val jug1 = nuevoMapa[key1]
-                            val jug2 = nuevoMapa[key2]
-                            nuevoMapa[key1] = jug2
-                            nuevoMapa[key2] = jug1
-                            alineacionMapaCampo = nuevoMapa
+                            val actual = (alineacionMapaCampo ?: mapaAlineacion).toMutableMap()
+                            val jug1 = actual[key1]
+                            val jug2 = actual[key2]
+                            actual[key1] = jug2
+                            actual[key2] = jug1
+                            alineacionMapaCampo = actual
                         }
                     )
                 }
@@ -335,7 +333,7 @@ fun AlineacionScreen(
                                     text = if (jugadorSeleccionadoPizarraParaMover != null) {
                                         "Seleccionado: ${jugadorSeleccionadoPizarraParaMover?.nombreConTu()}. Toca otro para intercambiar."
                                     } else {
-                                        "Arrastra o toca jugadores para intercambiar posiciones"
+                                        "Toca o arrastra jugadores para intercambiar posiciones"
                                     },
                                     color = if (jugadorSeleccionadoPizarraParaMover != null) LimeVolt else Color.White,
                                     fontSize = 12.sp,
@@ -345,41 +343,45 @@ fun AlineacionScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            listaAlineados.forEachIndexed { index, (pos, jugador) ->
+                            listaAlineados.forEachIndexed { index, itemSlot ->
                                 ItemJugadorAlineado(
                                     index = index,
-                                    jugador = jugador,
-                                    posicion = pos,
-                                    esSeleccionado = jugadorSeleccionadoPizarraParaMover?.id == jugador.id,
+                                    jugador = itemSlot.jugador,
+                                    posicion = itemSlot.posicion,
+                                    esSeleccionado = jugadorSeleccionadoPizarraParaMover?.id == itemSlot.jugador.id,
                                     onDragVertical = { dragY ->
                                         val offsetItems = (dragY / 36.dp.toPx()).roundToInt()
                                         val targetIdx = (index + offsetItems).coerceIn(0, listaAlineados.lastIndex)
                                         if (targetIdx != index) {
-                                            val targetJugador = listaAlineados[targetIdx].second
-                                            val nuevoMapa = mapaAlineacion.toMutableMap()
-                                            val key1 = nuevoMapa.entries.firstOrNull { it.value?.id == jugador.id }?.key
-                                            val key2 = nuevoMapa.entries.firstOrNull { it.value?.id == targetJugador.id }?.key
-                                            if (key1 != null && key2 != null) {
-                                                nuevoMapa[key1] = targetJugador
-                                                nuevoMapa[key2] = jugador
-                                                alineacionMapaCampo = nuevoMapa
+                                            val targetSlot = listaAlineados[targetIdx]
+                                            val actual = (alineacionMapaCampo ?: mapaAlineacion).toMutableMap()
+                                            val key1 = itemSlot.slotKey
+                                            val key2 = targetSlot.slotKey
+                                            val jug1 = actual[key1]
+                                            val jug2 = actual[key2]
+                                            if (jug1 != null && jug2 != null) {
+                                                actual[key1] = jug2
+                                                actual[key2] = jug1
+                                                alineacionMapaCampo = actual
                                             }
                                         }
                                     },
                                     onClick = {
-                                        if (jugadorSeleccionadoPizarraParaMover == null) {
-                                            jugadorSeleccionadoPizarraParaMover = jugador
-                                        } else if (jugadorSeleccionadoPizarraParaMover?.id == jugador.id) {
+                                        val seleccionado = jugadorSeleccionadoPizarraParaMover
+                                        if (seleccionado == null) {
+                                            jugadorSeleccionadoPizarraParaMover = itemSlot.jugador
+                                        } else if (seleccionado.id == itemSlot.jugador.id) {
                                             jugadorSeleccionadoPizarraParaMover = null
                                         } else {
-                                            val seleccionado = jugadorSeleccionadoPizarraParaMover!!
-                                            val nuevoMapa = mapaAlineacion.toMutableMap()
-                                            val key1 = nuevoMapa.entries.firstOrNull { it.value?.id == seleccionado.id }?.key
-                                            val key2 = nuevoMapa.entries.firstOrNull { it.value?.id == jugador.id }?.key
+                                            val actual = (alineacionMapaCampo ?: mapaAlineacion).toMutableMap()
+                                            val key1 = actual.entries.firstOrNull { it.value?.id == seleccionado.id }?.key
+                                            val key2 = itemSlot.slotKey
                                             if (key1 != null && key2 != null) {
-                                                nuevoMapa[key1] = jugador
-                                                nuevoMapa[key2] = seleccionado
-                                                alineacionMapaCampo = nuevoMapa
+                                                val jug1 = actual[key1]
+                                                val jug2 = actual[key2]
+                                                actual[key1] = jug2
+                                                actual[key2] = jug1
+                                                alineacionMapaCampo = actual
                                             }
                                             jugadorSeleccionadoPizarraParaMover = null
                                         }
@@ -416,13 +418,20 @@ fun AlineacionScreen(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .border(1.dp, Color.Gray.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Buscar jugador...",
                                     color = TextSecondary,
@@ -602,7 +611,11 @@ fun AlineacionScreen(
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
                     border = BorderStroke(
                         width = 1.dp,
-                        color = if (isSelected) LimeVolt.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f)
+                        color = when {
+                            jugador.esFavorito -> Color(0xFFFFD700)
+                            isSelected -> LimeVolt.copy(alpha = 0.5f)
+                            else -> Color.White.copy(alpha = 0.08f)
+                        }
                     )
                 ) {
                     Row(
@@ -708,7 +721,14 @@ private fun ItemJugadorAlineado(
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = if (esSeleccionado) LimeVolt.copy(alpha = 0.28f) else DarkCard,
-        border = BorderStroke(if (esSeleccionado || isDragging) 1.5.dp else 1.dp, if (esSeleccionado || isDragging) LimeVolt else DarkCardBorder),
+        border = BorderStroke(
+            width = if (esSeleccionado || isDragging) 1.5.dp else 1.dp,
+            color = when {
+                esSeleccionado || isDragging -> LimeVolt
+                jugador.esFavorito -> Color(0xFFFFD700)
+                else -> DarkCardBorder
+            }
+        ),
         shadowElevation = if (isDragging) 6.dp else 0.dp
     ) {
         Row(
@@ -773,6 +793,24 @@ private fun ItemJugadorAlineado(
             )
             Spacer(modifier = Modifier.width(6.dp))
             BadgePosicion(label = posicion.name, esPrimaria = true)
+            Spacer(modifier = Modifier.width(4.dp))
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = if (esSeleccionado) Icons.Default.CheckCircle else Icons.Default.SwapVert,
+                    contentDescription = "Intercambiar",
+                    tint = if (esSeleccionado) LimeVolt else TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
+
+data class JugadorAlineadoSlot(
+    val slotKey: Pair<Posicion, Pair<Float, Float>>,
+    val posicion: Posicion,
+    val jugador: Jugador
+)

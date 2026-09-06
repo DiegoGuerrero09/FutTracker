@@ -75,7 +75,6 @@ fun SorteosScreen(
     var fechaHoraMillis by remember { mutableStateOf<Long?>(null) }
     var lugarSorteo by remember { mutableStateOf("") }
     var expandedEstadiosDropdown by remember { mutableStateOf(false) }
-    val estadiosOrdenados = remember(estadios) { estadios.sortedBy { it.nombre.lowercase() } }
 
     // Formaciones y mapas tácticos sugeridos tras sorteo
     var formacionSugeridaClaro by remember { mutableStateOf<Formacion?>(null) }
@@ -109,6 +108,19 @@ fun SorteosScreen(
             10 -> TipoFutbol.FUTSAL
             12 -> TipoFutbol.FUT_6
             else -> TipoFutbol.FUT_7
+        }
+    }
+
+    val estadiosOrdenados = remember(estadios, tipoFutbolActual) {
+        estadios.filter { tipoFutbolActual in it.modalidades }.sortedBy { it.nombre.lowercase() }
+    }
+
+    LaunchedEffect(tipoFutbolActual) {
+        if (lugarSorteo.isNotBlank()) {
+            val estadioActual = estadios.firstOrNull { it.nombre.equals(lugarSorteo, ignoreCase = true) }
+            if (estadioActual != null && tipoFutbolActual !in estadioActual.modalidades) {
+                lugarSorteo = ""
+            }
         }
     }
 
@@ -808,7 +820,7 @@ fun SorteosScreen(
                             ) {
                                 if (estadiosOrdenados.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text("No hay estadios creados (añade uno en Datos)", color = TextSecondary, fontSize = 13.sp) },
+                                        text = { Text(if (estadios.isEmpty()) "No hay estadios creados (añade uno en Datos)" else "No hay estadios para ${tipoFutbolActual.nombre}", color = TextSecondary, fontSize = 13.sp) },
                                         onClick = { expandedEstadiosDropdown = false }
                                     )
                                 } else {

@@ -3,10 +3,12 @@ package com.diegoguerrero.futtracker.ui.screens.rankings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -281,6 +283,10 @@ fun RankingsScreen(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         val opciones = listOf(
                             CriterioOrdenGeneral.GOLES to "⚽ Goles",
+                            CriterioOrdenGeneral.GOLES_DIESTRA to "🦵 Diestra",
+                            CriterioOrdenGeneral.GOLES_ZURDA to "🦶 Zurda",
+                            CriterioOrdenGeneral.GOLES_CABEZA to "🗣️ Cabeza",
+                            CriterioOrdenGeneral.GOLES_OTRO to "✨ Otros",
                             CriterioOrdenGeneral.ASISTENCIAS to "🅰️ Asistencias",
                             CriterioOrdenGeneral.TIROS_AL_PALO to "🎯 Palos",
                             CriterioOrdenGeneral.FUERA_AREA to "🚀 Fuera área",
@@ -423,6 +429,106 @@ fun CardJugadorGeneral(
                                 )
                                 Text(
                                     text = if (porPartido) "Goles/p" else "Goles",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.GOLES_DIESTRA -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesDiestraPorPartido) else item.golesDiestra.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🦵",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Diestra/p" else "Diestra",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.GOLES_ZURDA -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesZurdaPorPartido) else item.golesZurda.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🦶",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Zurda/p" else "Zurda",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.GOLES_CABEZA -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesCabezaPorPartido) else item.golesCabeza.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🗣️",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Cabeza/p" else "Cabeza",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.GOLES_OTRO -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesOtroPorPartido) else item.golesOtro.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr ✨",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Otros/p" else "Otros",
                                     color = TextSecondary,
                                     fontSize = 9.sp
                                 )
@@ -678,84 +784,101 @@ fun CardJugadorGeneral(
             }
 
             // Fila adicional de rendimiento individual si tiene datos
-            val tieneStatsRendimiento = item.goles > 0 || item.asistencias > 0 || item.tirosAlPalo > 0 || item.partidosPortero > 0
+            val tieneStatsRendimiento = item.goles > 0 || item.asistencias > 0 || item.tirosAlPalo > 0 ||
+                item.golesFueraArea > 0 || item.golesChilena > 0 || item.golesTacon > 0 ||
+                item.golesDiestra > 0 || item.golesZurda > 0 || item.golesCabeza > 0 || item.golesOtro > 0 ||
+                item.partidosPortero > 0 || item.golesEncajadosTotal > 0 || item.paradasTotal > 0
             if (tieneStatsRendimiento) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (item.goles > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "⚽",
-                                valor = if (porPartido) "${item.goles} (${"%.2f".format(java.util.Locale.US, item.golesPorPartido)}/p)" else "${item.goles}",
-                                color = LimeVolt
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "⚽",
+                            valor = if (porPartido) "${item.goles} (${"%.2f".format(java.util.Locale.US, item.golesPorPartido)}/p)" else "${item.goles}",
+                            color = LimeVolt
+                        )
+                    }
+                    if (item.golesDiestra > 0) {
+                        StatGeneralPill(
+                            label = "🦵",
+                            valor = if (porPartido) "${item.golesDiestra} (${"%.2f".format(java.util.Locale.US, item.golesDiestraPorPartido)}/p)" else "${item.golesDiestra}",
+                            color = LimeVolt
+                        )
+                    }
+                    if (item.golesZurda > 0) {
+                        StatGeneralPill(
+                            label = "🦶",
+                            valor = if (porPartido) "${item.golesZurda} (${"%.2f".format(java.util.Locale.US, item.golesZurdaPorPartido)}/p)" else "${item.golesZurda}",
+                            color = LimeVolt
+                        )
+                    }
+                    if (item.golesCabeza > 0) {
+                        StatGeneralPill(
+                            label = "🗣️",
+                            valor = if (porPartido) "${item.golesCabeza} (${"%.2f".format(java.util.Locale.US, item.golesCabezaPorPartido)}/p)" else "${item.golesCabeza}",
+                            color = LimeVolt
+                        )
+                    }
+                    if (item.golesOtro > 0) {
+                        StatGeneralPill(
+                            label = "✨",
+                            valor = if (porPartido) "${item.golesOtro} (${"%.2f".format(java.util.Locale.US, item.golesOtroPorPartido)}/p)" else "${item.golesOtro}",
+                            color = LimeVolt
+                        )
                     }
                     if (item.asistencias > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "🅰️",
-                                valor = if (porPartido) "${item.asistencias} (${"%.2f".format(java.util.Locale.US, item.asistenciasPorPartido)}/p)" else "${item.asistencias}",
-                                color = BlueCompanero
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "🅰️",
+                            valor = if (porPartido) "${item.asistencias} (${"%.2f".format(java.util.Locale.US, item.asistenciasPorPartido)}/p)" else "${item.asistencias}",
+                            color = BlueCompanero
+                        )
                     }
                     if (item.tirosAlPalo > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "🎯",
-                                valor = if (porPartido) "${item.tirosAlPalo} (${"%.2f".format(java.util.Locale.US, item.tirosAlPaloPorPartido)}/p)" else "${item.tirosAlPalo}",
-                                color = OrangeDraw
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "🎯",
+                            valor = if (porPartido) "${item.tirosAlPalo} (${"%.2f".format(java.util.Locale.US, item.tirosAlPaloPorPartido)}/p)" else "${item.tirosAlPalo}",
+                            color = OrangeDraw
+                        )
                     }
                     if (item.golesFueraArea > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "🚀",
-                                valor = "${item.golesFueraArea}",
-                                color = LimeVolt
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "🚀",
+                            valor = "${item.golesFueraArea}",
+                            color = LimeVolt
+                        )
                     }
                     if (item.golesChilena > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "🤸",
-                                valor = "${item.golesChilena}",
-                                color = LimeVolt
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "🤸",
+                            valor = "${item.golesChilena}",
+                            color = LimeVolt
+                        )
                     }
                     if (item.golesTacon > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "👟",
-                                valor = "${item.golesTacon}",
-                                color = LimeVolt
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "👟",
+                            valor = "${item.golesTacon}",
+                            color = LimeVolt
+                        )
                     }
                     if (item.partidosPortero > 0 || item.golesEncajadosTotal > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "🥅",
-                                valor = if (porPartido) "${item.golesEncajadosTotal} (${"%.2f".format(java.util.Locale.US, item.golesEncajadosPorPartido)}/p)" else "${item.golesEncajadosTotal}",
-                                color = RedLoss
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "🥅",
+                            valor = if (porPartido) "${item.golesEncajadosTotal} (${"%.2f".format(java.util.Locale.US, item.golesEncajadosPorPartido)}/p)" else "${item.golesEncajadosTotal}",
+                            color = RedLoss
+                        )
                     }
                     if (item.paradasTotal > 0) {
-                        item {
-                            StatGeneralPill(
-                                label = "🧤",
-                                valor = if (porPartido) "${item.paradasTotal} (${"%.2f".format(java.util.Locale.US, item.paradasPorPartido)}/p)" else "${item.paradasTotal}",
-                                color = LimeVolt
-                            )
-                        }
+                        StatGeneralPill(
+                            label = "🧤",
+                            valor = if (porPartido) "${item.paradasTotal} (${"%.2f".format(java.util.Locale.US, item.paradasPorPartido)}/p)" else "${item.paradasTotal}",
+                            color = LimeVolt
+                        )
                     }
                 }
             }

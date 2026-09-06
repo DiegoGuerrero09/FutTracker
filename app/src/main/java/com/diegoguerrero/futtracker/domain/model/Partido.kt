@@ -73,6 +73,8 @@ data class Partido(
     val fotoUri: String? = null,
     val equipoJugado: EquipoColor? = null,
     val estadioId: Long? = null,
+    val formacionMiEquipo: String? = null,
+    val formacionRival: String? = null,
     val jugadoresDetalle: List<EstadisticasJugadorPartido> = emptyList()
 ) {
     val resultado: String

@@ -2,6 +2,7 @@ package com.diegoguerrero.futtracker.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -190,12 +191,22 @@ fun CampoFutbol(
                     verticalArrangement = Arrangement.Top
                 ) {
                     val avatarTamano = 38.dp
-                    val fichaBorder = if (jugador?.esFavorito == true) Color(0xFFFFD700) else (colorBordeFicha ?: if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f))
-                    val fichaBordeAncho = if (jugador?.esFavorito == true) 1.dp else 1.5.dp
+                    val fichaBorder = colorBordeFicha ?: if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f)
+                    val fichaBordeAncho = 1.5.dp
+                    val esFav = jugador?.esFavorito == true
 
                     Box(
-                        modifier = Modifier.size(avatarTamano + 4.dp)
+                        modifier = Modifier.size(avatarTamano + 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
+                        if (esFav) {
+                            Box(
+                                modifier = Modifier
+                                    .size(avatarTamano + 3.dp)
+                                    .border(1.dp, Color(0xFFFFD700), CircleShape)
+                            )
+                        }
+
                         JugadorAvatar(
                             fotoUri = jugador?.fotoUri,
                             nombre = jugador?.nombre ?: posicionEnum.name,
@@ -205,8 +216,8 @@ fun CampoFutbol(
                             modifier = Modifier.align(Alignment.Center)
                         )
 
-                        // Placa pequeña cuadrada con tamaño uniforme (referencia DFC) y texto subido
-                        val badgeColor = if (jugador != null) (colorBordeFicha ?: fichaBorder) else Color.Black.copy(alpha = 0.8f)
+                        // Placa pequeña cuadrada con tamaño uniforme (referencia DFC) y texto centrado
+                        val badgeColor = if (jugador != null) (colorBordeFicha ?: LimeVolt) else Color.Black.copy(alpha = 0.8f)
                         Surface(
                             color = badgeColor,
                             shape = RoundedCornerShape(3.dp),
@@ -225,7 +236,7 @@ fun CampoFutbol(
                                     style = androidx.compose.ui.text.TextStyle(
                                         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                                     ),
-                                    modifier = Modifier.offset(y = (-1.5).dp)
+                                    modifier = Modifier.offset(y = 0.dp)
                                 )
                             }
                         }

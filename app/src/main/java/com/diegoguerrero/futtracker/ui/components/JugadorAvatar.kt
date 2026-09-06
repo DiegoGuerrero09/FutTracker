@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +49,7 @@ fun JugadorAvatar(
     bordeColor: Color = Color.Transparent,
     bordeAncho: Dp = 0.dp,
     permitirZoom: Boolean = false,
+    esPorDefecto: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     var mostrarZoom by remember { mutableStateOf(false) }
@@ -94,17 +98,27 @@ fun JugadorAvatar(
             contentScale = ContentScale.Crop
         )
     } else {
+        val esDefecto = esPorDefecto || nombre.trim().equals("Jugador", ignoreCase = true)
         Box(
             modifier = modBorde
                 .background(LimeVolt),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = obtenerIniciales(nombre),
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                fontSize = fontSize
-            )
+            if (esDefecto) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Jugador por defecto",
+                    tint = Color.Black,
+                    modifier = Modifier.size(tamano * 0.65f)
+                )
+            } else {
+                Text(
+                    text = obtenerIniciales(nombre),
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = fontSize
+                )
+            }
         }
     }
 

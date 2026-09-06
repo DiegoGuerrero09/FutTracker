@@ -102,7 +102,7 @@ class PerfilViewModel @Inject constructor(
         val estadios = estadioRepository.obtenerEstadios().first()
 
         val root = JSONObject()
-        root.put("version", 2)
+        root.put("version", 3)
         root.put("app", "FutTracker")
         root.put("fechaExportacion", System.currentTimeMillis())
 
@@ -152,6 +152,7 @@ class PerfilViewModel @Inject constructor(
                 put("goles", part.goles)
                 put("asistencias", part.asistencias)
                 put("tirosAlPalo", part.tirosAlPalo)
+                put("paradas", part.paradas)
                 put("golesFueraArea", part.golesFueraArea)
                 put("notas", part.notas)
                 put("golesZurda", part.golesZurda)
@@ -160,9 +161,37 @@ class PerfilViewModel @Inject constructor(
                 put("golesOtro", part.golesOtro)
                 put("golesChilena", part.golesChilena)
                 put("golesTacon", part.golesTacon)
+                part.formacionMiEquipo?.let { put("formacionMiEquipo", it) }
+                part.formacionRival?.let { put("formacionRival", it) }
                 put("jugadoresMiEquipo", JSONArray(part.jugadoresMiEquipo))
                 put("jugadoresEquipoRival", JSONArray(part.jugadoresEquipoRival))
                 put("jugadoresIds", JSONArray(part.jugadoresIds))
+
+                val detArr = JSONArray()
+                part.jugadoresDetalle.forEach { det ->
+                    val dObj = JSONObject().apply {
+                        put("jugadorId", det.jugadorId)
+                        put("esMiEquipo", det.esMiEquipo)
+                        put("posicionPrincipal", det.posicionPrincipal.name)
+                        put("posicionesSecundarias", JSONArray(det.posicionesSecundarias.map { it.name }))
+                        put("statsRegistradas", det.statsRegistradas)
+                        put("goles", det.goles)
+                        put("asistencias", det.asistencias)
+                        put("tirosAlPalo", det.tirosAlPalo)
+                        put("paradas", det.paradas)
+                        put("golesDiestra", det.golesDiestra)
+                        put("golesZurda", det.golesZurda)
+                        put("golesCabeza", det.golesCabeza)
+                        put("golesOtro", det.golesOtro)
+                        put("golesChilena", det.golesChilena)
+                        put("golesTacon", det.golesTacon)
+                        put("golesFueraArea", det.golesFueraArea)
+                        det.posX?.let { put("posX", it.toDouble()) }
+                        det.posY?.let { put("posY", it.toDouble()) }
+                    }
+                    detArr.put(dObj)
+                }
+                put("jugadoresDetalle", detArr)
             }
             partidosArr.put(pObj)
         }
@@ -175,6 +204,8 @@ class PerfilViewModel @Inject constructor(
                 put("nombre", est.nombre)
                 put("modalidades", JSONArray(est.modalidades.map { it.name }))
                 est.fotoUri?.let { put("fotoUri", it) }
+                put("esFavorito", est.esFavorito)
+                put("fechaCreacion", est.fechaCreacion)
             }
             estadiosArr.put(eObj)
         }
@@ -287,6 +318,7 @@ class PerfilViewModel @Inject constructor(
                 val goles = pObj.optInt("goles", 0)
                 val asist = pObj.optInt("asistencias", 0)
                 val palos = pObj.optInt("tirosAlPalo", 0)
+                val paradas = pObj.optInt("paradas", 0)
                 val fuera = pObj.optInt("golesFueraArea", 0)
                 val notas = pObj.optString("notas", "")
                 val zurda = pObj.optInt("golesZurda", 0)
@@ -295,6 +327,52 @@ class PerfilViewModel @Inject constructor(
                 val otro = pObj.optInt("golesOtro", 0)
                 val chilena = pObj.optInt("golesChilena", 0)
                 val tacon = pObj.optInt("golesTacon", 0)
+                val formacionMiEquipo = if (pObj.has("formacionMiEquipo") && !pObj.isNull("formacionMiEquipo")) pObj.getString("formacionMiEquipo") else null
+                val formacionRival = if (pObj.has("formacionRival") && !pObj.isNull("formacionRival")) pObj.getString("formacionRival") else null
+
+                val jugadoresDetalle = mutableListOf<com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorPartido>()
+                val jdArr = pObj.optJSONArray("jugadoresDetalle")
+                if (jdArr != null) {
+                    for (k in 0 until jdArr.length()) {
+                        val dObj = jdArr.getJSONObject(k)
+                        val jId = dObj.optString("jugadorId", "")
+                        if (jId.isNotBlank()) {
+                            val posPrincStr = dObj.optString("posicionPrincipal", Posicion.DC.name)
+                            val posPrinc = runCatching { Posicion.valueOf(posPrincStr) }.getOrDefault(Posicion.DC)
+                            val secSet = mutableSetOf<Posicion>()
+                            val sArr = dObj.optJSONArray("posicionesSecundarias")
+                            if (sArr != null) {
+                                for (m in 0 until sArr.length()) {
+                                    runCatching { Posicion.valueOf(sArr.getString(m)) }.getOrNull()?.let { secSet.add(it) }
+                                }
+                            }
+                            val pX = if (dObj.has("posX") && !dObj.isNull("posX")) dObj.getDouble("posX").toFloat() else 0.5f
+                            val pY = if (dObj.has("posY") && !dObj.isNull("posY")) dObj.getDouble("posY").toFloat() else 0.5f
+                            jugadoresDetalle.add(
+                                com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorPartido(
+                                    jugadorId = jId,
+                                    esMiEquipo = dObj.optBoolean("esMiEquipo", true),
+                                    posicionPrincipal = posPrinc,
+                                    posicionesSecundarias = secSet,
+                                    statsRegistradas = dObj.optBoolean("statsRegistradas", false),
+                                    goles = dObj.optInt("goles", 0),
+                                    asistencias = dObj.optInt("asistencias", 0),
+                                    tirosAlPalo = dObj.optInt("tirosAlPalo", 0),
+                                    paradas = dObj.optInt("paradas", 0),
+                                    golesDiestra = dObj.optInt("golesDiestra", 0),
+                                    golesZurda = dObj.optInt("golesZurda", 0),
+                                    golesCabeza = dObj.optInt("golesCabeza", 0),
+                                    golesOtro = dObj.optInt("golesOtro", 0),
+                                    golesChilena = dObj.optInt("golesChilena", 0),
+                                    golesTacon = dObj.optInt("golesTacon", 0),
+                                    golesFueraArea = dObj.optInt("golesFueraArea", 0),
+                                    posX = pX,
+                                    posY = pY
+                                )
+                            )
+                        }
+                    }
+                }
 
                 val miEq = mutableListOf<String>()
                 val miEqArr = pObj.optJSONArray("jugadoresMiEquipo")
@@ -338,6 +416,7 @@ class PerfilViewModel @Inject constructor(
                     goles = goles,
                     asistencias = asist,
                     tirosAlPalo = palos,
+                    paradas = paradas,
                     golesFueraArea = fuera,
                     notas = notas,
                     golesZurda = zurda,
@@ -354,7 +433,10 @@ class PerfilViewModel @Inject constructor(
                     clima = clima,
                     fotoUri = fotoUri,
                     equipoJugado = eqColor,
-                    estadioId = estadioId
+                    estadioId = estadioId,
+                    formacionMiEquipo = formacionMiEquipo,
+                    formacionRival = formacionRival,
+                    jugadoresDetalle = jugadoresDetalle
                 )
                 partidoRepository.insertarPartido(partido)
                 countPartidos++
@@ -376,10 +458,14 @@ class PerfilViewModel @Inject constructor(
                         }
                     }
                     val fotoUri = if (eObj.has("fotoUri") && !eObj.isNull("fotoUri")) eObj.getString("fotoUri") else null
+                    val esFavorito = eObj.optBoolean("esFavorito", false)
+                    val fechaCreacion = eObj.optLong("fechaCreacion", System.currentTimeMillis())
                     val estadio = Estadio(
                         nombre = nombre,
                         modalidades = modalidades.ifEmpty { setOf(TipoFutbol.FUTSAL) },
-                        fotoUri = fotoUri
+                        fotoUri = fotoUri,
+                        esFavorito = esFavorito,
+                        fechaCreacion = fechaCreacion
                     )
                     estadioRepository.insertarEstadio(estadio)
                 }

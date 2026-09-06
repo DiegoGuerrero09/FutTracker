@@ -244,7 +244,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt
                                 )
                             )
@@ -284,7 +285,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt,
                                     selectedLeadingIconColor = LimeVolt
                                 )
@@ -325,7 +327,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt,
                                     selectedLeadingIconColor = LimeVolt
                                 )
@@ -343,7 +346,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt
                                 )
                             )
@@ -363,7 +367,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt
                                 )
                             )
@@ -415,7 +420,8 @@ fun EstadisticasScreen(
                                         selectedBorderColor = LimeVolt
                                     ),
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                        containerColor = DarkCard,
+                                        selectedContainerColor = Color(0xFF222634),
                                         selectedLabelColor = LimeVolt
                                     )
                                 )
@@ -460,7 +466,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt
                                 )
                             )
@@ -516,7 +523,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt
                                 ),
                                 modifier = Modifier.weight(1f)
@@ -560,7 +568,8 @@ fun EstadisticasScreen(
                                     selectedBorderColor = LimeVolt
                                 ),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                    containerColor = DarkCard,
+                                    selectedContainerColor = Color(0xFF222634),
                                     selectedLabelColor = LimeVolt
                                 )
                             )
@@ -587,7 +596,8 @@ fun EstadisticasScreen(
                                             selectedBorderColor = LimeVolt
                                         ),
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                            containerColor = DarkCard,
+                                            selectedContainerColor = Color(0xFF222634),
                                             selectedLabelColor = LimeVolt
                                         )
                                     )
@@ -609,7 +619,8 @@ fun EstadisticasScreen(
                                             selectedBorderColor = LimeVolt
                                         ),
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = LimeVolt.copy(alpha = 0.22f),
+                                            containerColor = DarkCard,
+                                            selectedContainerColor = Color(0xFF222634),
                                             selectedLabelColor = LimeVolt
                                         )
                                     )
@@ -1092,9 +1103,16 @@ fun EstadisticasScreen(
                                                 fontSize = 11.sp
                                             )
                                         },
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = seleccionado,
+                                            borderColor = DarkCardBorder,
+                                            selectedBorderColor = LimeVolt
+                                        ),
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = LimeVolt,
-                                            selectedLabelColor = Color.Black
+                                            containerColor = DarkCard,
+                                            selectedContainerColor = Color(0xFF222634),
+                                            selectedLabelColor = LimeVolt
                                         )
                                     )
                                 }
@@ -1109,9 +1127,16 @@ fun EstadisticasScreen(
                                                 fontSize = 11.sp
                                             )
                                         },
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = seleccionado,
+                                            borderColor = DarkCardBorder,
+                                            selectedBorderColor = LimeVolt
+                                        ),
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = LimeVolt,
-                                            selectedLabelColor = Color.Black
+                                            containerColor = DarkCard,
+                                            selectedContainerColor = Color(0xFF222634),
+                                            selectedLabelColor = LimeVolt
                                         )
                                     )
                                 }
@@ -1252,9 +1277,16 @@ fun EstadisticasScreen(
                                                 fontSize = 11.sp
                                             )
                                         },
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = seleccionado,
+                                            borderColor = DarkCardBorder,
+                                            selectedBorderColor = LimeVolt
+                                        ),
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = LimeVolt,
-                                            selectedLabelColor = Color.Black
+                                            containerColor = DarkCard,
+                                            selectedContainerColor = Color(0xFF222634),
+                                            selectedLabelColor = LimeVolt
                                         )
                                     )
                                 }
@@ -1284,9 +1316,16 @@ fun EstadisticasScreen(
                                                 fontSize = 11.5.sp
                                             )
                                         },
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = seleccionado,
+                                            borderColor = DarkCardBorder,
+                                            selectedBorderColor = LimeVolt
+                                        ),
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = LimeVolt,
-                                            selectedLabelColor = Color.Black
+                                            containerColor = DarkCard,
+                                            selectedContainerColor = Color(0xFF222634),
+                                            selectedLabelColor = LimeVolt
                                         ),
                                         modifier = Modifier.fillMaxWidth()
                                     )

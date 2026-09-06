@@ -40,6 +40,8 @@ data class PartidoEntity(
     val fotoUri: String? = null,
     val equipoJugado: String? = null,
     val estadioId: Long? = null,
+    val formacionMiEquipo: String? = null,
+    val formacionRival: String? = null,
     val jugadoresDetalleJson: String = ""
 ) {
     fun toDomain(): Partido {
@@ -97,6 +99,8 @@ data class PartidoEntity(
             fotoUri = fotoUri,
             equipoJugado = equipoEnum,
             estadioId = estadioId,
+            formacionMiEquipo = formacionMiEquipo,
+            formacionRival = formacionRival,
             jugadoresDetalle = deserializarJugadoresDetalle(jugadoresDetalleJson)
         )
     }
@@ -138,6 +142,8 @@ fun Partido.toEntity(): PartidoEntity {
         fotoUri = fotoUri,
         equipoJugado = equipoJugado?.name,
         estadioId = estadioId,
+        formacionMiEquipo = formacionMiEquipo,
+        formacionRival = formacionRival,
         jugadoresDetalleJson = serializarJugadoresDetalle(jugadoresDetalle)
     )
 }
