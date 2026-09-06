@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import com.diegoguerrero.futtracker.ui.theme.DarkBackground
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
 import com.diegoguerrero.futtracker.ui.theme.DarkCardBorder
 import com.diegoguerrero.futtracker.ui.theme.LimeVolt
+import com.diegoguerrero.futtracker.ui.theme.LimeVoltSolid
 import com.diegoguerrero.futtracker.ui.theme.TextSecondary
 import java.io.File
 
@@ -87,7 +89,7 @@ fun EstadiosScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { mostrarDialogoCrear = true },
-                containerColor = LimeVolt,
+                containerColor = LimeVoltSolid,
                 contentColor = Color.Black
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir estadio")
@@ -105,73 +107,46 @@ fun EstadiosScreen(
             OutlinedTextField(
                 value = busqueda,
                 onValueChange = { busqueda = it },
-                placeholder = { Text("Buscar estadio...", fontSize = 13.sp, color = TextSecondary) },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(20.dp))
-                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Buscar por nombre...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
                 trailingIcon = {
                     if (busqueda.isNotEmpty()) {
-                        IconButton(onClick = { busqueda = "" }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        IconButton(onClick = { busqueda = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar")
                         }
                     }
                 },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = LimeVolt,
-                    unfocusedBorderColor = DarkCardBorder,
-                    focusedContainerColor = DarkCard,
-                    unfocusedContainerColor = DarkCard,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                shape = MaterialTheme.shapes.medium
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Fila 1: Ordenar y Favoritos
+            // Fila 1: Ordenar y Favoritos (Favoritos primero, luego Nombre, luego Fecha)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                contentPadding = PaddingValues(vertical = 2.dp)
             ) {
                 // Filtro Favoritos
                 item {
                     FilterChip(
                         selected = filtroSoloFavoritos,
                         onClick = { filtroSoloFavoritos = !filtroSoloFavoritos },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFFFD700).copy(alpha = 0.2f),
-                            selectedLabelColor = Color(0xFFFFD700),
-                            containerColor = Color.Transparent,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = filtroSoloFavoritos,
-                            borderColor = DarkCardBorder,
-                            selectedBorderColor = Color(0xFFFFD700)
-                        ),
+                        label = { Text("Favoritos", fontSize = 12.sp) },
                         leadingIcon = {
                             Icon(
-                                imageVector = if (filtroSoloFavoritos) Icons.Default.Star else Icons.Default.StarBorder,
+                                imageVector = if (filtroSoloFavoritos) Icons.Default.Star else Icons.Outlined.StarOutline,
                                 contentDescription = null,
-                                tint = if (filtroSoloFavoritos) Color(0xFFFFD700) else TextSecondary,
+                                tint = if (filtroSoloFavoritos) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(16.dp)
                             )
-                        },
-                        label = { Text("Favoritos", fontSize = 11.sp) }
+                        }
                     )
                 }
 
                 // Orden por Nombre
                 item {
-                    val labelNombre = when (ordenNombreAsc) {
-                        true -> "Nombre (A-Z) ↑"
-                        false -> "Nombre (Z-A) ↓"
-                        null -> "Nombre"
-                    }
                     FilterChip(
                         selected = ordenNombreAsc != null,
                         onClick = {
@@ -182,37 +157,29 @@ fun EstadiosScreen(
                                 false -> null
                             }
                         },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = Color.Transparent,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = ordenNombreAsc != null,
-                            borderColor = DarkCardBorder,
-                            selectedBorderColor = LimeVolt
-                        ),
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.SortByAlpha,
-                                contentDescription = null,
-                                tint = if (ordenNombreAsc != null) LimeVolt else TextSecondary,
+                                contentDescription = "Ordenar por nombre",
+                                tint = if (ordenNombreAsc != null) LimeVolt else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
-                        label = { Text(labelNombre, fontSize = 11.sp) }
+                        label = {
+                            Text(
+                                text = when (ordenNombreAsc) {
+                                    true -> "Nombre: A-Z"
+                                    false -> "Nombre: Z-A"
+                                    null -> "Nombre"
+                                },
+                                fontSize = 12.sp
+                            )
+                        }
                     )
                 }
 
                 // Orden por Fecha
                 item {
-                    val labelFecha = when (ordenFechaDesc) {
-                        true -> "Recientes ↓"
-                        false -> "Antiguos ↑"
-                        null -> "Fecha añadido"
-                    }
                     FilterChip(
                         selected = ordenFechaDesc != null,
                         onClick = {
@@ -223,27 +190,24 @@ fun EstadiosScreen(
                                 false -> null
                             }
                         },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = Color.Transparent,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = ordenFechaDesc != null,
-                            borderColor = DarkCardBorder,
-                            selectedBorderColor = LimeVolt
-                        ),
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.DateRange,
-                                contentDescription = null,
-                                tint = if (ordenFechaDesc != null) LimeVolt else TextSecondary,
+                                contentDescription = "Ordenar por fecha",
+                                tint = if (ordenFechaDesc != null) LimeVolt else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
-                        label = { Text(labelFecha, fontSize = 11.sp) }
+                        label = {
+                            Text(
+                                text = when (ordenFechaDesc) {
+                                    true -> "Añadido recientemente"
+                                    false -> "Más antiguos primero"
+                                    null -> "Fecha añadido"
+                                },
+                                fontSize = 12.sp
+                            )
+                        }
                     )
                 }
             }
@@ -253,25 +217,13 @@ fun EstadiosScreen(
             // Fila 2: Modalidad
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                contentPadding = PaddingValues(vertical = 2.dp)
             ) {
                 item {
                     FilterChip(
                         selected = modalidadFiltro == null,
                         onClick = { modalidadFiltro = null },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = Color.Transparent,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = modalidadFiltro == null,
-                            borderColor = DarkCardBorder,
-                            selectedBorderColor = LimeVolt
-                        ),
-                        label = { Text("Todas", fontSize = 11.sp) }
+                        label = { Text("Todas", fontSize = 12.sp) }
                     )
                 }
 
@@ -284,20 +236,10 @@ fun EstadiosScreen(
                     }
                     FilterChip(
                         selected = sel,
-                        onClick = { modalidadFiltro = if (sel) null else mod },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = LimeVolt.copy(alpha = 0.2f),
-                            selectedLabelColor = LimeVolt,
-                            containerColor = Color.Transparent,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = sel,
-                            borderColor = DarkCardBorder,
-                            selectedBorderColor = LimeVolt
-                        ),
-                        label = { Text(label, fontSize = 11.sp) }
+                        onClick = {
+                            modalidadFiltro = if (sel) null else mod
+                        },
+                        label = { Text(label, fontSize = 12.sp) }
                     )
                 }
             }
@@ -417,7 +359,7 @@ fun EstadioCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(0.8.dp, if (estadio.esFavorito) Color(0xFFFFD700).copy(alpha = 0.5f) else DarkCardBorder)
+        border = BorderStroke(if (estadio.esFavorito) 1.dp else 0.8.dp, if (estadio.esFavorito) Color(0xFFFFD700).copy(alpha = 0.6f) else DarkCardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -457,15 +399,23 @@ fun EstadioCard(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .align(Alignment.CenterVertically),
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = estadio.nombre,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     color = Color.White
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Spacer(modifier = Modifier.height(4.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     items(estadio.modalidades.toList()) { mod ->
                         val label = when (mod) {
                             TipoFutbol.FUTSAL -> "Futsal"
@@ -491,7 +441,7 @@ fun EstadioCard(
 
             IconButton(onClick = onToggleFavorito, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    imageVector = if (estadio.esFavorito) Icons.Default.Star else Icons.Default.StarBorder,
+                    imageVector = if (estadio.esFavorito) Icons.Default.Star else Icons.Outlined.StarOutline,
                     contentDescription = "Favorito",
                     tint = if (estadio.esFavorito) Color(0xFFFFD700) else TextSecondary,
                     modifier = Modifier.size(20.dp)
@@ -577,61 +527,66 @@ fun DialogoEstadio(
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(DarkBackground)
-                            .clickable { photoPickerLauncher.launch("image/*") },
+                        modifier = Modifier.size(80.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (fotoValida) {
-                            ImagenLocal(
-                                fotoUri = fotoUri,
-                                contentDescription = "Foto estadio",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.AddPhotoAlternate,
-                                    contentDescription = "Añadir foto",
-                                    tint = LimeVolt,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Añadir foto",
-                                    color = TextSecondary,
-                                    fontSize = 9.sp
-                                )
-                            }
-                        }
-                    }
-                    if (fotoUri != null) {
-                        Row(
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 12.dp, y = (-4).dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(DarkBackground)
+                                .clickable { photoPickerLauncher.launch("image/*") },
+                            contentAlignment = Alignment.Center
                         ) {
                             if (fotoValida) {
+                                ImagenLocal(
+                                    fotoUri = fotoUri,
+                                    contentDescription = "Foto estadio",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.AddPhotoAlternate,
+                                        contentDescription = "Añadir foto",
+                                        tint = LimeVolt,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Añadir foto",
+                                        color = TextSecondary,
+                                        fontSize = 9.sp
+                                    )
+                                }
+                            }
+                        }
+                        if (fotoUri != null) {
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 24.dp, y = (-6).dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (fotoValida) {
+                                    IconButton(
+                                        onClick = { mostrarZoomDialogo = true },
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.ZoomIn, contentDescription = "Ver foto ampliada", tint = LimeVolt, modifier = Modifier.size(16.dp))
+                                    }
+                                }
                                 IconButton(
-                                    onClick = { mostrarZoomDialogo = true },
+                                    onClick = { fotoUri = null },
                                     modifier = Modifier
                                         .size(24.dp)
                                         .background(Color.Black.copy(alpha = 0.7f), CircleShape)
                                 ) {
-                                    Icon(Icons.Default.ZoomIn, contentDescription = "Ver foto ampliada", tint = LimeVolt, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Close, contentDescription = "Quitar foto", tint = Color.White, modifier = Modifier.size(14.dp))
                                 }
-                            }
-                            IconButton(
-                                onClick = { fotoUri = null },
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .background(Color.Black.copy(alpha = 0.7f), CircleShape)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Quitar foto", tint = Color.White, modifier = Modifier.size(14.dp))
                             }
                         }
                     }
@@ -644,6 +599,7 @@ fun DialogoEstadio(
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = LimeVolt,
+                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
                         focusedLabelColor = LimeVolt
                     ),
                     modifier = Modifier.fillMaxWidth()

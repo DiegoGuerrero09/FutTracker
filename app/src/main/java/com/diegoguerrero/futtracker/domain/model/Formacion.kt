@@ -252,8 +252,8 @@ fun obtenerCoordenadas(formacion: Formacion): List<Pair<Posicion, Pair<Float, Fl
             Posicion.POR to (0.50f to 0.88f),
             Posicion.DFC to (0.30f to 0.65f),
             Posicion.DFC to (0.70f to 0.65f),
-            Posicion.EI  to (0.22f to 0.45f),
-            Posicion.ED  to (0.78f to 0.45f),
+            Posicion.EI  to (0.22f to 0.36f),
+            Posicion.ED  to (0.78f to 0.36f),
             Posicion.DC  to (0.50f to 0.20f)
         )
         "FUT6_1_3_1" -> listOf(

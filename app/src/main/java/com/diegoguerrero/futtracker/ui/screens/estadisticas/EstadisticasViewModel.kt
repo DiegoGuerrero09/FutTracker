@@ -44,15 +44,48 @@ data class EstadisticasJugadorGeneral(
     val empates: Int = 0,
     val derrotas: Int = 0,
     val porcentajeVictorias: Int = 0,
-    val minutosJugados: Int = 0
-)
+    val minutosJugados: Int = 0,
+    val partidosConStats: Int = 0,
+    val goles: Int = 0,
+    val asistencias: Int = 0,
+    val tirosAlPalo: Int = 0,
+    val golesFueraArea: Int = 0,
+    val golesChilena: Int = 0,
+    val golesTacon: Int = 0,
+    val partidosPortero: Int = 0,
+    val golesEncajadosTotal: Int = 0,
+    val paradasTotal: Int = 0
+) {
+    val golesPorPartido: Float
+        get() = if (partidosConStats > 0) goles.toFloat() / partidosConStats else 0f
+    val asistenciasPorPartido: Float
+        get() = if (partidosConStats > 0) asistencias.toFloat() / partidosConStats else 0f
+    val tirosAlPaloPorPartido: Float
+        get() = if (partidosConStats > 0) tirosAlPalo.toFloat() / partidosConStats else 0f
+    val golesFueraAreaPorPartido: Float
+        get() = if (partidosConStats > 0) golesFueraArea.toFloat() / partidosConStats else 0f
+    val golesChilenaPorPartido: Float
+        get() = if (partidosConStats > 0) golesChilena.toFloat() / partidosConStats else 0f
+    val golesTaconPorPartido: Float
+        get() = if (partidosConStats > 0) golesTacon.toFloat() / partidosConStats else 0f
+    val golesEncajadosPorPartido: Float
+        get() = if (partidosPortero > 0) golesEncajadosTotal.toFloat() / partidosPortero else 0f
+    val paradasPorPartido: Float
+        get() = if (partidosConStats > 0) paradasTotal.toFloat() / partidosConStats else 0f
+}
+
+enum class FranjaHoraria(val label: String, val emoji: String) {
+    MANANA("Mañana (8h a 16h)", "🌅"),
+    TARDE("Tarde (17h a 20h)", "🌇"),
+    NOCHE("Noche (21h a 7h)", "🌙")
+}
 
 data class StatsClima(
     val clima: Clima?,
-    val label: String,
-    val emoji: String,
     val total: Int,
-    val porcentaje: Float
+    val porcentaje: Float,
+    val label: String = clima?.label ?: "Techado",
+    val emoji: String = clima?.emoji ?: "🏠"
 )
 
 data class StatsEstadio(
@@ -63,11 +96,21 @@ data class StatsEstadio(
 
 data class StatsDiaSemana(
     val dia: String,
-    val diaNum: Int,
-    val total: Int
+    val diaNum: Int = 0,
+    val total: Int = 0,
+    val porcentaje: Float = 0f,
+    val nombreDia: String = ""
 )
 
-data class StatsEquipoColor(
+data class StatsFranjaHoraria(
+    val franja: FranjaHoraria,
+    val total: Int,
+    val porcentaje: Float
+)
+
+typealias StatsEquipoColor = StatsColorCamiseta
+
+data class StatsColorCamiseta(
     val color: EquipoColor,
     val partidosJugados: Int = 0,
     val victorias: Int = 0,
@@ -84,6 +127,9 @@ data class StatsPosicionFrecuencia(
     val empates: Int = 0,
     val derrotas: Int = 0,
     val porcentajeVictorias: Int = 0,
+    val goles: Int = 0,
+    val asistencias: Int = 0,
+    val tirosAlPalo: Int = 0,
     val total: Float = minutos.toFloat(),
     val porcentaje: Float = 0f
 )
@@ -101,7 +147,15 @@ enum class CriterioOrdenGeneral {
     MINUTOS,
     VICTORIAS,
     EMPATES,
-    DERROTAS
+    DERROTAS,
+    GOLES,
+    ASISTENCIAS,
+    TIROS_AL_PALO,
+    FUERA_AREA,
+    CHILENAS,
+    TACONES,
+    GOLES_ENCAJADOS,
+    PARADAS
 }
 
 private data class FiltrosGeneralData(
@@ -119,6 +173,13 @@ class EstadisticasViewModel @Inject constructor(
 ) : ViewModel() {
 
     val todosPartidos: StateFlow<List<Partido>> = partidoRepository.obtenerPartidos()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val todosEstadios: StateFlow<List<Estadio>> = estadioRepository.obtenerEstadios()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -165,7 +226,14 @@ class EstadisticasViewModel @Inject constructor(
     private val _fechaFin = MutableStateFlow(System.currentTimeMillis())
     val fechaFin: StateFlow<Long> = _fechaFin.asStateFlow()
 
-    val partidosFiltrados: StateFlow<List<Partido>> = combine(
+    private val _jugadorInspeccionadoId = MutableStateFlow<String?>(null) // null = Usuario propio
+    val jugadorInspeccionadoId: StateFlow<String?> = _jugadorInspeccionadoId.asStateFlow()
+
+    fun seleccionarJugadorInspeccionado(id: String?) {
+        _jugadorInspeccionadoId.value = id
+    }
+
+    val todosPartidosFiltroGeneral: StateFlow<List<Partido>> = combine(
         todosPartidos,
         filtroModoJuego,
         filtroTiempo,
@@ -183,7 +251,6 @@ class EstadisticasViewModel @Inject constructor(
         val fFin = args[6] as Long
 
         var lista = if (modo != null) partidos.filter { it.modoJuego == modo } else partidos
-        lista = lista.filter { it.jugadoPorMi }
 
         lista = when (tipoTiempo) {
             TipoFiltroEstadisticas.TOTAL -> lista
@@ -243,22 +310,83 @@ class EstadisticasViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val resumen: StateFlow<ResumenEstadisticas> = partidosFiltrados.map { partidos ->
+    val partidosFiltrados: StateFlow<List<Partido>> = combine(
+        todosPartidosFiltroGeneral,
+        _jugadorInspeccionadoId
+    ) { lista, jId ->
+        if (jId == null) {
+            lista.filter { it.jugadoPorMi }
+        } else {
+            lista.filter { p ->
+                p.jugadoresMiEquipo.contains(jId) ||
+                p.jugadoresEquipoRival.contains(jId) ||
+                p.jugadoresDetalle.any { it.jugadorId == jId } ||
+                p.jugadoresIds.contains(jId)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val resumen: StateFlow<ResumenEstadisticas> = combine(partidosFiltrados, _jugadorInspeccionadoId) { partidos, jId ->
         val total = partidos.size
-        val victorias = partidos.count { it.esVictoria }
-        val empates = partidos.count { it.esEmpate }
-        val derrotas = partidos.count { it.esDerrota }
+        var victorias = 0
+        var empates = 0
+        var derrotas = 0
+        var totalGoles = 0
+        var totalAsist = 0
+        var totalPalos = 0
+        var gf = 0
+        var gc = 0
+        var partidosConStats = 0
+
+        for (p in partidos) {
+            val enMiEquipo = if (jId == null) true else p.jugadoresMiEquipo.contains(jId)
+            val enRival = if (jId == null) false else p.jugadoresEquipoRival.contains(jId)
+            val det = if (jId == null) null else p.jugadoresDetalle.firstOrNull { it.jugadorId == jId }
+
+            if (enMiEquipo) {
+                if (p.esVictoria) victorias++
+                else if (p.esEmpate) empates++
+                else if (p.esDerrota) derrotas++
+                gf += p.golesAFavor
+                gc += p.golesEnContra
+            } else if (enRival) {
+                if (p.esDerrota) victorias++
+                else if (p.esEmpate) empates++
+                else if (p.esVictoria) derrotas++
+                gf += p.golesEnContra
+                gc += p.golesAFavor
+            } else {
+                if (p.esVictoria) victorias++
+                else if (p.esEmpate) empates++
+                else if (p.esDerrota) derrotas++
+                gf += p.golesAFavor
+                gc += p.golesEnContra
+            }
+
+            if (jId == null) {
+                if (p.jugadoPorMi) {
+                    totalGoles += p.goles
+                    totalAsist += p.asistencias
+                    totalPalos += p.tirosAlPalo
+                    partidosConStats++
+                }
+            } else {
+                if (det != null && det.statsRegistradas) {
+                    totalGoles += det.goles
+                    totalAsist += det.asistencias
+                    totalPalos += det.tirosAlPalo
+                    partidosConStats++
+                }
+            }
+        }
+
         val porcentajeVic = if (total > 0) (victorias * 100 / total) else 0
-
-        val totalGoles = partidos.sumOf { it.goles }
-        val promGoles = if (total > 0) (totalGoles.toFloat() / total) else 0f
-
-        val totalAsist = partidos.sumOf { it.asistencias }
-        val promAsist = if (total > 0) (totalAsist.toFloat() / total) else 0f
-
-        val totalPalos = partidos.sumOf { it.tirosAlPalo }
-        val gf = partidos.sumOf { it.golesAFavor }
-        val gc = partidos.sumOf { it.golesEnContra }
+        val promGoles = if (partidosConStats > 0) (totalGoles.toFloat() / partidosConStats) else 0f
+        val promAsist = if (partidosConStats > 0) (totalAsist.toFloat() / partidosConStats) else 0f
 
         ResumenEstadisticas(
             totalPartidos = total,
@@ -321,13 +449,6 @@ class EstadisticasViewModel @Inject constructor(
 
     // --- Pestaña Partidos ---
 
-    val todosEstadios: StateFlow<List<Estadio>> = estadioRepository.obtenerEstadios()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
     private val _filtroClimas = MutableStateFlow<Set<Clima>>(emptySet())
     val filtroClimas: StateFlow<Set<Clima>> = _filtroClimas.asStateFlow()
 
@@ -340,13 +461,13 @@ class EstadisticasViewModel @Inject constructor(
     private val _filtroDiasSemana = MutableStateFlow<Set<Int>>(emptySet())
     val filtroDiasSemana: StateFlow<Set<Int>> = _filtroDiasSemana.asStateFlow()
 
-    private val _filtroHoras = MutableStateFlow<Set<Int>>(emptySet())
-    val filtroHoras: StateFlow<Set<Int>> = _filtroHoras.asStateFlow()
+    private val _filtroFranjasHorarias = MutableStateFlow<Set<FranjaHoraria>>(emptySet())
+    val filtroFranjasHorarias: StateFlow<Set<FranjaHoraria>> = _filtroFranjasHorarias.asStateFlow()
 
     val hayFiltrosPartidosActivos: StateFlow<Boolean> = combine(
-        _filtroClimas, _filtroTechado, _filtroEstadios, _filtroDiasSemana, _filtroHoras
-    ) { c, t, e, d, h ->
-        c.isNotEmpty() || t || e.isNotEmpty() || d.isNotEmpty() || h.isNotEmpty()
+        _filtroClimas, _filtroTechado, _filtroEstadios, _filtroDiasSemana, _filtroFranjasHorarias
+    ) { c, t, e, d, fh ->
+        c.isNotEmpty() || t || e.isNotEmpty() || d.isNotEmpty() || fh.isNotEmpty()
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -381,11 +502,11 @@ class EstadisticasViewModel @Inject constructor(
         }
     }
 
-    fun toggleFiltroHora(hora: Int) {
-        _filtroHoras.value = if (_filtroHoras.value.contains(hora)) {
-            _filtroHoras.value - hora
+    fun toggleFiltroFranjaHoraria(franja: FranjaHoraria) {
+        _filtroFranjasHorarias.value = if (_filtroFranjasHorarias.value.contains(franja)) {
+            _filtroFranjasHorarias.value - franja
         } else {
-            _filtroHoras.value + hora
+            _filtroFranjasHorarias.value + franja
         }
     }
 
@@ -394,10 +515,10 @@ class EstadisticasViewModel @Inject constructor(
         _filtroTechado.value = false
         _filtroEstadios.value = emptySet()
         _filtroDiasSemana.value = emptySet()
-        _filtroHoras.value = emptySet()
+        _filtroFranjasHorarias.value = emptySet()
     }
 
-    val estadiosDisponiblesFiltro: StateFlow<List<String>> = combine(partidosFiltrados, todosEstadios) { partidos, estadios ->
+    val estadiosDisponiblesFiltro: StateFlow<List<String>> = combine(todosPartidosFiltroGeneral, todosEstadios) { partidos, estadios ->
         val map = estadios.associateBy { it.id }
         val names = partidos.map { p -> p.estadioId?.let { map[it]?.nombre } ?: "Sin ubicación" }.distinct().sorted()
         names
@@ -407,27 +528,15 @@ class EstadisticasViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val horasDisponiblesFiltro: StateFlow<List<Int>> = partidosFiltrados.map { partidos ->
-        val cal = Calendar.getInstance()
-        partidos.map { p ->
-            cal.timeInMillis = p.fecha
-            cal.get(Calendar.HOUR_OF_DAY)
-        }.distinct().sorted()
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
     val partidosTabPartidos: StateFlow<List<Partido>> = combine(
         listOf(
-            partidosFiltrados,
+            todosPartidosFiltroGeneral,
             todosEstadios,
             _filtroClimas,
             _filtroTechado,
             _filtroEstadios,
             _filtroDiasSemana,
-            _filtroHoras
+            _filtroFranjasHorarias
         )
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
@@ -443,7 +552,7 @@ class EstadisticasViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val dias = flows[5] as Set<Int>
         @Suppress("UNCHECKED_CAST")
-        val horas = flows[6] as Set<Int>
+        val franjas = flows[6] as Set<FranjaHoraria>
 
         val mapEstadios = estadios.associateBy { it.id }
         val cal = Calendar.getInstance()
@@ -467,9 +576,16 @@ class EstadisticasViewModel @Inject constructor(
                     return@filter false
                 }
             }
-            if (horas.isNotEmpty()) {
+            if (franjas.isNotEmpty()) {
                 val h = cal.get(Calendar.HOUR_OF_DAY)
-                if (!horas.contains(h)) {
+                val coincideFranja = franjas.any { f ->
+                    when (f) {
+                        FranjaHoraria.MANANA -> h in 8..16
+                        FranjaHoraria.TARDE -> h in 17..20
+                        FranjaHoraria.NOCHE -> h >= 21 || h <= 7
+                    }
+                }
+                if (!coincideFranja) {
                     return@filter false
                 }
             }
@@ -500,18 +616,16 @@ class EstadisticasViewModel @Inject constructor(
         }
 
         val countTechado = partidos.count { it.clima == null }
-        if (countTechado > 0) {
-            val pct = if (total > 0) (countTechado * 100f / total) else 0f
-            lista.add(
-                StatsClima(
-                    clima = null,
-                    label = "Techado",
-                    emoji = "🏠",
-                    total = countTechado,
-                    porcentaje = pct
-                )
+        val pctTechado = if (total > 0) (countTechado * 100f / total) else 0f
+        lista.add(
+            StatsClima(
+                clima = null,
+                label = "Techado",
+                emoji = "🏟️",
+                total = countTechado,
+                porcentaje = pctTechado
             )
-        }
+        )
 
         lista
     }.stateIn(
@@ -570,19 +684,13 @@ class EstadisticasViewModel @Inject constructor(
             val h = cal.get(Calendar.HOUR_OF_DAY)
             counts[h]++
         }
-        val horasConPartidos = (0..23).filter { counts[it] > 0 }
-        if (horasConPartidos.isEmpty()) {
-            emptyList()
-        } else {
-            val minHora = (horasConPartidos.minOrNull() ?: 9).coerceAtLeast(8)
-            val maxHora = (horasConPartidos.maxOrNull() ?: 22).coerceAtMost(23)
-            (minHora..maxHora).map { h ->
-                StatsHoraPartido(
-                    hora = h,
-                    total = counts[h],
-                    horaTexto = "${h}h"
-                )
-            }
+        val ordenHoras = (9..23) + (0..8)
+        ordenHoras.map { h ->
+            StatsHoraPartido(
+                hora = h,
+                total = counts[h],
+                horaTexto = "${h}h"
+            )
         }
     }.stateIn(
         scope = viewModelScope,
@@ -590,13 +698,38 @@ class EstadisticasViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val statsClaroOscuro: StateFlow<Pair<StatsEquipoColor, StatsEquipoColor>> = partidosFiltrados.map { partidos ->
+    val statsClaroOscuro: StateFlow<Pair<StatsEquipoColor, StatsEquipoColor>> = combine(partidosFiltrados, _jugadorInspeccionadoId) { partidos, jId ->
         fun calcStats(eq: EquipoColor): StatsEquipoColor {
-            val matches = partidos.filter { it.equipoJugado == eq }
+            val matches = partidos.filter { p ->
+                if (jId == null) {
+                    p.equipoJugado == eq
+                } else {
+                    val det = p.jugadoresDetalle.firstOrNull { it.jugadorId == jId }
+                    if (det != null) {
+                        val playerEq = if (det.esMiEquipo) p.equipoJugado else (if (p.equipoJugado == EquipoColor.CLARO) EquipoColor.OSCURO else EquipoColor.CLARO)
+                        playerEq == eq
+                    } else if (p.jugadoresMiEquipo.contains(jId)) {
+                        p.equipoJugado == eq
+                    } else if (p.jugadoresEquipoRival.contains(jId)) {
+                        (if (p.equipoJugado == EquipoColor.CLARO) EquipoColor.OSCURO else EquipoColor.CLARO) == eq
+                    } else false
+                }
+            }
             val pj = matches.size
-            val v = matches.count { it.esVictoria }
-            val e = matches.count { it.esEmpate }
-            val d = matches.count { it.esDerrota }
+            var v = 0
+            var e = 0
+            var d = 0
+            for (p in matches) {
+                val enMiEquipo = if (jId == null) true else p.jugadoresMiEquipo.contains(jId)
+                val enRival = if (jId == null) false else p.jugadoresEquipoRival.contains(jId)
+                if (enMiEquipo) {
+                    if (p.esVictoria) v++ else if (p.esEmpate) e++ else if (p.esDerrota) d++
+                } else if (enRival) {
+                    if (p.esDerrota) v++ else if (p.esEmpate) e++ else if (p.esVictoria) d++
+                } else {
+                    if (p.esVictoria) v++ else if (p.esEmpate) e++ else if (p.esDerrota) d++
+                }
+            }
             val pct = if (pj > 0) (v * 100 / pj) else 0
             return StatsEquipoColor(color = eq, partidosJugados = pj, victorias = v, empates = e, derrotas = d, porcentajeVictorias = pct)
         }
@@ -607,18 +740,37 @@ class EstadisticasViewModel @Inject constructor(
         initialValue = Pair(StatsEquipoColor(EquipoColor.CLARO), StatsEquipoColor(EquipoColor.OSCURO))
     )
 
-    val statsPosicionesFrecuencia: StateFlow<List<StatsPosicionFrecuencia>> = partidosFiltrados.map { partidos ->
-        val partidosJugados = partidos.filter { it.jugadoPorMi }
+    val statsPosicionesFrecuencia: StateFlow<List<StatsPosicionFrecuencia>> = combine(partidosFiltrados, _jugadorInspeccionadoId) { partidos, jId ->
         val posMinutos = mutableMapOf<Posicion, Int>()
         val posPJ = mutableMapOf<Posicion, Int>()
         val posV = mutableMapOf<Posicion, Int>()
         val posE = mutableMapOf<Posicion, Int>()
         val posD = mutableMapOf<Posicion, Int>()
+        val posGoles = mutableMapOf<Posicion, Int>()
+        val posAsist = mutableMapOf<Posicion, Int>()
+        val posPalos = mutableMapOf<Posicion, Int>()
 
-        partidosJugados.forEach { p ->
+        partidos.forEach { p ->
+            val enMiEquipo = if (jId == null) true else p.jugadoresMiEquipo.contains(jId)
+            val enRival = if (jId == null) false else p.jugadoresEquipoRival.contains(jId)
+            val det = if (jId == null) null else p.jugadoresDetalle.firstOrNull { it.jugadorId == jId }
+
+            val esVic = if (enMiEquipo) p.esVictoria else if (enRival) p.esDerrota else p.esVictoria
+            val esEmp = p.esEmpate
+            val esDer = if (enMiEquipo) p.esDerrota else if (enRival) p.esVictoria else p.esDerrota
+
             val duracion = p.duracionMinutos.coerceAtLeast(1)
-            val primarias = (p.posicionesJugadas - p.posicionesSecundarias).ifEmpty { setOf(p.posicionJugada) }
-            val secundarias = p.posicionesSecundarias - primarias
+            val primarias = if (jId == null) {
+                (p.posicionesJugadas - p.posicionesSecundarias).ifEmpty { setOf(p.posicionJugada) }
+            } else {
+                if (det != null) setOf(det.posicionPrincipal)
+                else emptySet()
+            }
+            val secundarias = if (jId == null) {
+                p.posicionesSecundarias - primarias
+            } else {
+                det?.posicionesSecundarias?.toSet() ?: emptySet()
+            }
 
             val pesoPrimaria = 2.0
             val pesoSecundaria = 1.0
@@ -631,16 +783,33 @@ class EstadisticasViewModel @Inject constructor(
                 primarias.forEach { pos ->
                     posMinutos[pos] = (posMinutos[pos] ?: 0) + minsPrim
                     posPJ[pos] = (posPJ[pos] ?: 0) + 1
-                    if (p.esVictoria) posV[pos] = (posV[pos] ?: 0) + 1
-                    if (p.esEmpate) posE[pos] = (posE[pos] ?: 0) + 1
-                    if (p.esDerrota) posD[pos] = (posD[pos] ?: 0) + 1
+                    if (esVic) posV[pos] = (posV[pos] ?: 0) + 1
+                    if (esEmp) posE[pos] = (posE[pos] ?: 0) + 1
+                    if (esDer) posD[pos] = (posD[pos] ?: 0) + 1
                 }
                 secundarias.forEach { pos ->
                     posMinutos[pos] = (posMinutos[pos] ?: 0) + minsSec
                     posPJ[pos] = (posPJ[pos] ?: 0) + 1
-                    if (p.esVictoria) posV[pos] = (posV[pos] ?: 0) + 1
-                    if (p.esEmpate) posE[pos] = (posE[pos] ?: 0) + 1
-                    if (p.esDerrota) posD[pos] = (posD[pos] ?: 0) + 1
+                    if (esVic) posV[pos] = (posV[pos] ?: 0) + 1
+                    if (esEmp) posE[pos] = (posE[pos] ?: 0) + 1
+                    if (esDer) posD[pos] = (posD[pos] ?: 0) + 1
+                }
+            }
+
+            // Goles, asistencias y tiros al palo considerando SOLO la posición principal
+            if (jId == null) {
+                if (p.jugadoPorMi) {
+                    val posPrin = (p.posicionesJugadas - p.posicionesSecundarias).firstOrNull() ?: p.posicionJugada
+                    posGoles[posPrin] = (posGoles[posPrin] ?: 0) + p.goles
+                    posAsist[posPrin] = (posAsist[posPrin] ?: 0) + p.asistencias
+                    posPalos[posPrin] = (posPalos[posPrin] ?: 0) + p.tirosAlPalo
+                }
+            } else {
+                if (det != null && det.statsRegistradas) {
+                    val posPrin = det.posicionPrincipal
+                    posGoles[posPrin] = (posGoles[posPrin] ?: 0) + det.goles
+                    posAsist[posPrin] = (posAsist[posPrin] ?: 0) + det.asistencias
+                    posPalos[posPrin] = (posPalos[posPrin] ?: 0) + det.tirosAlPalo
                 }
             }
         }
@@ -664,6 +833,9 @@ class EstadisticasViewModel @Inject constructor(
                 empates = e,
                 derrotas = d,
                 porcentajeVictorias = pctV,
+                goles = posGoles[pos] ?: 0,
+                asistencias = posAsist[pos] ?: 0,
+                tirosAlPalo = posPalos[pos] ?: 0,
                 total = mins.toFloat(),
                 porcentaje = pctMinutos
             )
@@ -701,6 +873,13 @@ class EstadisticasViewModel @Inject constructor(
     private val _ordenAscendenteGeneral = MutableStateFlow(false)
     val ordenAscendenteGeneral: StateFlow<Boolean> = _ordenAscendenteGeneral.asStateFlow()
 
+    private val _ordenPorPartidoGeneral = MutableStateFlow(false)
+    val ordenPorPartidoGeneral: StateFlow<Boolean> = _ordenPorPartidoGeneral.asStateFlow()
+
+    fun toggleOrdenPorPartidoGeneral() {
+        _ordenPorPartidoGeneral.value = !_ordenPorPartidoGeneral.value
+    }
+
     val jugadoresEstadisticasGeneral: StateFlow<List<EstadisticasJugadorGeneral>> = combine(
         todosJugadores,
         todosPartidos,
@@ -714,16 +893,29 @@ class EstadisticasViewModel @Inject constructor(
         },
         combine(
             _criterioOrdenGeneral,
-            _ordenAscendenteGeneral
-        ) { crit, asc ->
-            Pair(crit, asc)
+            _ordenAscendenteGeneral,
+            _ordenPorPartidoGeneral
+        ) { crit, asc, porPartido ->
+            Triple(crit, asc, porPartido)
         }
-    ) { jugadores, partidos, filtros, orden ->
+    ) { jugadores, partidos, filtros, (criterio, asc, porPartido) ->
         val calculados = jugadores.map { j ->
             var v = 0
             var e = 0
             var d = 0
             var min = 0
+            var goles = 0
+            var asistencias = 0
+            var tirosAlPalo = 0
+            var fueraArea = 0
+            var chilenas = 0
+            var tacones = 0
+            var partidosPortero = 0
+            var golesEncajadosTotal = 0
+            var paradas = 0
+
+            var partidosConStats = 0
+
             for (p in partidos) {
                 val enMiEquipo = p.jugadoresMiEquipo.contains(j.id)
                 val enRival = p.jugadoresEquipoRival.contains(j.id)
@@ -744,6 +936,46 @@ class EstadisticasViewModel @Inject constructor(
                     else if (p.esEmpate) e++
                     else if (p.esDerrota) d++
                 }
+
+                val det = p.jugadoresDetalle.firstOrNull { it.jugadorId == j.id }
+                val esUsuario = j.esUsuarioPropio
+
+                if (det != null && det.statsRegistradas) {
+                    partidosConStats++
+                    goles += det.goles
+                    asistencias += det.asistencias
+                    tirosAlPalo += det.tirosAlPalo
+                    fueraArea += det.golesFueraArea
+                    chilenas += det.golesChilena
+                    tacones += det.golesTacon
+                    val jugoPortero = det.posicionPrincipal == Posicion.POR || det.posicionesSecundarias.contains(Posicion.POR)
+                    if (jugoPortero) {
+                        paradas += det.paradas
+                    }
+                    if (det.posicionPrincipal == Posicion.POR && det.posicionesSecundarias.isEmpty()) {
+                        partidosPortero++
+                        golesEncajadosTotal += if (det.esMiEquipo) p.golesEnContra else p.golesAFavor
+                    }
+                } else if (esUsuario && p.jugadoPorMi) {
+                    partidosConStats++
+                    goles += p.goles
+                    asistencias += p.asistencias
+                    tirosAlPalo += p.tirosAlPalo
+                    fueraArea += p.golesFueraArea
+                    chilenas += p.golesChilena
+                    tacones += p.golesTacon
+                    val jugoPortero = p.posicionJugada == Posicion.POR || p.posicionesSecundarias.contains(Posicion.POR) || p.posicionesJugadas.contains(Posicion.POR)
+                    if (jugoPortero) {
+                        paradas += p.paradas
+                    }
+                    if (p.posicionJugada == Posicion.POR && p.posicionesSecundarias.isEmpty()) {
+                        partidosPortero++
+                        golesEncajadosTotal += p.golesEnContra
+                    }
+                } else if (participo && j.posicionesPrimarias.contains(Posicion.POR) && j.posicionesSecundarias.isEmpty()) {
+                    partidosPortero++
+                    golesEncajadosTotal += if (enMiEquipo) p.golesEnContra else p.golesAFavor
+                }
             }
             val pj = v + e + d
             val pct = if (pj > 0) (v * 100 / pj) else 0
@@ -754,7 +986,17 @@ class EstadisticasViewModel @Inject constructor(
                 empates = e,
                 derrotas = d,
                 porcentajeVictorias = pct,
-                minutosJugados = min
+                minutosJugados = min,
+                partidosConStats = partidosConStats,
+                goles = goles,
+                asistencias = asistencias,
+                tirosAlPalo = tirosAlPalo,
+                golesFueraArea = fueraArea,
+                golesChilena = chilenas,
+                golesTacon = tacones,
+                partidosPortero = partidosPortero,
+                golesEncajadosTotal = golesEncajadosTotal,
+                paradasTotal = paradas
             )
         }
 
@@ -766,10 +1008,11 @@ class EstadisticasViewModel @Inject constructor(
                 filtros.soloPosicionPrincipal -> item.jugador.posicionesPrimarias.contains(filtros.posicion)
                 else -> item.jugador.posicionesPrimarias.contains(filtros.posicion) || item.jugador.posicionesSecundarias.contains(filtros.posicion)
             }
-            coincideBusqueda && coincideFav && coincidePos
+            val aptoGolesEncajados = criterio != CriterioOrdenGeneral.GOLES_ENCAJADOS || item.partidosPortero > 0
+            val aptoParadas = criterio != CriterioOrdenGeneral.PARADAS || item.paradasTotal > 0 || item.partidosPortero > 0
+            coincideBusqueda && coincideFav && coincidePos && aptoGolesEncajados && aptoParadas
         }
 
-        val (criterio, asc) = orden
         val ordenados = when (criterio) {
             CriterioOrdenGeneral.VICTORIAS -> if (asc) filtrados.sortedWith(compareBy({ it.victorias }, { it.porcentajeVictorias }, { it.jugador.nombre }))
                 else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.victorias }.thenByDescending { it.porcentajeVictorias }.thenBy { it.jugador.nombre })
@@ -785,6 +1028,62 @@ class EstadisticasViewModel @Inject constructor(
                 else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.minutosJugados }.thenByDescending { it.partidosJugados }.thenBy { it.jugador.nombre })
             CriterioOrdenGeneral.NOMBRE -> if (asc) filtrados.sortedBy { it.jugador.nombre.lowercase() }
                 else filtrados.sortedByDescending { it.jugador.nombre.lowercase() }
+            CriterioOrdenGeneral.GOLES -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesPorPartido }, { it.goles }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesPorPartido }.thenByDescending { it.goles }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.goles }, { it.golesPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.goles }.thenByDescending { it.golesPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.ASISTENCIAS -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.asistenciasPorPartido }, { it.asistencias }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.asistenciasPorPartido }.thenByDescending { it.asistencias }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.asistencias }, { it.asistenciasPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.asistencias }.thenByDescending { it.asistenciasPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.TIROS_AL_PALO -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.tirosAlPaloPorPartido }, { it.tirosAlPalo }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.tirosAlPaloPorPartido }.thenByDescending { it.tirosAlPalo }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.tirosAlPalo }, { it.tirosAlPaloPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.tirosAlPalo }.thenByDescending { it.tirosAlPaloPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.FUERA_AREA -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesFueraAreaPorPartido }, { it.golesFueraArea }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesFueraAreaPorPartido }.thenByDescending { it.golesFueraArea }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesFueraArea }, { it.golesFueraAreaPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesFueraArea }.thenByDescending { it.golesFueraAreaPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.CHILENAS -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesChilenaPorPartido }, { it.golesChilena }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesChilenaPorPartido }.thenByDescending { it.golesChilena }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesChilena }, { it.golesChilenaPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesChilena }.thenByDescending { it.golesChilenaPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.TACONES -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesTaconPorPartido }, { it.golesTacon }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesTaconPorPartido }.thenByDescending { it.golesTacon }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesTacon }, { it.golesTaconPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesTacon }.thenByDescending { it.golesTaconPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.GOLES_ENCAJADOS -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesEncajadosPorPartido }, { it.golesEncajadosTotal }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesEncajadosPorPartido }.thenByDescending { it.golesEncajadosTotal }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.golesEncajadosTotal }, { it.golesEncajadosPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.golesEncajadosTotal }.thenByDescending { it.golesEncajadosPorPartido }.thenBy { it.jugador.nombre })
+            }
+            CriterioOrdenGeneral.PARADAS -> if (porPartido) {
+                if (asc) filtrados.sortedWith(compareBy({ it.paradasPorPartido }, { it.paradasTotal }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.paradasPorPartido }.thenByDescending { it.paradasTotal }.thenBy { it.jugador.nombre })
+            } else {
+                if (asc) filtrados.sortedWith(compareBy({ it.paradasTotal }, { it.paradasPorPartido }, { it.jugador.nombre }))
+                else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.paradasTotal }.thenByDescending { it.paradasPorPartido }.thenBy { it.jugador.nombre })
+            }
         }
 
         ordenados
@@ -816,7 +1115,7 @@ class EstadisticasViewModel @Inject constructor(
         } else {
             _criterioOrdenGeneral.value = criterio
             _ordenAscendenteGeneral.value = when (criterio) {
-                CriterioOrdenGeneral.NOMBRE -> true
+                CriterioOrdenGeneral.NOMBRE, CriterioOrdenGeneral.GOLES_ENCAJADOS -> true
                 else -> false
             }
         }

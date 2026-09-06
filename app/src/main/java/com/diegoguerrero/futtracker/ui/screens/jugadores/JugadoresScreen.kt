@@ -383,12 +383,12 @@ private fun JugadorItem(
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        border = BorderStroke(1.dp, DarkCardBorder)
+        border = BorderStroke(1.dp, if (jugador.esFavorito) Color(0xFFFFD700).copy(alpha = 0.6f) else DarkCardBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 16.dp),
+                .padding(start = 14.dp, end = 6.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

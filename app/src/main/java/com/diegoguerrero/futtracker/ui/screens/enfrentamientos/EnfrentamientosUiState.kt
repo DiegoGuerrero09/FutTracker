@@ -19,6 +19,14 @@ enum class FiltroHistorial(val label: String) {
     RIVALES("Rivales")
 }
 
+enum class OrdenHistorialCruzado(val label: String) {
+    DEFECTO("Por defecto"),
+    MAS_GANADOS_COMPANERO("Más ganados (Compañero)"),
+    MAS_PERDIDOS_COMPANERO("Más perdidos (Compañero)"),
+    MAS_GANADOS_RIVAL("Más ganados (Rival)"),
+    MAS_PERDIDOS_RIVAL("Más perdidos (Rival)")
+}
+
 data class EnfrentamientosUiState(
     val seccionActual: SeccionEnfrentamientos = SeccionEnfrentamientos.INDIVIDUAL,
 
@@ -49,6 +57,7 @@ data class EnfrentamientosUiState(
     val filtroSoloFavoritos: Boolean = false,
     val filtroPosicion: Posicion? = null,
     val filtroSoloPosicionPrincipal: Boolean = false,
+    val ordenCruzado: OrdenHistorialCruzado = OrdenHistorialCruzado.DEFECTO,
 
     // Modal de detalle cruzado
     val jugadorDetalle: EstadisticasJugadorCruzadas? = null,

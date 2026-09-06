@@ -68,10 +68,12 @@ data class Partido(
     val duracionMinutos: Int = 60,
     val jugadoPorMi: Boolean = true,
     val esFavorito: Boolean = false,
+    val paradas: Int = 0,
     val clima: Clima? = null,
     val fotoUri: String? = null,
     val equipoJugado: EquipoColor? = null,
-    val estadioId: Long? = null
+    val estadioId: Long? = null,
+    val jugadoresDetalle: List<EstadisticasJugadorPartido> = emptyList()
 ) {
     val resultado: String
         get() = "$golesAFavor - $golesEnContra"
@@ -91,3 +93,24 @@ data class Partido(
     val totalGolesPorParteCuerpo: Int
         get() = golesDiestra + golesZurda + golesCabeza + golesOtro
 }
+
+data class EstadisticasJugadorPartido(
+    val jugadorId: String,
+    val esMiEquipo: Boolean = true,
+    val posicionPrincipal: Posicion = Posicion.MC,
+    val posicionesSecundarias: Set<Posicion> = emptySet(),
+    val posX: Float = 0.5f,
+    val posY: Float = 0.5f,
+    val statsRegistradas: Boolean = false,
+    val goles: Int = 0,
+    val asistencias: Int = 0,
+    val tirosAlPalo: Int = 0,
+    val golesZurda: Int = 0,
+    val golesDiestra: Int = 0,
+    val golesCabeza: Int = 0,
+    val golesOtro: Int = 0,
+    val golesChilena: Int = 0,
+    val golesTacon: Int = 0,
+    val golesFueraArea: Int = 0,
+    val paradas: Int = 0
+)

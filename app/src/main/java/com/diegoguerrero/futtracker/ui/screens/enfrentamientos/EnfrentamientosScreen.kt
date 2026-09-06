@@ -1,5 +1,7 @@
 package com.diegoguerrero.futtracker.ui.screens.enfrentamientos
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -67,15 +69,14 @@ fun EnfrentamientosScreen(
                 )
             )
         },
-        containerColor = DarkBackground,
-        modifier = modifier
-    ) { innerPadding ->
+        containerColor = DarkBackground
+    ) { paddingValues ->
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(paddingValues)
         ) {
-            // Pestañas de sección
+            // Tabs: Individual vs Dúos
             TabRow(
                 selectedTabIndex = uiState.seccionActual.ordinal,
                 containerColor = DarkCard,
@@ -88,7 +89,7 @@ fun EnfrentamientosScreen(
                         text = {
                             Text(
                                 text = seccion.titulo,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = if (uiState.seccionActual == seccion) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -118,6 +119,7 @@ fun EnfrentamientosScreen(
                         onToggleFavoritoHistorial = { viewModel.toggleFiltroSoloFavoritos() },
                         onPosicionHistorialChange = { viewModel.setFiltroPosicion(it) },
                         onSoloPosicionPrincipalHistorialChange = { viewModel.setFiltroSoloPosicionPrincipal(it) },
+                        onOrdenCruzadoChange = { viewModel.setOrdenCruzado(it) },
                         onSeleccionarJugadorDetalle = { viewModel.seleccionarJugadorDetalle(it) }
                     )
                 }
@@ -130,8 +132,10 @@ fun EnfrentamientosScreen(
 
     // Modal de detalle de jugador si está seleccionado
     uiState.jugadorDetalle?.let { detalle ->
+        val targetJugador = uiState.todosLosJugadores.firstOrNull { it.id == uiState.jugadorSeleccionadoId }
         DialogoDetalleJugadorCruzado(
             detalle = detalle,
+            jugadorTarget = targetJugador,
             onDismiss = { viewModel.seleccionarJugadorDetalle(null) }
         )
     }
@@ -154,6 +158,7 @@ fun SeccionIndividual(
     onToggleFavoritoHistorial: () -> Unit,
     onPosicionHistorialChange: (Posicion?) -> Unit,
     onSoloPosicionPrincipalHistorialChange: (Boolean) -> Unit,
+    onOrdenCruzadoChange: (OrdenHistorialCruzado) -> Unit,
     onSeleccionarJugadorDetalle: (EstadisticasJugadorCruzadas) -> Unit
 ) {
     val jugadorSeleccionado = uiState.todosLosJugadores.firstOrNull { it.id == uiState.jugadorSeleccionadoId }
@@ -163,7 +168,31 @@ fun SeccionIndividual(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Buscador y filtros para elegir el jugador a inspeccionar
+        // 1. Filtro de Período (antes que el jugador según requerimiento)
+        item {
+            Text(
+                text = "Periodo de tiempo:",
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            FiltroFechaStatsChips(
+                periodoSeleccionado = uiState.filtroPeriodo,
+                onPeriodoChange = onPeriodoChange,
+                temporadaSeleccionada = uiState.temporadaSeleccionada,
+                onTemporadaChange = onTemporadaChange,
+                temporadasDisponibles = uiState.temporadasDisponibles,
+                anioSeleccionado = uiState.anioSeleccionado,
+                onAnioChange = onAnioChange,
+                aniosDisponibles = uiState.aniosDisponibles,
+                fechaInicio = uiState.fechaInicio,
+                fechaFin = uiState.fechaFin,
+                onRangoFechasChange = onRangoFechasChange
+            )
+        }
+
+        // 2. Buscador y filtros para elegir el jugador a inspeccionar
         item {
             Text(
                 text = "Jugador a analizar:",
@@ -375,8 +404,8 @@ fun SeccionIndividual(
                             ),
                             shape = RoundedCornerShape(10.dp),
                             border = BorderStroke(
-                                1.5.dp,
-                                if (esSeleccionado) LimeVolt else DarkCardBorder
+                                if (esSeleccionado) 1.5.dp else 1.dp,
+                                if (esSeleccionado) LimeVolt else if (jug.esFavorito) Color(0xFFFFD700) else DarkCardBorder
                             )
                         ) {
                             Box(
@@ -395,19 +424,33 @@ fun SeccionIndividual(
                                         nombre = jug.nombre,
                                         tamano = 36.dp,
                                         fontSize = 12.sp,
-                                        bordeColor = if (esSeleccionado) LimeVolt else Color.Transparent,
-                                        bordeAncho = 1.5.dp
+                                        bordeColor = if (esSeleccionado) LimeVolt else if (jug.esFavorito) Color(0xFFFFD700) else Color.Transparent,
+                                        bordeAncho = if (esSeleccionado) 1.5.dp else 1.dp
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = jug.nombreConTu(),
-                                        fontSize = 11.sp,
-                                        fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (esSeleccionado) LimeVolt else Color.White,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = jug.nombreConTu(),
+                                            fontSize = 11.sp,
+                                            fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (esSeleccionado) LimeVolt else Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        if (jug.esFavorito) {
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = "Favorito",
+                                                tint = Color(0xFFFFD700),
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -468,7 +511,7 @@ fun SeccionIndividual(
                             FilaBadgesPosiciones(
                                 primarias = jugadorSeleccionado.posicionesPrimarias,
                                 secundarias = jugadorSeleccionado.posicionesSecundarias,
-                                maxVisibles = 3
+                                maxVisibles = 6
                             )
                         }
                     }
@@ -476,29 +519,6 @@ fun SeccionIndividual(
             }
         }
 
-        // Filtro de Período
-        item {
-            Text(
-                text = "Periodo de tiempo:",
-                color = TextSecondary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            FiltroFechaStatsChips(
-                periodoSeleccionado = uiState.filtroPeriodo,
-                onPeriodoChange = onPeriodoChange,
-                temporadaSeleccionada = uiState.temporadaSeleccionada,
-                onTemporadaChange = onTemporadaChange,
-                temporadasDisponibles = uiState.temporadasDisponibles,
-                anioSeleccionado = uiState.anioSeleccionado,
-                onAnioChange = onAnioChange,
-                aniosDisponibles = uiState.aniosDisponibles,
-                fechaInicio = uiState.fechaInicio,
-                fechaFin = uiState.fechaFin,
-                onRangoFechasChange = onRangoFechasChange
-            )
-        }
 
         // Destacados para este jugador
         item {
@@ -560,19 +580,14 @@ fun SeccionIndividual(
 
         // Separador y título de la sección comparativa cruzada
         item {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             HorizontalDivider(color = DarkCardBorder)
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Comparativa con otros jugadores",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
-            )
-            Text(
-                text = "Historial frente a otros jugadores excluyendo a ${jugadorSeleccionado?.nombreConTu() ?: "este jugador"}",
-                fontSize = 11.sp,
-                color = TextSecondary
             )
         }
 
@@ -724,6 +739,58 @@ fun SeccionIndividual(
                         )
                     }
                 }
+
+                // Ordenación de la comparativa cruzada
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        Text(
+                            text = "Ordenar:",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(end = 2.dp)
+                        )
+                    }
+                    items(
+                        listOf(
+                            OrdenHistorialCruzado.MAS_GANADOS_COMPANERO,
+                            OrdenHistorialCruzado.MAS_PERDIDOS_COMPANERO,
+                            OrdenHistorialCruzado.MAS_GANADOS_RIVAL,
+                            OrdenHistorialCruzado.MAS_PERDIDOS_RIVAL
+                        )
+                    ) { ordenItem ->
+                        val sel = uiState.ordenCruzado == ordenItem
+                        val chipColor = when (ordenItem) {
+                            OrdenHistorialCruzado.MAS_GANADOS_COMPANERO -> BlueCompanero
+                            OrdenHistorialCruzado.MAS_PERDIDOS_COMPANERO -> RedLoss
+                            OrdenHistorialCruzado.MAS_GANADOS_RIVAL -> LimeVolt
+                            OrdenHistorialCruzado.MAS_PERDIDOS_RIVAL -> OrangeDraw
+                            else -> LimeVolt
+                        }
+                        FilterChip(
+                            selected = sel,
+                            onClick = {
+                                onOrdenCruzadoChange(if (sel) OrdenHistorialCruzado.DEFECTO else ordenItem)
+                            },
+                            label = { Text(ordenItem.label, fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = chipColor.copy(alpha = 0.2f),
+                                selectedLabelColor = chipColor,
+                                containerColor = DarkCard,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = sel,
+                                borderColor = if (sel) chipColor else Color.Transparent
+                            )
+                        )
+                    }
+                }
             }
         }
 
@@ -850,14 +917,27 @@ fun CardDestacado(
                             bordeAncho = 1.5.dp
                         )
                         Column(verticalArrangement = Arrangement.Center) {
-                            Text(
-                                text = actualEst.jugador.nombreConTu(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = actualEst.jugador.nombreConTu(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (actualEst.jugador.esFavorito) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Favorito",
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
                             val victorias = if (esCompanero) actualEst.victoriasComoCompanero else actualEst.victoriasComoRival
                             val partidos = if (esCompanero) actualEst.partidosComoCompanero else actualEst.partidosComoRival
                             val derrotas = if (esCompanero) actualEst.derrotasComoCompanero else actualEst.derrotasComoRival
@@ -902,7 +982,7 @@ fun CardJugadorHistorial(
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, DarkCardBorder)
+        border = BorderStroke(if (item.jugador.esFavorito) 0.8.dp else 1.dp, if (item.jugador.esFavorito) Color(0xFFFFD700).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.16f))
     ) {
         Row(
             modifier = Modifier
@@ -916,6 +996,8 @@ fun CardJugadorHistorial(
                 nombre = item.jugador.nombre,
                 tamano = 44.dp,
                 fontSize = 14.sp,
+                bordeColor = if (item.jugador.esFavorito) Color(0xFFFFD700).copy(alpha = 0.7f) else Color.Transparent,
+                bordeAncho = 1.dp,
                 permitirZoom = true
             )
 
@@ -933,10 +1015,28 @@ fun CardJugadorHistorial(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
+                    if (item.jugador.esFavorito) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Favorito",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                     FilaBadgesPosiciones(
                         primarias = item.jugador.posicionesPrimarias,
                         secundarias = item.jugador.posicionesSecundarias,
-                        maxVisibles = 2
+                        maxVisibles = 3
+                    )
+                }
+
+                if (item.goles > 0 || item.asistencias > 0 || item.tirosAlPalo > 0 || (item.haJugadoPortero && (item.golesEncajados > 0 || item.paradas > 0))) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "⚽ ${item.goles}  •  🅰️ ${item.asistencias}  •  🎯 ${item.tirosAlPalo}" + (if (item.haJugadoPortero && item.golesEncajados > 0) "  •  🥅 ${item.golesEncajados}" else "") + (if (item.haJugadoPortero && item.paradas > 0) "  •  🧤 ${item.paradas}" else ""),
+                        fontSize = 9.5.sp,
+                        color = LimeVolt,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
@@ -993,6 +1093,7 @@ fun CardJugadorHistorial(
 @Composable
 fun DialogoDetalleJugadorCruzado(
     detalle: EstadisticasJugadorCruzadas,
+    jugadorTarget: Jugador? = null,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -1002,11 +1103,12 @@ fun DialogoDetalleJugadorCruzado(
                 .padding(8.dp),
             colors = CardDefaults.cardColors(containerColor = DarkCard),
             shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, LimeVolt.copy(alpha = 0.3f))
+            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -1015,37 +1117,96 @@ fun DialogoDetalleJugadorCruzado(
                     nombre = detalle.jugador.nombre,
                     tamano = 64.dp,
                     fontSize = 20.sp,
-                    bordeColor = LimeVolt,
-                    bordeAncho = 2.dp,
+                    bordeColor = if (detalle.jugador.esFavorito) Color(0xFFFFD700).copy(alpha = 0.7f) else LimeVolt,
+                    bordeAncho = 1.5.dp,
                     permitirZoom = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = detalle.jugador.nombreConTu(),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = detalle.jugador.nombreConTu(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    if (detalle.jugador.esFavorito) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Favorito",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
 
                 FilaBadgesPosiciones(
                     primarias = detalle.jugador.posicionesPrimarias,
                     secundarias = detalle.jugador.posicionesSecundarias,
                     modifier = Modifier.padding(vertical = 4.dp),
-                    maxVisibles = 3
+                    maxVisibles = 6
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                val nombreTarget = jugadorTarget?.nombreConTu() ?: "Tú"
+                val nombreDetalle = detalle.jugador.nombre
+
+                // Bloque: Total
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = DarkBackground),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.35f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Total",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LimeVolt
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        TablaMetricasComparativas(
+                            targetNombre = nombreTarget,
+                            detalleNombre = nombreDetalle,
+                            golesTarget = detalle.golesTarget,
+                            golesDetalle = detalle.goles,
+                            asistenciasTarget = detalle.asistenciasTarget,
+                            asistenciasDetalle = detalle.asistencias,
+                            palosTarget = detalle.tirosAlPaloTarget,
+                            palosDetalle = detalle.tirosAlPalo,
+                            fueraAreaTarget = detalle.fueraAreaTarget,
+                            fueraAreaDetalle = detalle.fueraArea,
+                            chilenaTarget = detalle.chilenaTarget,
+                            chilenaDetalle = detalle.chilena,
+                            taconTarget = detalle.taconTarget,
+                            taconDetalle = detalle.tacon,
+                            haJugadoPorteroTarget = detalle.haJugadoPorteroTarget,
+                            golesEncajadosTarget = detalle.golesEncajadosTarget,
+                            haJugadoPorteroDetalle = detalle.haJugadoPortero,
+                            golesEncajadosDetalle = detalle.golesEncajados,
+                            paradasTarget = detalle.paradasTarget,
+                            paradasDetalle = detalle.paradas
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Bloque: Como compañero
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = DarkBackground),
                     shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BlueCompanero.copy(alpha = 0.3f))
+                    border = BorderStroke(1.dp, BlueCompanero.copy(alpha = 0.3f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Como compañero (mismo equipo)",
+                            text = "Como compañero",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = BlueCompanero
@@ -1100,6 +1261,32 @@ fun DialogoDetalleJugadorCruzado(
                             Text("Tus goles con él:", fontSize = 12.sp, color = TextSecondary)
                             Text("${detalle.golesMarcadosComoCompanero}", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
+
+                        if (detalle.partidosComoCompanero > 0) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            TablaMetricasComparativas(
+                                targetNombre = nombreTarget,
+                                detalleNombre = nombreDetalle,
+                                golesTarget = detalle.golesTargetComoCompaneroInd,
+                                golesDetalle = detalle.golesComoCompaneroInd,
+                                asistenciasTarget = detalle.asistenciasTargetComoCompaneroInd,
+                                asistenciasDetalle = detalle.asistenciasComoCompaneroInd,
+                                palosTarget = detalle.tirosAlPaloTargetComoCompaneroInd,
+                                palosDetalle = detalle.tirosAlPaloComoCompaneroInd,
+                                fueraAreaTarget = detalle.fueraAreaTargetComoCompaneroInd,
+                                fueraAreaDetalle = detalle.fueraAreaComoCompaneroInd,
+                                chilenaTarget = detalle.chilenaTargetComoCompaneroInd,
+                                chilenaDetalle = detalle.chilenaComoCompaneroInd,
+                                taconTarget = detalle.taconTargetComoCompaneroInd,
+                                taconDetalle = detalle.taconComoCompaneroInd,
+                                haJugadoPorteroTarget = detalle.haJugadoPorteroTargetComoCompaneroInd,
+                                golesEncajadosTarget = detalle.golesEncajadosTargetComoCompaneroInd,
+                                haJugadoPorteroDetalle = detalle.haJugadoPorteroComoCompaneroInd,
+                                golesEncajadosDetalle = detalle.golesEncajadosComoCompaneroInd,
+                                paradasTarget = detalle.paradasTargetComoCompaneroInd,
+                                paradasDetalle = detalle.paradasComoCompaneroInd
+                            )
+                        }
                     }
                 }
 
@@ -1110,11 +1297,11 @@ fun DialogoDetalleJugadorCruzado(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = DarkBackground),
                     shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, OrangeDraw.copy(alpha = 0.3f))
+                    border = BorderStroke(1.dp, OrangeDraw.copy(alpha = 0.3f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Como rival (equipo contrario)",
+                            text = "Como rival",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = OrangeDraw
@@ -1169,6 +1356,32 @@ fun DialogoDetalleJugadorCruzado(
                             Text("Tus goles frente a él:", fontSize = 12.sp, color = TextSecondary)
                             Text("${detalle.golesMarcadosComoRival}", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
+
+                        if (detalle.partidosComoRival > 0) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            TablaMetricasComparativas(
+                                targetNombre = nombreTarget,
+                                detalleNombre = nombreDetalle,
+                                golesTarget = detalle.golesTargetComoRivalInd,
+                                golesDetalle = detalle.golesComoRivalInd,
+                                asistenciasTarget = detalle.asistenciasTargetComoRivalInd,
+                                asistenciasDetalle = detalle.asistenciasComoRivalInd,
+                                palosTarget = detalle.tirosAlPaloTargetComoRivalInd,
+                                palosDetalle = detalle.tirosAlPaloComoRivalInd,
+                                fueraAreaTarget = detalle.fueraAreaTargetComoRivalInd,
+                                fueraAreaDetalle = detalle.fueraAreaComoRivalInd,
+                                chilenaTarget = detalle.chilenaTargetComoRivalInd,
+                                chilenaDetalle = detalle.chilenaComoRivalInd,
+                                taconTarget = detalle.taconTargetComoRivalInd,
+                                taconDetalle = detalle.taconComoRivalInd,
+                                haJugadoPorteroTarget = detalle.haJugadoPorteroTargetComoRivalInd,
+                                golesEncajadosTarget = detalle.golesEncajadosTargetComoRivalInd,
+                                haJugadoPorteroDetalle = detalle.haJugadoPorteroComoRivalInd,
+                                golesEncajadosDetalle = detalle.golesEncajadosComoRivalInd,
+                                paradasTarget = detalle.paradasTargetComoRivalInd,
+                                paradasDetalle = detalle.paradasComoRivalInd
+                            )
+                        }
                     }
                 }
 
@@ -1184,6 +1397,137 @@ fun DialogoDetalleJugadorCruzado(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TablaMetricasComparativas(
+    targetNombre: String,
+    detalleNombre: String,
+    golesTarget: Int,
+    golesDetalle: Int,
+    asistenciasTarget: Int,
+    asistenciasDetalle: Int,
+    palosTarget: Int,
+    palosDetalle: Int,
+    fueraAreaTarget: Int,
+    fueraAreaDetalle: Int,
+    chilenaTarget: Int,
+    chilenaDetalle: Int,
+    taconTarget: Int,
+    taconDetalle: Int,
+    haJugadoPorteroTarget: Boolean,
+    golesEncajadosTarget: Int,
+    haJugadoPorteroDetalle: Boolean,
+    golesEncajadosDetalle: Int,
+    paradasTarget: Int,
+    paradasDetalle: Int
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Métrica",
+            fontSize = 11.sp,
+            color = TextSecondary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1.3f)
+        )
+        Text(
+            text = targetNombre,
+            fontSize = 11.sp,
+            color = LimeVolt,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = detalleNombre,
+            fontSize = 11.sp,
+            color = OrangeDraw,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 6.dp),
+        color = Color.White.copy(alpha = 0.1f)
+    )
+
+    FilaMetricaComparativa("⚽", "Goles", "$golesTarget", "$golesDetalle")
+    FilaMetricaComparativa("🅰️", "Asistencias", "$asistenciasTarget", "$asistenciasDetalle")
+    FilaMetricaComparativa("🎯", "Palos", "$palosTarget", "$palosDetalle")
+    FilaMetricaComparativa("🚀", "Fuera área", "$fueraAreaTarget", "$fueraAreaDetalle")
+    FilaMetricaComparativa("🤸", "Chilena", "$chilenaTarget", "$chilenaDetalle")
+    FilaMetricaComparativa("👟", "Tacón", "$taconTarget", "$taconDetalle")
+
+    val showEncajados = haJugadoPorteroTarget || haJugadoPorteroDetalle || golesEncajadosTarget > 0 || golesEncajadosDetalle > 0
+    if (showEncajados) {
+        FilaMetricaComparativa(
+            "🥅",
+            "Goles enc.",
+            if (haJugadoPorteroTarget || golesEncajadosTarget > 0) "$golesEncajadosTarget" else "-",
+            if (haJugadoPorteroDetalle || golesEncajadosDetalle > 0) "$golesEncajadosDetalle" else "-"
+        )
+    }
+
+    val showParadas = (haJugadoPorteroTarget && paradasTarget > 0) || (haJugadoPorteroDetalle && paradasDetalle > 0) || haJugadoPorteroTarget || haJugadoPorteroDetalle
+    if (showParadas) {
+        FilaMetricaComparativa(
+            "🧤",
+            "Paradas",
+            if (haJugadoPorteroTarget) "$paradasTarget" else "-",
+            if (haJugadoPorteroDetalle) "$paradasDetalle" else "-"
+        )
+    }
+}
+
+@Composable
+private fun FilaMetricaComparativa(
+    icono: String,
+    label: String,
+    valA: String,
+    valB: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1.3f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(icono, fontSize = 12.sp)
+            Text(label, fontSize = 11.sp, color = TextSecondary)
+        }
+        Text(
+            text = valA,
+            fontSize = 12.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = valB,
+            fontSize = 12.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

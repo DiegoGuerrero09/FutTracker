@@ -190,7 +190,8 @@ fun CampoFutbol(
                     verticalArrangement = Arrangement.Top
                 ) {
                     val avatarTamano = 38.dp
-                    val fichaBorder = colorBordeFicha ?: if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f)
+                    val fichaBorder = if (jugador?.esFavorito == true) Color(0xFFFFD700) else (colorBordeFicha ?: if (jugador != null) LimeVolt else Color.White.copy(alpha = 0.4f))
+                    val fichaBordeAncho = if (jugador?.esFavorito == true) 1.dp else 1.5.dp
 
                     Box(
                         modifier = Modifier.size(avatarTamano + 4.dp)
@@ -200,13 +201,14 @@ fun CampoFutbol(
                             nombre = jugador?.nombre ?: posicionEnum.name,
                             tamano = avatarTamano,
                             bordeColor = fichaBorder,
-                            bordeAncho = 1.5.dp,
+                            bordeAncho = fichaBordeAncho,
                             modifier = Modifier.align(Alignment.Center)
                         )
 
                         // Placa pequeña cuadrada con tamaño uniforme (referencia DFC) y texto subido
+                        val badgeColor = if (jugador != null) (colorBordeFicha ?: fichaBorder) else Color.Black.copy(alpha = 0.8f)
                         Surface(
-                            color = if (jugador != null) fichaBorder else Color.Black.copy(alpha = 0.8f),
+                            color = badgeColor,
                             shape = RoundedCornerShape(3.dp),
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -216,14 +218,14 @@ fun CampoFutbol(
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = posicionEnum.name,
-                                    color = if (fichaBorder == Color.Black) Color.White else (if (jugador != null) Color.Black else Color.White),
+                                    color = if (badgeColor == Color.Black) Color.White else (if (jugador != null) Color.Black else Color.White),
                                     fontSize = 7.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     textAlign = TextAlign.Center,
                                     style = androidx.compose.ui.text.TextStyle(
                                         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                                     ),
-                                    modifier = Modifier.offset(y = (-0.5).dp)
+                                    modifier = Modifier.offset(y = (-1.5).dp)
                                 )
                             }
                         }

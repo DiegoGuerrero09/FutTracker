@@ -816,9 +816,23 @@ fun SorteosScreen(
                                         DropdownMenuItem(
                                             text = {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.Stadium, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(16.dp))
+                                                    Icon(
+                                                        Icons.Default.Stadium,
+                                                        contentDescription = null,
+                                                        tint = if (est.esFavorito) Color(0xFFFFD700) else LimeVolt,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
                                                     Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(est.nombre, color = Color.White, fontSize = 13.sp)
+                                                    Text(
+                                                        est.nombre,
+                                                        color = if (est.esFavorito) Color(0xFFFFD700) else Color.White,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (est.esFavorito) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                    if (est.esFavorito) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                                                    }
                                                 }
                                             },
                                             onClick = {
@@ -1426,7 +1440,18 @@ fun SorteosScreen(
                                 alineacion = mapa,
                                 colorBordeFicha = if (tabEquipoAlineacion == 0) Color.White else Color.Black,
                                 modifier = Modifier.fillMaxWidth(),
-                                onJugadorIntercambiado = null
+                                onJugadorIntercambiado = { key1, key2 ->
+                                    val nuevoMapa = mapa.toMutableMap()
+                                    val jug1 = nuevoMapa[key1]
+                                    val jug2 = nuevoMapa[key2]
+                                    nuevoMapa[key1] = jug2
+                                    nuevoMapa[key2] = jug1
+                                    if (tabEquipoAlineacion == 0) {
+                                        mapaCampoClaro = nuevoMapa
+                                    } else {
+                                        mapaCampoOscuro = nuevoMapa
+                                    }
+                                }
                             )
                         }
                     }
@@ -1485,41 +1510,6 @@ private fun ItemJugadorSorteo(
             .padding(vertical = 2.5.dp)
             .zIndex(if (isDragging) 99f else 1f)
             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-            .pointerInput(jugador.id) {
-                detectDragGestures(
-                    onDragStart = {
-                        isDragging = true
-                    },
-                    onDragEnd = {
-                        val dragX = offsetX
-                        val dragY = offsetY
-                        isDragging = false
-                        offsetX = 0f
-                        offsetY = 0f
-
-                        val umbralHorizontal = 45.dp.toPx()
-                        val umbralVertical = 25.dp.toPx()
-
-                        if (esEquipoClaro && dragX > umbralHorizontal) {
-                            onDragAEquipoContrario(dragY)
-                        } else if (!esEquipoClaro && dragX < -umbralHorizontal) {
-                            onDragAEquipoContrario(dragY)
-                        } else if (kotlin.math.abs(dragY) > umbralVertical) {
-                            onDragVerticalMismoEquipo(dragY)
-                        }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        offsetX = 0f
-                        offsetY = 0f
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        offsetX += dragAmount.x
-                        offsetY += dragAmount.y
-                    }
-                )
-            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = bgColor,
@@ -1535,8 +1525,44 @@ private fun ItemJugadorSorteo(
             Icon(
                 imageVector = Icons.Default.DragHandle,
                 contentDescription = "Arrastrar",
-                tint = if (esEquipoClaro) Color.Gray else Color(0xFF888888),
-                modifier = Modifier.size(14.dp)
+                tint = if (isDragging) LimeVolt else if (esEquipoClaro) Color.Gray else Color(0xFF888888),
+                modifier = Modifier
+                    .size(22.dp)
+                    .pointerInput(jugador.id) {
+                        detectDragGestures(
+                            onDragStart = {
+                                isDragging = true
+                            },
+                            onDragEnd = {
+                                val dragX = offsetX
+                                val dragY = offsetY
+                                isDragging = false
+                                offsetX = 0f
+                                offsetY = 0f
+
+                                val umbralHorizontal = 45.dp.toPx()
+                                val umbralVertical = 25.dp.toPx()
+
+                                if (esEquipoClaro && dragX > umbralHorizontal) {
+                                    onDragAEquipoContrario(dragY)
+                                } else if (!esEquipoClaro && dragX < -umbralHorizontal) {
+                                    onDragAEquipoContrario(dragY)
+                                } else if (kotlin.math.abs(dragY) > umbralVertical) {
+                                    onDragVerticalMismoEquipo(dragY)
+                                }
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                offsetX = 0f
+                                offsetY = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                offsetX += dragAmount.x
+                                offsetY += dragAmount.y
+                            }
+                        )
+                    }
             )
             Spacer(modifier = Modifier.width(3.dp))
             Text(

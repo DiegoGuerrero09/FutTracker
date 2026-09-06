@@ -1,6 +1,17 @@
 package com.diegoguerrero.futtracker.ui.screens.partidos
 
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.roundToInt
+import com.diegoguerrero.futtracker.domain.model.EstadisticasJugadorPartido
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -50,6 +61,13 @@ import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
 import com.diegoguerrero.futtracker.ui.components.DialogoVisorFotoConZoom
 import com.diegoguerrero.futtracker.ui.components.ImagenLocal
 import com.diegoguerrero.futtracker.ui.components.SelectorRangoFechasDosBotones
+import androidx.compose.ui.draw.scale
+import com.diegoguerrero.futtracker.domain.model.Formacion
+import com.diegoguerrero.futtracker.domain.model.FORMACIONES_FUTSAL
+import com.diegoguerrero.futtracker.domain.model.FORMACIONES_FUT_6
+import com.diegoguerrero.futtracker.domain.model.FORMACIONES_FUT_7
+import com.diegoguerrero.futtracker.domain.model.obtenerCoordenadas
+import com.diegoguerrero.futtracker.domain.usecase.GenerarAlineacionUseCase
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -104,7 +122,7 @@ fun PartidosScreen(
 
     var filtroModalidad by remember { mutableStateOf<TipoFutbol?>(null) }
     var filtroDuracion by remember { mutableStateOf<Int?>(null) }
-    var soloJugadosPorMi by remember { mutableStateOf(false) }
+    var filtroJugadorJugadoPor by remember { mutableStateOf<Jugador?>(null) }
     var filtroParticipantes by remember { mutableStateOf<Set<String>>(emptySet()) }
     var mostrarDialogoParticipante by remember { mutableStateOf(false) }
     var filtroResultado by remember { mutableStateOf<ResultadoFiltro?>(null) }
@@ -145,16 +163,23 @@ fun PartidosScreen(
             (if (filtroPeriodo != PeriodoPartidos.TOTAL) 1 else 0) +
             (if (filtroModalidad != null) 1 else 0) +
             (if (filtroDuracion != null) 1 else 0) +
-            (if (soloJugadosPorMi) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null) 1 else 0) +
             (if (filtroParticipantes.isNotEmpty()) 1 else 0) +
-            (if (soloJugadosPorMi && filtroResultado != null) 1 else 0) +
-            (if (soloJugadosPorMi && filtroPosicion != null) 1 else 0) +
-            (if (soloJugadosPorMi && filtroConMisGoles) 1 else 0) +
-            (if (soloJugadosPorMi && filtroConMisAsistencias) 1 else 0) +
-            (if (soloJugadosPorMi && filtroConMisPalos) 1 else 0) +
-            (if (soloJugadosPorMi && filtroFueraArea) 1 else 0) +
-            (if (soloJugadosPorMi && filtroTacon) 1 else 0) +
-            (if (soloJugadosPorMi && filtroChilena) 1 else 0)
+            (if (filtroJugadorJugadoPor != null && filtroResultado != null) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroPosicion != null) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroConMisGoles) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroConMisAsistencias) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroConMisPalos) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroFueraArea) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroTacon) 1 else 0) +
+            (if (filtroJugadorJugadoPor != null && filtroChilena) 1 else 0)
+
+    val usuarioActual = remember(jugadores) {
+        jugadores.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+    }
+    val usuarioIds = remember(usuarioActual) {
+        setOfNotNull(usuarioActual?.id, "usuario_propio_id")
+    }
 
     fun limpiarFiltros() {
         soloFavoritosFilter = false
@@ -163,7 +188,7 @@ fun PartidosScreen(
         anioSeleccionadoPartidos = Calendar.getInstance().get(Calendar.YEAR)
         filtroModalidad = null
         filtroDuracion = null
-        soloJugadosPorMi = false
+        filtroJugadorJugadoPor = null
         filtroParticipantes = emptySet()
         filtroResultado = null
         filtroPosicion = null
@@ -178,6 +203,7 @@ fun PartidosScreen(
 
     val partidosFiltrados = remember(
         partidos,
+        jugadores,
         soloFavoritosFilter,
         filtroPeriodo,
         temporadaSeleccionadaPartidos,
@@ -186,7 +212,7 @@ fun PartidosScreen(
         fechaFinPartidos,
         filtroModalidad,
         filtroDuracion,
-        soloJugadosPorMi,
+        filtroJugadorJugadoPor,
         filtroParticipantes,
         filtroResultado,
         filtroPosicion,
@@ -236,7 +262,6 @@ fun PartidosScreen(
             if (soloFavoritosFilter && !p.esFavorito) return@filter false
             if (filtroModalidad != null && p.modoJuego != filtroModalidad) return@filter false
             if (filtroDuracion != null && p.duracionMinutos != filtroDuracion) return@filter false
-            if (soloJugadosPorMi && !p.jugadoPorMi) return@filter false
 
             val cumplePeriodo = when (filtroPeriodo) {
                 PeriodoPartidos.TOTAL -> true
@@ -255,32 +280,111 @@ fun PartidosScreen(
                 if (!participa) return@filter false
             }
 
-            if (soloJugadosPorMi) {
+            if (filtroJugadorJugadoPor != null) {
+                val target = filtroJugadorJugadoPor!!
+                val esTargetYo = target.esUsuarioPropio || target.id == "usuario_propio_id" || target.id in usuarioIds
+
+                val jugoEnPartido = if (esTargetYo) {
+                    p.jugadoPorMi ||
+                            p.jugadoresIds.any { it in usuarioIds } ||
+                            p.jugadoresMiEquipo.any { it in usuarioIds } ||
+                            p.jugadoresEquipoRival.any { it in usuarioIds } ||
+                            p.jugadoresDetalle.any { it.jugadorId in usuarioIds }
+                } else {
+                    p.jugadoresIds.contains(target.id) ||
+                            p.jugadoresMiEquipo.contains(target.id) ||
+                            p.jugadoresEquipoRival.contains(target.id) ||
+                            p.jugadoresDetalle.any { it.jugadorId == target.id }
+                }
+                if (!jugoEnPartido) return@filter false
+
+                val det = if (esTargetYo) {
+                    p.jugadoresDetalle.firstOrNull { it.jugadorId in usuarioIds }
+                } else {
+                    p.jugadoresDetalle.firstOrNull { it.jugadorId == target.id }
+                }
+
                 if (filtroResultado != null) {
-                    val coincide = when (filtroResultado) {
-                        ResultadoFiltro.VICTORIAS -> p.esVictoria
-                        ResultadoFiltro.EMPATES -> p.esEmpate
-                        ResultadoFiltro.DERROTAS -> p.esDerrota
+                    val enMiEquipo = if (esTargetYo) {
+                        det?.esMiEquipo ?: (p.jugadoPorMi && !p.jugadoresEquipoRival.any { it in usuarioIds })
+                    } else {
+                        det?.esMiEquipo ?: p.jugadoresMiEquipo.contains(target.id)
+                    }
+
+                    val ganoJugador = if (enMiEquipo) p.esVictoria else p.esDerrota
+                    val empatoJugador = p.esEmpate
+                    val perdioJugador = if (enMiEquipo) p.esDerrota else p.esVictoria
+
+                    val coincideResultado = when (filtroResultado) {
+                        ResultadoFiltro.VICTORIAS -> ganoJugador
+                        ResultadoFiltro.EMPATES -> empatoJugador
+                        ResultadoFiltro.DERROTAS -> perdioJugador
                         null -> true
                     }
-                    if (!coincide) return@filter false
+                    if (!coincideResultado) return@filter false
                 }
 
                 if (filtroPosicion != null) {
-                    val coincide = if (filtroSoloPosicionPrincipal) {
-                        p.posicionJugada == filtroPosicion
+                    val posPrincipal = if (esTargetYo) {
+                        det?.posicionPrincipal ?: p.posicionJugada
                     } else {
-                        p.posicionJugada == filtroPosicion || p.posicionesJugadas.contains(filtroPosicion) || p.posicionesSecundarias.contains(filtroPosicion)
+                        det?.posicionPrincipal ?: target.posicionesPrimarias.firstOrNull() ?: Posicion.DC
                     }
-                    if (!coincide) return@filter false
+                    val posSecundarias = if (esTargetYo) {
+                        det?.posicionesSecundarias ?: p.posicionesSecundarias
+                    } else {
+                        det?.posicionesSecundarias ?: target.posicionesSecundarias
+                    }
+                    val coincidePos = if (filtroSoloPosicionPrincipal) {
+                        posPrincipal == filtroPosicion
+                    } else {
+                        posPrincipal == filtroPosicion || posSecundarias.contains(filtroPosicion) || (esTargetYo && p.posicionesJugadas.contains(filtroPosicion))
+                    }
+                    if (!coincidePos) return@filter false
                 }
 
-                if (filtroConMisGoles && p.goles <= 0) return@filter false
-                if (filtroConMisAsistencias && p.asistencias <= 0) return@filter false
-                if (filtroConMisPalos && p.tirosAlPalo <= 0) return@filter false
-                if (filtroFueraArea && p.golesFueraArea <= 0) return@filter false
-                if (filtroTacon && p.golesTacon <= 0) return@filter false
-                if (filtroChilena && p.golesChilena <= 0) return@filter false
+                val golesJugador = if (esTargetYo) {
+                    det?.goles ?: if (p.jugadoPorMi) p.goles else 0
+                } else {
+                    det?.goles ?: 0
+                }
+
+                val asistenciasJugador = if (esTargetYo) {
+                    det?.asistencias ?: if (p.jugadoPorMi) p.asistencias else 0
+                } else {
+                    det?.asistencias ?: 0
+                }
+
+                val palosJugador = if (esTargetYo) {
+                    det?.tirosAlPalo ?: if (p.jugadoPorMi) p.tirosAlPalo else 0
+                } else {
+                    det?.tirosAlPalo ?: 0
+                }
+
+                val fueraAreaJugador = if (esTargetYo) {
+                    det?.golesFueraArea ?: if (p.jugadoPorMi) p.golesFueraArea else 0
+                } else {
+                    det?.golesFueraArea ?: 0
+                }
+
+                val taconJugador = if (esTargetYo) {
+                    det?.golesTacon ?: if (p.jugadoPorMi) p.golesTacon else 0
+                } else {
+                    det?.golesTacon ?: 0
+                }
+
+                val chilenaJugador = if (esTargetYo) {
+                    det?.golesChilena ?: if (p.jugadoPorMi) p.golesChilena else 0
+                } else {
+                    det?.golesChilena ?: 0
+                }
+
+                if (filtroConMisGoles && golesJugador <= 0) return@filter false
+                if (filtroConMisAsistencias && asistenciasJugador <= 0) return@filter false
+                if (filtroConMisPalos && palosJugador <= 0) return@filter false
+                if (filtroFueraArea && fueraAreaJugador <= 0) return@filter false
+                if (filtroTacon && taconJugador <= 0) return@filter false
+                if (filtroChilena && chilenaJugador <= 0) return@filter false
             }
 
             true
@@ -299,7 +403,7 @@ fun PartidosScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { mostrarDialogoCrear = true },
-                containerColor = LimeVolt,
+                containerColor = LimeVoltSolid,
                 contentColor = Color.Black
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Registrar partido", tint = Color.Black)
@@ -313,8 +417,10 @@ fun PartidosScreen(
         ) {
             // Barra de filtros horizontales con estilo similar a jugadores
             LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -490,13 +596,121 @@ fun PartidosScreen(
                     )
                 }
 
-                // Jugados por mí (al final de la primera fila)
+                // Jugados por (al final de la primera fila)
                 item {
-                    FilterChip(
-                        selected = soloJugadosPorMi,
-                        onClick = { soloJugadosPorMi = !soloJugadosPorMi },
-                        label = { Text("Jugados por mí", fontSize = 12.sp) }
-                    )
+                    var menuJugadoPorAbierto by remember { mutableStateOf(false) }
+                    val labelChip = remember(filtroJugadorJugadoPor) {
+                        filtroJugadorJugadoPor?.let { "Jugado por: ${it.nombreConTu()}" } ?: "Jugados por"
+                    }
+
+                    Box {
+                        FilterChip(
+                            selected = filtroJugadorJugadoPor != null,
+                            onClick = { menuJugadoPorAbierto = true },
+                            label = { Text(labelChip, fontSize = 12.sp) },
+                            leadingIcon = {
+                                if (filtroJugadorJugadoPor != null) {
+                                    JugadorAvatar(
+                                        fotoUri = filtroJugadorJugadoPor?.fotoUri,
+                                        nombre = filtroJugadorJugadoPor?.nombre ?: "",
+                                        tamano = 18.dp,
+                                        fontSize = 8.sp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (filtroJugadorJugadoPor != null) {
+                                        IconButton(
+                                            onClick = { filtroJugadorJugadoPor = null },
+                                            modifier = Modifier.size(16.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Quitar filtro",
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        )
+
+                        DropdownMenu(
+                            expanded = menuJugadoPorAbierto,
+                            onDismissRequest = { menuJugadoPorAbierto = false },
+                            modifier = Modifier.heightIn(max = 380.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Sin filtrar",
+                                        fontWeight = if (filtroJugadorJugadoPor == null) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (filtroJugadorJugadoPor == null) LimeVolt else Color.White
+                                    )
+                                },
+                                onClick = {
+                                    filtroJugadorJugadoPor = null
+                                    menuJugadoPorAbierto = false
+                                }
+                            )
+
+                            HorizontalDivider(color = DarkCardBorder)
+
+                            val listaOpcionesJugadores = remember(jugadores) {
+                                val lista = jugadores.toMutableList()
+                                if (lista.none { it.esUsuarioPropio || it.id == "usuario_propio_id" }) {
+                                    lista.add(0, Jugador(id = "usuario_propio_id", nombre = "Yo", esUsuarioPropio = true))
+                                }
+                                lista.sortedWith(
+                                    compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+                                        .thenByDescending { it.esFavorito }
+                                        .thenBy { it.nombre.lowercase() }
+                                )
+                            }
+
+                            listaOpcionesJugadores.forEach { jug ->
+                                val esSeleccionado = filtroJugadorJugadoPor?.id == jug.id ||
+                                        (jug.esUsuarioPropio && filtroJugadorJugadoPor?.esUsuarioPropio == true)
+
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            JugadorAvatar(
+                                                fotoUri = jug.fotoUri,
+                                                nombre = jug.nombre,
+                                                tamano = 24.dp,
+                                                fontSize = 10.sp
+                                            )
+                                            Text(
+                                                text = jug.nombreConTu(),
+                                                color = if (esSeleccionado) LimeVolt else Color.White,
+                                                fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        filtroJugadorJugadoPor = jug
+                                        menuJugadoPorAbierto = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -590,8 +804,9 @@ fun PartidosScreen(
                 }
             }
 
-            // Segunda fila de filtros personales (SOLO si se marca "Jugados por mí")
-            if (soloJugadosPorMi) {
+            // Segunda fila de filtros personales (SOLO si se selecciona un jugador en "Jugados por")
+            if (filtroJugadorJugadoPor != null) {
+                val esYoFiltro = filtroJugadorJugadoPor?.let { it.esUsuarioPropio || it.id == "usuario_propio_id" || it.id in usuarioIds } == true
                 Spacer(modifier = Modifier.height(2.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -635,11 +850,12 @@ fun PartidosScreen(
                     // 2. Mi Posición
                     item {
                         var menuPosicionAbierto by remember { mutableStateOf(false) }
+                        val labelPosicion = filtroPosicion?.name ?: if (esYoFiltro) "Mi posición" else "Posición"
                         Box {
                             FilterChip(
                                 selected = filtroPosicion != null,
                                 onClick = { menuPosicionAbierto = true },
-                                label = { Text(filtroPosicion?.name ?: "Mi posición", fontSize = 12.sp) },
+                                label = { Text(labelPosicion, fontSize = 12.sp) },
                                 trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenu(
@@ -677,19 +893,21 @@ fun PartidosScreen(
                         }
                     }
 
-                    // 3. Con mis goles, etc.
+                    // 3. Con goles, asistencias, etc.
+                    val labelGoles = if (esYoFiltro) "Con mis goles" else "Con goles"
+                    val labelAsis = if (esYoFiltro) "Con mis asistencias" else "Con asistencias"
                     item {
                         FilterChip(
                             selected = filtroConMisGoles,
                             onClick = { filtroConMisGoles = !filtroConMisGoles },
-                            label = { Text("Con mis goles", fontSize = 12.sp) }
+                            label = { Text(labelGoles, fontSize = 12.sp) }
                         )
                     }
                     item {
                         FilterChip(
                             selected = filtroConMisAsistencias,
                             onClick = { filtroConMisAsistencias = !filtroConMisAsistencias },
-                            label = { Text("Con mis asistencias", fontSize = 12.sp) }
+                            label = { Text(labelAsis, fontSize = 12.sp) }
                         )
                     }
                     item {
@@ -1100,22 +1318,6 @@ private fun PartidoItem(
                         }
                     }
 
-                    if (estadioPartido != null) {
-                        Surface(
-                            color = LimeVolt.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "🏟️ ${estadioPartido.nombre}",
-                                color = LimeVolt,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
                     if (!partido.jugadoPorMi) {
                         Surface(
                             color = Color(0xFF64748B).copy(alpha = 0.25f),
@@ -1147,6 +1349,21 @@ private fun PartidoItem(
                     IconButton(onClick = onEliminar, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                     }
+                }
+            }
+
+            if (estadioPartido != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "🏟️ ${estadioPartido.nombre}",
+                        color = LimeVolt,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
 
@@ -1200,7 +1417,7 @@ private fun PartidoItem(
                         if (partido.jugadoPorMi) {
                             val miColor = partido.equipoJugado ?: EquipoColor.CLARO
                             Text(
-                                text = "Jugaste con ${miColor.emoji}${miColor.label}",
+                                text = "Jugaste con el equipo ${miColor.emoji}${miColor.label}",
                                 fontSize = 11.sp,
                                 color = TextSecondary
                             )
@@ -1236,7 +1453,7 @@ private fun PartidoItem(
                 // Estadísticas personales: Posición principal y secundarias, Goles y Asistencias
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
@@ -1253,13 +1470,23 @@ private fun PartidoItem(
                             color = LimeVolt,
                             shape = RoundedCornerShape(4.dp)
                         ) {
-                            Text(
-                                text = partido.posicionJugada.name,
-                                color = Color.Black,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(22.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = partido.posicionJugada.name,
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    textAlign = TextAlign.Center,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                    )
+                                )
+                            }
                         }
                         // Posiciones secundarias si las hay
                         partido.posicionesSecundarias.forEach { posSec ->
@@ -1268,23 +1495,62 @@ private fun PartidoItem(
                                 shape = RoundedCornerShape(4.dp),
                                 border = BorderStroke(0.8.dp, LimeVolt.copy(alpha = 0.5f))
                             ) {
-                                Text(
-                                    text = posSec.name,
-                                    color = LimeVolt,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 11.sp,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .width(36.dp)
+                                        .height(22.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = posSec.name,
+                                        color = LimeVolt,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp,
+                                        textAlign = TextAlign.Center,
+                                        style = androidx.compose.ui.text.TextStyle(
+                                            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "⚽ ${partido.goles} goles", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = "⚽ ${partido.goles}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "👟 ${partido.asistencias} asist.", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = "🅰️ ${partido.asistencias}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🎯 ${partido.tirosAlPalo}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    if (partido.golesFueraArea > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🚀 ${partido.golesFueraArea}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    if (partido.golesChilena > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🤸 ${partido.golesChilena}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    if (partido.golesTacon > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "👟 ${partido.golesTacon}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    val yoJugoDePortero = partido.posicionJugada == Posicion.POR || partido.posicionesSecundarias.contains(Posicion.POR) || partido.posicionesJugadas.contains(Posicion.POR)
+                    if (partido.paradas > 0 && yoJugoDePortero) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🧤 ${partido.paradas}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
 
@@ -1295,11 +1561,12 @@ private fun PartidoItem(
                     if (partido.golesCabeza > 0) add("Cabeza: ${partido.golesCabeza}")
                     if (partido.golesTacon > 0) add("Tacón: ${partido.golesTacon}")
                     if (partido.golesChilena > 0) add("Chilena: ${partido.golesChilena}")
+                    if (partido.golesFueraArea > 0) add("Fuera área: ${partido.golesFueraArea}")
                     if (partido.golesOtro > 0) add("Otro: ${partido.golesOtro}")
                 }
 
                 if (detallesGoles.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1428,6 +1695,683 @@ private fun PartidoItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun DialogoEditarStatsJugadorPartido(
+    jugador: Jugador,
+    esMiEquipo: Boolean,
+    statsActuales: EstadisticasJugadorPartido,
+    onDismiss: () -> Unit,
+    onGuardar: (EstadisticasJugadorPartido) -> Unit
+) {
+    var posPrincipal by remember { mutableStateOf(statsActuales.posicionPrincipal) }
+    val posSecundarias = remember { mutableStateListOf<Posicion>().apply { addAll(statsActuales.posicionesSecundarias) } }
+
+    var statsRegistradas by remember {
+        mutableStateOf(
+            if (jugador.esUsuarioPropio) true
+            else (statsActuales.statsRegistradas || statsActuales.goles > 0 || statsActuales.asistencias > 0 || statsActuales.tirosAlPalo > 0 || statsActuales.paradas > 0)
+        )
+    }
+
+    var goles by remember { mutableStateOf(statsActuales.goles) }
+    var asistencias by remember { mutableStateOf(statsActuales.asistencias) }
+    var palos by remember { mutableStateOf(statsActuales.tirosAlPalo) }
+    var paradas by remember { mutableStateOf(statsActuales.paradas) }
+
+    var gDiestra by remember { mutableStateOf(statsActuales.golesDiestra) }
+    var gZurda by remember { mutableStateOf(statsActuales.golesZurda) }
+    var gCabeza by remember { mutableStateOf(statsActuales.golesCabeza) }
+    var gOtro by remember { mutableStateOf(statsActuales.golesOtro) }
+
+    var gFuera by remember { mutableStateOf(statsActuales.golesFueraArea) }
+    var gTacon by remember { mutableStateOf(statsActuales.golesTacon) }
+    var gChilena by remember { mutableStateOf(statsActuales.golesChilena) }
+
+    fun recalcularGoles() {
+        goles = gDiestra + gZurda + gCabeza + gOtro
+        if (goles == 0) {
+            gFuera = 0
+            gTacon = 0
+            gChilena = 0
+        } else {
+            gFuera = gFuera.coerceAtMost(goles)
+            gTacon = gTacon.coerceAtMost(goles)
+            gChilena = gChilena.coerceAtMost(goles)
+        }
+    }
+
+    var mostrarZoomFoto by remember { mutableStateOf(false) }
+
+    if (mostrarZoomFoto && jugador.fotoUri != null) {
+        DialogoVisorFotoConZoom(
+            fotoUri = jugador.fotoUri!!,
+            nombre = jugador.nombre,
+            onDismiss = { mostrarZoomFoto = false }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                JugadorAvatar(
+                    fotoUri = jugador.fotoUri,
+                    nombre = jugador.nombre,
+                    tamano = 38.dp,
+                    fontSize = 13.sp,
+                    onClick = {
+                        if (jugador.fotoUri != null) {
+                            mostrarZoomFoto = true
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = jugador.nombreConTu(),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
+                    Surface(
+                        color = if (esMiEquipo) LimeVolt.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = if (esMiEquipo) "Mi equipo" else "Equipo rival",
+                            color = if (esMiEquipo) LimeVolt else TextSecondary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Posición Principal
+                Column {
+                    Text("Posición principal", color = TextSecondary, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(Posicion.entries.toTypedArray()) { pos ->
+                            val sel = posPrincipal == pos
+                            FilterChip(
+                                selected = sel,
+                                onClick = {
+                                    posPrincipal = pos
+                                    posSecundarias.remove(pos)
+                                },
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = sel,
+                                    borderColor = Color.Gray.copy(alpha = 0.5f),
+                                    selectedBorderColor = LimeVolt
+                                ),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = DarkCard,
+                                    selectedLabelColor = LimeVolt,
+                                    containerColor = DarkCard,
+                                    labelColor = TextSecondary
+                                ),
+                                label = { Text(pos.name, fontSize = 11.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                            )
+                        }
+                    }
+                }
+
+                // Posiciones Secundarias
+                Column {
+                    Text("Posiciones secundarias (opcional)", color = TextSecondary, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(Posicion.entries.toTypedArray()) { pos ->
+                            if (pos != posPrincipal) {
+                                val sel = pos in posSecundarias
+                                FilterChip(
+                                    selected = sel,
+                                    onClick = {
+                                        if (sel) posSecundarias.remove(pos)
+                                        else posSecundarias.add(pos)
+                                    },
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = sel,
+                                        borderColor = Color.Gray.copy(alpha = 0.5f),
+                                        selectedBorderColor = LimeVolt
+                                    ),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = DarkCard,
+                                        selectedLabelColor = LimeVolt,
+                                        containerColor = DarkCard,
+                                        labelColor = TextSecondary
+                                    ),
+                                    label = { Text(pos.name, fontSize = 11.sp) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = DarkCardBorder, thickness = 0.8.dp)
+
+                // Checkbox/Switch para estadísticas opcionales
+                if (!jugador.esUsuarioPropio) {
+                    Surface(
+                        color = if (statsRegistradas) LimeVolt.copy(alpha = 0.12f) else DarkCard,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (statsRegistradas) LimeVolt.copy(alpha = 0.4f) else Color.Gray.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { statsRegistradas = !statsRegistradas }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Registrar estadísticas",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (statsRegistradas) LimeVolt else Color.White,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Switch(
+                                checked = statsRegistradas,
+                                onCheckedChange = { statsRegistradas = it },
+                                modifier = Modifier.scale(0.8f),
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = LimeVoltSolid,
+                                    checkedTrackColor = LimeVolt.copy(alpha = 0.4f)
+                                )
+                            )
+                        }
+                    }
+                }
+
+                if (statsRegistradas || jugador.esUsuarioPropio) {
+                    val jugoDePortero = posPrincipal == Posicion.POR || Posicion.POR in posSecundarias
+                    if (jugoDePortero) {
+                        // 2x2 con Goles, Asistencias, Palos y Paradas
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "⚽ Goles",
+                                        value = goles,
+                                        onValueChange = { nuevoTotal ->
+                                            val diff = nuevoTotal - goles
+                                            if (diff > 0) {
+                                                gDiestra += diff
+                                            } else if (diff < 0) {
+                                                var porQuitar = -diff
+                                                if (gOtro >= porQuitar) { gOtro -= porQuitar; porQuitar = 0 } else { porQuitar -= gOtro; gOtro = 0 }
+                                                if (porQuitar > 0 && gCabeza >= porQuitar) { gCabeza -= porQuitar; porQuitar = 0 } else { porQuitar -= gCabeza; gCabeza = 0 }
+                                                if (porQuitar > 0 && gZurda >= porQuitar) { gZurda -= porQuitar; porQuitar = 0 } else { porQuitar -= gZurda; gZurda = 0 }
+                                                if (porQuitar > 0) { gDiestra = (gDiestra - porQuitar).coerceAtLeast(0) }
+                                            }
+                                            recalcularGoles()
+                                        }
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🅰️ Asist.",
+                                        value = asistencias,
+                                        onValueChange = { asistencias = it.coerceAtLeast(0) }
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🎯 Palos",
+                                        value = palos,
+                                        onValueChange = { palos = it.coerceAtLeast(0) }
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🧤 Paradas",
+                                        value = paradas,
+                                        onValueChange = { paradas = it.coerceAtLeast(0) }
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Solo 3 estadísticas: Goles, Asistencias y Palos en 1 sola fila
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                StepperInput(
+                                    label = "⚽ Goles",
+                                    value = goles,
+                                    onValueChange = { nuevoTotal ->
+                                        val diff = nuevoTotal - goles
+                                        if (diff > 0) {
+                                            gDiestra += diff
+                                        } else if (diff < 0) {
+                                            var porQuitar = -diff
+                                            if (gOtro >= porQuitar) { gOtro -= porQuitar; porQuitar = 0 } else { porQuitar -= gOtro; gOtro = 0 }
+                                            if (porQuitar > 0 && gCabeza >= porQuitar) { gCabeza -= porQuitar; porQuitar = 0 } else { porQuitar -= gCabeza; gCabeza = 0 }
+                                            if (porQuitar > 0 && gZurda >= porQuitar) { gZurda -= porQuitar; porQuitar = 0 } else { porQuitar -= gZurda; gZurda = 0 }
+                                            if (porQuitar > 0) { gDiestra = (gDiestra - porQuitar).coerceAtLeast(0) }
+                                        }
+                                        recalcularGoles()
+                                    }
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                StepperInput(
+                                    label = "🅰️ Asist.",
+                                    value = asistencias,
+                                    onValueChange = { asistencias = it.coerceAtLeast(0) }
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                StepperInput(
+                                    label = "🎯 Palos",
+                                    value = palos,
+                                    onValueChange = { palos = it.coerceAtLeast(0) }
+                                )
+                            }
+                        }
+                    }
+
+                    // Desglose de goles
+                    if (goles > 0) {
+                        Text("Parte del cuerpo:", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        val partesCuerpo = listOf(
+                            Triple("Diestra", gDiestra) { d: Int -> gDiestra = (gDiestra + d).coerceAtLeast(0); recalcularGoles() },
+                            Triple("Zurda", gZurda) { d: Int -> gZurda = (gZurda + d).coerceAtLeast(0); recalcularGoles() },
+                            Triple("Cabeza", gCabeza) { d: Int -> gCabeza = (gCabeza + d).coerceAtLeast(0); recalcularGoles() },
+                            Triple("Otro", gOtro) { d: Int -> gOtro = (gOtro + d).coerceAtLeast(0); recalcularGoles() }
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            partesCuerpo.chunked(2).forEach { fila ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    fila.forEach { (nombre, cantidad, update) ->
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { update(1) },
+                                            color = if (cantidad > 0) LimeVolt.copy(alpha = 0.2f) else DarkCard,
+                                            shape = RoundedCornerShape(8.dp),
+                                            border = BorderStroke(1.dp, if (cantidad > 0) LimeVolt else Color.Gray.copy(alpha = 0.5f))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = nombre,
+                                                    fontSize = 12.sp,
+                                                    color = if (cantidad > 0) LimeVolt else Color.White,
+                                                    fontWeight = if (cantidad > 0) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                                if (cantidad > 0) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("$cantidad", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LimeVolt)
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(20.dp)
+                                                                .clickable { update(-1) },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text("-", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Text("Atributos extra:", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        val atributosExtra = listOf(
+                            Triple("Fuera del área", gFuera) { d: Int -> gFuera = (gFuera + d).coerceIn(0, goles) },
+                            Triple("Tacón", gTacon) { d: Int -> gTacon = (gTacon + d).coerceIn(0, goles) },
+                            Triple("Chilena", gChilena) { d: Int -> gChilena = (gChilena + d).coerceIn(0, goles) }
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            atributosExtra.forEach { (nombre, cantidad, update) ->
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { update(1) },
+                                    color = if (cantidad > 0) LimeVolt.copy(alpha = 0.2f) else DarkCard,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, if (cantidad > 0) LimeVolt else Color.Gray.copy(alpha = 0.5f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = nombre,
+                                            fontSize = 12.sp,
+                                            color = if (cantidad > 0) LimeVolt else Color.White,
+                                            fontWeight = if (cantidad > 0) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        if (cantidad > 0) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text("$cantidad", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LimeVolt)
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .clickable { update(-1) },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text("-", color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val seRegistran = jugador.esUsuarioPropio || statsRegistradas
+                    onGuardar(
+                        statsActuales.copy(
+                            posicionPrincipal = posPrincipal,
+                            posicionesSecundarias = posSecundarias.toSet(),
+                            statsRegistradas = seRegistran,
+                            goles = if (seRegistran) goles else 0,
+                            asistencias = if (seRegistran) asistencias else 0,
+                            tirosAlPalo = if (seRegistran) palos else 0,
+                            paradas = if (seRegistran && (posPrincipal == Posicion.POR || Posicion.POR in posSecundarias)) paradas else 0,
+                            golesDiestra = if (seRegistran) gDiestra else 0,
+                            golesZurda = if (seRegistran) gZurda else 0,
+                            golesCabeza = if (seRegistran) gCabeza else 0,
+                            golesOtro = if (seRegistran) gOtro else 0,
+                            golesFueraArea = if (seRegistran) gFuera else 0,
+                            golesTacon = if (seRegistran) gTacon else 0,
+                            golesChilena = if (seRegistran) gChilena else 0
+                        )
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = LimeVoltSolid, contentColor = Color.Black)
+            ) {
+                Text("Aceptar", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun PizarraColocacionPartido(
+    jugadores: List<Jugador>,
+    detallesJugadores: Map<String, EstadisticasJugadorPartido>,
+    nombreEquipo: String,
+    emojiEquipo: String,
+    colorBordeFicha: Color?,
+    formacionesDisponibles: List<Formacion>,
+    formacionSeleccionada: Formacion,
+    onFormacionSeleccionada: (Formacion) -> Unit,
+    onMoverJugador: (String, Float, Float) -> Unit,
+    onEditarStats: (Jugador) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val pitchGreen = Color(0xFF1B4D3E)
+    val lineColor = Color.White.copy(alpha = 0.35f)
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard),
+        border = BorderStroke(1.dp, DarkCardBorder)
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🏟️ Colocación táctica: $nombreEquipo $emojiEquipo",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Selector de alineaciones / formaciones
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(formacionesDisponibles) { f ->
+                    val sel = formacionSeleccionada.id == f.id
+                    FilterChip(
+                        selected = sel,
+                        onClick = { onFormacionSeleccionada(f) },
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = sel,
+                            borderColor = LimeVolt.copy(alpha = 0.5f),
+                            selectedBorderColor = LimeVolt
+                        ),
+                        label = {
+                            Text(
+                                text = f.nombre,
+                                fontSize = 11.sp,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (jugadores.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(pitchGreen),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Selecciona jugadores arriba para verlos en el campo",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(310.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(pitchGreen)
+                ) {
+                    val widthPx = constraints.maxWidth.toFloat()
+                    val heightPx = constraints.maxHeight.toFloat()
+                    val anchoTotal = maxWidth
+                    val altoTotal = maxHeight
+
+                    // Líneas del campo
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val stroke = 1.5.dp.toPx()
+                        // Marco exterior
+                        drawRect(color = lineColor, style = Stroke(stroke))
+                        // Línea central
+                        drawLine(lineColor, Offset(0f, heightPx / 2), Offset(widthPx, heightPx / 2), stroke)
+                        // Círculo central
+                        drawCircle(lineColor, radius = widthPx * 0.16f, center = Offset(widthPx / 2, heightPx / 2), style = Stroke(stroke))
+                        // Portería y área superior
+                        val areaW = widthPx * 0.5f
+                        val areaH = heightPx * 0.18f
+                        drawRect(lineColor, topLeft = Offset((widthPx - areaW) / 2, 0f), size = Size(areaW, areaH), style = Stroke(stroke))
+                        // Portería y área inferior
+                        drawRect(lineColor, topLeft = Offset((widthPx - areaW) / 2, heightPx - areaH), size = Size(areaW, areaH), style = Stroke(stroke))
+                    }
+
+                    val coords = remember(formacionSeleccionada) { obtenerCoordenadas(formacionSeleccionada) }
+                    val useCase = remember { GenerarAlineacionUseCase() }
+                    val asignacion = remember(jugadores, formacionSeleccionada) {
+                        useCase(jugadores, formacionSeleccionada)
+                    }
+
+                    // Renderizar jugadores
+                    jugadores.forEachIndexed { index, jugador ->
+                        val det = detallesJugadores[jugador.id]
+                        val slotIndex = asignacion.indexOfFirst { it.second.id == jugador.id }
+                        val slotCoord = if (slotIndex in coords.indices) coords[slotIndex] else coords.getOrNull(index)
+
+                        val posDisplay = det?.posicionPrincipal
+                            ?: slotCoord?.first
+                            ?: jugador.posicionesPrimarias.firstOrNull()
+                            ?: Posicion.DC
+
+                        val posXRel = slotCoord?.second?.first ?: when (posDisplay) {
+                            Posicion.POR -> 0.50f
+                            Posicion.LI -> 0.20f
+                            Posicion.DFC -> 0.50f
+                            Posicion.LD -> 0.80f
+                            Posicion.MC -> 0.50f
+                            Posicion.EI -> 0.22f
+                            Posicion.DC -> 0.50f
+                            Posicion.ED -> 0.78f
+                        }
+                        val posYRel = slotCoord?.second?.second ?: when (posDisplay) {
+                            Posicion.POR -> 0.86f
+                            Posicion.LI, Posicion.LD -> 0.65f
+                            Posicion.DFC -> 0.68f
+                            Posicion.MC -> 0.44f
+                            Posicion.EI, Posicion.ED -> 0.26f
+                            Posicion.DC -> 0.16f
+                        }
+
+                        val iconWidth = 68.dp
+                        val iconHeight = 60.dp
+                        val posXDp = anchoTotal * posXRel
+                        val posYDp = altoTotal * posYRel
+
+                        val fichaBorder = if (jugador.esFavorito) Color(0xFFFFD700) else (colorBordeFicha ?: LimeVolt)
+                        val fichaBordeAncho = if (jugador.esFavorito) 1.dp else 1.5.dp
+
+                        Box(
+                            modifier = Modifier
+                                .offset(x = posXDp - (iconWidth / 2), y = posYDp - (iconHeight / 2))
+                                .size(width = iconWidth, height = iconHeight)
+                                .clickable { onEditarStats(jugador) },
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Top
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.BottomEnd,
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    JugadorAvatar(
+                                        fotoUri = jugador.fotoUri,
+                                        nombre = jugador.nombre,
+                                        tamano = 30.dp,
+                                        fontSize = 9.sp,
+                                        bordeColor = fichaBorder,
+                                        bordeAncho = fichaBordeAncho
+                                    )
+                                    val badgeColor = colorBordeFicha ?: fichaBorder
+                                    Surface(
+                                        color = badgeColor,
+                                        shape = RoundedCornerShape(2.dp),
+                                        modifier = Modifier
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(width = 18.dp, height = 13.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = posDisplay.name,
+                                                color = if (badgeColor == Color.Black) Color.White else Color.Black,
+                                                fontSize = 7.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                textAlign = TextAlign.Center,
+                                                style = androidx.compose.ui.text.TextStyle(
+                                                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                                ),
+                                                modifier = Modifier.offset(y = (-1).dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = jugador.nombreConTu(),
+                                    color = Color.White,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun DialogoPartido(
     partidoExistente: Partido? = null,
     jugadoresDisponibles: List<Jugador>,
@@ -1461,6 +2405,7 @@ fun DialogoPartido(
     var misGoles by remember { mutableStateOf(partidoExistente?.goles ?: 0) }
     var misAsistencias by remember { mutableStateOf(partidoExistente?.asistencias ?: 0) }
     var tirosAlPalo by remember { mutableStateOf(partidoExistente?.tirosAlPalo ?: 0) }
+    var misParadas by remember { mutableStateOf(partidoExistente?.paradas ?: 0) }
 
     var golesZurda by remember { mutableStateOf(partidoExistente?.golesZurda ?: 0) }
     var golesDiestra by remember { mutableStateOf(partidoExistente?.golesDiestra ?: 0) }
@@ -1475,6 +2420,7 @@ fun DialogoPartido(
     var notas by remember { mutableStateOf(partidoExistente?.notas ?: "") }
 
     val usuario = jugadoresDisponibles.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+    val canonicalUserId = usuario?.id ?: "usuario_propio_id"
     val usuarioIds = setOfNotNull(usuario?.id, "usuario_propio_id")
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -1496,24 +2442,19 @@ fun DialogoPartido(
 
     val jugadoresMiEquipo = remember {
         mutableStateListOf<String>().apply {
-            val userActualId = usuario?.id ?: "usuario_propio_id"
             if (partidoExistente != null) {
                 val existentes = partidoExistente.jugadoresMiEquipo.ifEmpty { partidoExistente.jugadoresIds }
-                val saneados = existentes.map { if (it in usuarioIds) userActualId else it }.distinct()
-                addAll(saneados)
+                val saneados = existentes.map { if (it in usuarioIds) canonicalUserId else it }.distinct().toMutableList()
                 if (jugadoPorMi) {
-                    if (userActualId !in this) {
-                        add(0, userActualId)
-                    } else if (firstOrNull() != userActualId) {
-                        remove(userActualId)
-                        add(0, userActualId)
-                    }
+                    saneados.removeAll { it in usuarioIds }
+                    saneados.add(0, canonicalUserId)
                 } else {
-                    removeAll { it in usuarioIds }
+                    saneados.removeAll { it in usuarioIds }
                 }
+                addAll(saneados)
             } else {
                 if (jugadoPorMi) {
-                    add(userActualId)
+                    add(canonicalUserId)
                 }
             }
         }
@@ -1522,35 +2463,104 @@ fun DialogoPartido(
     val jugadoresEquipoRival = remember {
         mutableStateListOf<String>().apply {
             if (partidoExistente != null) {
-                addAll(partidoExistente.jugadoresEquipoRival)
+                val saneados = partidoExistente.jugadoresEquipoRival.map { if (it in usuarioIds) canonicalUserId else it }.distinct().toMutableList()
                 if (!jugadoPorMi) {
-                    removeAll { it in usuarioIds }
+                    saneados.removeAll { it in usuarioIds }
+                }
+                addAll(saneados)
+            }
+        }
+    }
+
+    LaunchedEffect(jugadoresDisponibles, jugadoPorMi, canonicalUserId, modoJuego) {
+        val validDbIds = jugadoresDisponibles.map { it.id }.toSet()
+        if (validDbIds.isEmpty()) return@LaunchedEffect
+
+        fun sanear(lista: List<String>, esMiEquipo: Boolean): List<String> {
+            val resultado = mutableListOf<String>()
+            var usuarioIncluido = false
+            for (id in lista) {
+                if (id in usuarioIds || id == canonicalUserId) {
+                    if (esMiEquipo && jugadoPorMi && !usuarioIncluido) {
+                        resultado.add(canonicalUserId)
+                        usuarioIncluido = true
+                    }
+                } else if (id in validDbIds && !resultado.contains(id)) {
+                    resultado.add(id)
+                }
+            }
+            if (esMiEquipo && jugadoPorMi && !usuarioIncluido) {
+                resultado.add(0, canonicalUserId)
+            }
+            return resultado
+        }
+
+        val miEquipoSaneado = sanear(jugadoresMiEquipo, esMiEquipo = true)
+        val rivalSaneado = sanear(jugadoresEquipoRival, esMiEquipo = false)
+
+        val maxCampo = modoJuego.nJugadoresCampo
+        jugadoresMiEquipo.clear()
+        jugadoresMiEquipo.addAll(miEquipoSaneado.take(maxCampo))
+        jugadoresEquipoRival.clear()
+        jugadoresEquipoRival.addAll(rivalSaneado.take(maxCampo))
+    }
+
+    val formacionesDisponibles = remember(modoJuego) {
+        when (modoJuego) {
+            TipoFutbol.FUTSAL -> FORMACIONES_FUTSAL
+            TipoFutbol.FUT_6 -> FORMACIONES_FUT_6
+            TipoFutbol.FUT_7 -> FORMACIONES_FUT_7
+        }
+    }
+    var formacionMiEquipo by remember(modoJuego) { mutableStateOf(formacionesDisponibles.first()) }
+    var formacionRival by remember(modoJuego) { mutableStateOf(formacionesDisponibles.first()) }
+
+    val detallesJugadores = remember {
+        mutableStateMapOf<String, EstadisticasJugadorPartido>().apply {
+            partidoExistente?.jugadoresDetalle?.forEach { det ->
+                put(det.jugadorId, det)
+            }
+        }
+    }
+    var jugadorParaEditarStats by remember { mutableStateOf<Jugador?>(null) }
+
+    var busquedaEstadio by remember { mutableStateOf("") }
+    var filtroEstadioModalidad by remember { mutableStateOf<TipoFutbol?>(null) }
+    var filtroEstadioFavoritos by remember { mutableStateOf(false) }
+    var ordenEstadioAZ by remember { mutableStateOf(true) }
+    var ordenEstadioRecientes by remember { mutableStateOf(true) }
+    var criterioOrdenEstadio by remember { mutableStateOf("ALFA") }
+
+    val estadiosFiltrados = remember(estadios, busquedaEstadio, filtroEstadioModalidad, filtroEstadioFavoritos, ordenEstadioAZ, ordenEstadioRecientes, criterioOrdenEstadio) {
+        estadios.filter { est ->
+            val matchText = busquedaEstadio.isBlank() || est.nombre.contains(busquedaEstadio.trim(), ignoreCase = true)
+            val matchFav = !filtroEstadioFavoritos || est.esFavorito
+            val matchMod = filtroEstadioModalidad == null || est.modalidades.contains(filtroEstadioModalidad)
+            matchText && matchFav && matchMod
+        }.sortedWith { a, b ->
+            if (a.esFavorito != b.esFavorito) {
+                if (a.esFavorito) -1 else 1
+            } else {
+                if (criterioOrdenEstadio == "FECHA") {
+                    if (ordenEstadioRecientes) b.fechaCreacion.compareTo(a.fechaCreacion)
+                    else a.fechaCreacion.compareTo(b.fechaCreacion)
+                } else {
+                    if (ordenEstadioAZ) a.nombre.compareTo(b.nombre, ignoreCase = true)
+                    else b.nombre.compareTo(a.nombre, ignoreCase = true)
                 }
             }
         }
     }
 
-    LaunchedEffect(jugadoresDisponibles, jugadoPorMi) {
-        val u = jugadoresDisponibles.firstOrNull { it.esUsuarioPropio || it.id == "usuario_propio_id" }
-        if (u != null) {
-            val uIds = setOf(u.id, "usuario_propio_id")
-            if (jugadoPorMi) {
-                val count = jugadoresMiEquipo.count { it in uIds }
-                if (count > 1) {
-                    jugadoresMiEquipo.removeAll { it in uIds }
-                    jugadoresMiEquipo.add(0, u.id)
-                } else if (count == 1) {
-                    val idx = jugadoresMiEquipo.indexOfFirst { it in uIds }
-                    if (idx != -1 && jugadoresMiEquipo[idx] != u.id) {
-                        jugadoresMiEquipo[idx] = u.id
-                    }
-                } else if (count == 0) {
-                    jugadoresMiEquipo.add(0, u.id)
-                }
-            } else {
-                jugadoresMiEquipo.removeAll { it in uIds }
-                jugadoresEquipoRival.removeAll { it in uIds }
-            }
+    LaunchedEffect(modoJuego) {
+        val maxTotal = modoJuego.nJugadoresCampo
+        while (jugadoresMiEquipo.size > maxTotal) {
+            val nonUser = jugadoresMiEquipo.lastOrNull { it !in usuarioIds }
+            if (nonUser != null) jugadoresMiEquipo.remove(nonUser)
+            else jugadoresMiEquipo.removeAt(jugadoresMiEquipo.lastIndex)
+        }
+        while (jugadoresEquipoRival.size > maxTotal) {
+            jugadoresEquipoRival.removeAt(jugadoresEquipoRival.lastIndex)
         }
     }
 
@@ -1559,7 +2569,8 @@ fun DialogoPartido(
     var filtroSoloFavoritos by remember { mutableStateOf(false) }
     var filtroPosicion by remember { mutableStateOf<Posicion?>(null) }
 
-    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val sdfFecha = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val sdfHora = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val cal = Calendar.getInstance()
 
     AlertDialog(
@@ -1594,40 +2605,86 @@ fun DialogoPartido(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Selector de Fecha
+                // Selector de Fecha y Hora
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            cal.timeInMillis = fechaMillis
-                            DatePickerDialog(
-                                context,
-                                { _, year, month, dayOfMonth ->
-                                    val newCal = Calendar.getInstance().apply {
-                                        set(year, month, dayOfMonth)
-                                    }
-                                    fechaMillis = newCal.timeInMillis
-                                },
-                                cal.get(Calendar.YEAR),
-                                cal.get(Calendar.MONTH),
-                                cal.get(Calendar.DAY_OF_MONTH)
-                            ).show()
-                        }
-                        .background(DarkCard, RoundedCornerShape(8.dp))
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Fecha del partido", color = TextSecondary, fontSize = 13.sp)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = sdf.format(Date(fechaMillis)),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(Icons.Default.Event, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(18.dp))
+                    Row(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .clickable {
+                                cal.timeInMillis = fechaMillis
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        val newCal = Calendar.getInstance().apply {
+                                            timeInMillis = fechaMillis
+                                            set(Calendar.YEAR, year)
+                                            set(Calendar.MONTH, month)
+                                            set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                                        }
+                                        fechaMillis = newCal.timeInMillis
+                                    },
+                                    cal.get(Calendar.YEAR),
+                                    cal.get(Calendar.MONTH),
+                                    cal.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            }
+                            .background(DarkCard, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Fecha", color = TextSecondary, fontSize = 11.5.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = sdfFecha.format(Date(fechaMillis)),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Event, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(15.dp))
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                cal.timeInMillis = fechaMillis
+                                TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        val newCal = Calendar.getInstance().apply {
+                                            timeInMillis = fechaMillis
+                                            set(Calendar.HOUR_OF_DAY, hourOfDay)
+                                            set(Calendar.MINUTE, minute)
+                                        }
+                                        fechaMillis = newCal.timeInMillis
+                                    },
+                                    cal.get(Calendar.HOUR_OF_DAY),
+                                    cal.get(Calendar.MINUTE),
+                                    true
+                                ).show()
+                            }
+                            .background(DarkCard, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Hora", color = TextSecondary, fontSize = 11.5.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = sdfHora.format(Date(fechaMillis)),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Schedule, contentDescription = null, tint = LimeVolt, modifier = Modifier.size(15.dp))
+                        }
                     }
                 }
 
@@ -1715,11 +2772,13 @@ fun DialogoPartido(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text("Foto del partido", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                            Text(
-                                if (fotoUri != null) "Toca para recortar otra" else "Añadir foto del partido",
-                                fontSize = 11.sp,
-                                color = TextSecondary
-                            )
+                            if (fotoUri == null) {
+                                Text(
+                                    "Añadir foto del partido",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary
+                                )
+                            }
                         }
                     }
                     if (fotoUri != null) {
@@ -1823,24 +2882,6 @@ fun DialogoPartido(
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        item {
-                            val sel = clima == null
-                            FilterChip(
-                                selected = sel,
-                                onClick = { clima = null },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt,
-                                    selectedLabelColor = Color.Black
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = sel,
-                                    borderColor = LimeVolt.copy(alpha = 0.5f),
-                                    selectedBorderColor = LimeVolt
-                                ),
-                                label = { Text("🏠 No clima (Pista techada)", fontSize = 12.sp) }
-                            )
-                        }
                         items(Clima.entries.toTypedArray()) { c ->
                             val sel = clima == c
                             val horaPartido = Calendar.getInstance().apply { timeInMillis = fechaMillis }.get(Calendar.HOUR_OF_DAY)
@@ -1848,17 +2889,27 @@ fun DialogoPartido(
                             FilterChip(
                                 selected = sel,
                                 onClick = { clima = c },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = LimeVolt,
-                                    selectedLabelColor = Color.Black
-                                ),
                                 border = FilterChipDefaults.filterChipBorder(
                                     enabled = true,
                                     selected = sel,
                                     borderColor = LimeVolt.copy(alpha = 0.5f),
                                     selectedBorderColor = LimeVolt
                                 ),
-                                label = { Text("$emoji ${c.label}", fontSize = 12.sp) }
+                                label = { Text("$emoji ${c.label}", fontSize = 12.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
+                            )
+                        }
+                        item {
+                            val sel = clima == null
+                            FilterChip(
+                                selected = sel,
+                                onClick = { clima = null },
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = sel,
+                                    borderColor = LimeVolt.copy(alpha = 0.5f),
+                                    selectedBorderColor = LimeVolt
+                                ),
+                                label = { Text("🏠 Techado", fontSize = 12.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal) }
                             )
                         }
                     }
@@ -1869,21 +2920,188 @@ fun DialogoPartido(
                     Column {
                         Text("Ubicación", color = TextSecondary, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(6.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+                        // Buscador de estadios por nombre
+                        OutlinedTextField(
+                            value = busquedaEstadio,
+                            onValueChange = { busquedaEstadio = it },
+                            placeholder = { Text("Buscar estadio...", fontSize = 12.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                            trailingIcon = {
+                                if (busquedaEstadio.isNotEmpty()) {
+                                    IconButton(onClick = { busquedaEstadio = "" }, modifier = Modifier.size(20.dp)) {
+                                        Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = LimeVolt,
+                                unfocusedBorderColor = LimeVolt.copy(alpha = 0.5f),
+                                cursorColor = LimeVolt
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Filtros rápidos de estadio: Favoritos, Modalidad, A-Z / Z-A, Fecha añadido
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             item {
                                 FilterChip(
-                                    selected = estadioId == null,
+                                    selected = filtroEstadioFavoritos,
+                                    onClick = { filtroEstadioFavoritos = !filtroEstadioFavoritos },
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = filtroEstadioFavoritos,
+                                        borderColor = Color(0xFFFFD700).copy(alpha = 0.6f),
+                                        selectedBorderColor = Color(0xFFFFD700)
+                                    ),
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (filtroEstadioFavoritos) Icons.Default.Star else Icons.Default.StarBorder,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = Color(0xFFFFD700)
+                                        )
+                                    },
+                                    label = { Text("Favoritos", fontSize = 11.sp) }
+                                )
+                            }
+                            item {
+                                FilterChip(
+                                    selected = filtroEstadioModalidad == null,
+                                    onClick = { filtroEstadioModalidad = null },
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = filtroEstadioModalidad == null,
+                                        borderColor = LimeVolt.copy(alpha = 0.5f),
+                                        selectedBorderColor = LimeVolt
+                                    ),
+                                    label = { Text("Todas modal.", fontSize = 11.sp) }
+                                )
+                            }
+                            items(TipoFutbol.entries.toTypedArray()) { tipo ->
+                                val sel = filtroEstadioModalidad == tipo
+                                val tipoLabel = when (tipo) {
+                                    TipoFutbol.FUTSAL -> "Futsal"
+                                    TipoFutbol.FUT_6 -> "Fútbol 6"
+                                    TipoFutbol.FUT_7 -> "Fútbol 7"
+                                }
+                                FilterChip(
+                                    selected = sel,
+                                    onClick = { filtroEstadioModalidad = if (sel) null else tipo },
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = sel,
+                                        borderColor = LimeVolt.copy(alpha = 0.5f),
+                                        selectedBorderColor = LimeVolt
+                                    ),
+                                    label = { Text(tipoLabel, fontSize = 11.sp) }
+                                )
+                            }
+                            item {
+                                val activo = criterioOrdenEstadio == "ALFA"
+                                FilterChip(
+                                    selected = activo,
+                                    onClick = {
+                                        if (criterioOrdenEstadio == "ALFA") {
+                                            ordenEstadioAZ = !ordenEstadioAZ
+                                        } else {
+                                            criterioOrdenEstadio = "ALFA"
+                                        }
+                                    },
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = activo,
+                                        borderColor = LimeVolt.copy(alpha = 0.5f),
+                                        selectedBorderColor = LimeVolt
+                                    ),
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.SortByAlpha,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (activo) LimeVolt else TextSecondary
+                                        )
+                                    },
+                                    label = { Text(if (ordenEstadioAZ) "A-Z ↓" else "Z-A ↑", fontSize = 11.sp) }
+                                )
+                            }
+                            item {
+                                val activo = criterioOrdenEstadio == "FECHA"
+                                FilterChip(
+                                    selected = activo,
+                                    onClick = {
+                                        if (criterioOrdenEstadio == "FECHA") {
+                                            ordenEstadioRecientes = !ordenEstadioRecientes
+                                        } else {
+                                            criterioOrdenEstadio = "FECHA"
+                                        }
+                                    },
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = activo,
+                                        borderColor = LimeVolt.copy(alpha = 0.5f),
+                                        selectedBorderColor = LimeVolt
+                                    ),
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.SwapVert,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (activo) LimeVolt else TextSecondary
+                                        )
+                                    },
+                                    label = { Text(if (ordenEstadioRecientes) "Fecha añadido ↓" else "Fecha añadido ↑", fontSize = 11.sp) }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item {
+                                val sel = estadioId == null
+                                FilterChip(
+                                    selected = sel,
                                     onClick = { estadioId = null },
-                                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = estadioId == null, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = sel,
+                                        borderColor = LimeVolt.copy(alpha = 0.5f),
+                                        selectedBorderColor = LimeVolt
+                                    ),
                                     label = { Text("Sin especificar", fontSize = 11.sp) }
                                 )
                             }
-                            items(estadios) { est ->
+                            items(estadiosFiltrados) { est ->
                                 val sel = estadioId == est.id
                                 FilterChip(
                                     selected = sel,
                                     onClick = { estadioId = est.id },
-                                    border = FilterChipDefaults.filterChipBorder(enabled = true, selected = sel, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = sel,
+                                        borderColor = if (est.esFavorito) Color(0xFFFFD700).copy(alpha = 0.6f) else LimeVolt.copy(alpha = 0.5f),
+                                        selectedBorderColor = if (est.esFavorito) Color(0xFFFFD700) else LimeVolt,
+                                        borderWidth = if (est.esFavorito) 1.dp else 1.dp,
+                                        selectedBorderWidth = if (est.esFavorito) 1.dp else 1.5.dp
+                                    ),
+                                    leadingIcon = if (est.esFavorito) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = "Favorito",
+                                                tint = Color(0xFFFFD700),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                        }
+                                    } else null,
                                     label = { Text("🏟️ ${est.nombre}", fontSize = 11.sp) }
                                 )
                             }
@@ -2050,47 +3268,106 @@ fun DialogoPartido(
                         }
                     }
 
-                    // Mis estadísticas (Goles, asistencias y tiros al palo)
+                    // Mis estadísticas (Goles, asistencias, palos y paradas)
                     Column {
+                        val yoJugoDePortero = posicionPrincipal == Posicion.POR || Posicion.POR in posicionesSecundarias
                         Text("Mis estadísticas", color = TextSecondary, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                StepperInput(
-                                    label = "⚽ Goles",
-                                    value = misGoles,
-                                    onValueChange = { nuevoTotal ->
-                                        val diff = nuevoTotal - misGoles
-                                        if (diff > 0) {
-                                            golesDiestra += diff
-                                        } else if (diff < 0) {
-                                            var porQuitar = -diff
-                                            if (golesOtro >= porQuitar) { golesOtro -= porQuitar; porQuitar = 0 } else { porQuitar -= golesOtro; golesOtro = 0 }
-                                            if (porQuitar > 0 && golesCabeza >= porQuitar) { golesCabeza -= porQuitar; porQuitar = 0 } else { porQuitar -= golesCabeza; golesCabeza = 0 }
-                                            if (porQuitar > 0 && golesZurda >= porQuitar) { golesZurda -= porQuitar; porQuitar = 0 } else { porQuitar -= golesZurda; golesZurda = 0 }
-                                            if (porQuitar > 0) { golesDiestra = (golesDiestra - porQuitar).coerceAtLeast(0) }
+                        if (yoJugoDePortero) {
+                            // 2x2 con Goles, Asistencias, Palos y Paradas
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "⚽ Goles",
+                                        value = misGoles,
+                                        onValueChange = { nuevoTotal ->
+                                            val diff = nuevoTotal - misGoles
+                                            if (diff > 0) {
+                                                golesDiestra += diff
+                                            } else if (diff < 0) {
+                                                var porQuitar = -diff
+                                                if (golesOtro >= porQuitar) { golesOtro -= porQuitar; porQuitar = 0 } else { porQuitar -= golesOtro; golesOtro = 0 }
+                                                if (porQuitar > 0 && golesCabeza >= porQuitar) { golesCabeza -= porQuitar; porQuitar = 0 } else { porQuitar -= golesCabeza; golesCabeza = 0 }
+                                                if (porQuitar > 0 && golesZurda >= porQuitar) { golesZurda -= porQuitar; porQuitar = 0 } else { porQuitar -= golesZurda; golesZurda = 0 }
+                                                if (porQuitar > 0) { golesDiestra = (golesDiestra - porQuitar).coerceAtLeast(0) }
+                                            }
+                                            misGoles = (golesDiestra + golesZurda + golesCabeza + golesOtro).coerceAtLeast(0)
                                         }
-                                        misGoles = (golesDiestra + golesZurda + golesCabeza + golesOtro).coerceAtLeast(0)
-                                    }
-                                )
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🅰️ Asistencias",
+                                        value = misAsistencias,
+                                        onValueChange = { misAsistencias = it.coerceAtLeast(0) }
+                                    )
+                                }
                             }
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                StepperInput(
-                                    label = "👟 Asistencias",
-                                    value = misAsistencias,
-                                    onValueChange = { misAsistencias = it.coerceAtLeast(0) }
-                                )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🎯 Palos",
+                                        value = tirosAlPalo,
+                                        onValueChange = { tirosAlPalo = it.coerceAtLeast(0) }
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🧤 Paradas",
+                                        value = misParadas,
+                                        onValueChange = { misParadas = it.coerceAtLeast(0) }
+                                    )
+                                }
                             }
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                StepperInput(
-                                    label = "🥅 Palos",
-                                    value = tirosAlPalo,
-                                    onValueChange = { tirosAlPalo = it.coerceAtLeast(0) }
-                                )
+                        } else {
+                            // Solo 3 estadísticas: Goles, Asistencias y Palos en 1 sola fila
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "⚽ Goles",
+                                        value = misGoles,
+                                        onValueChange = { nuevoTotal ->
+                                            val diff = nuevoTotal - misGoles
+                                            if (diff > 0) {
+                                                golesDiestra += diff
+                                            } else if (diff < 0) {
+                                                var porQuitar = -diff
+                                                if (golesOtro >= porQuitar) { golesOtro -= porQuitar; porQuitar = 0 } else { porQuitar -= golesOtro; golesOtro = 0 }
+                                                if (porQuitar > 0 && golesCabeza >= porQuitar) { golesCabeza -= porQuitar; porQuitar = 0 } else { porQuitar -= golesCabeza; golesCabeza = 0 }
+                                                if (porQuitar > 0 && golesZurda >= porQuitar) { golesZurda -= porQuitar; porQuitar = 0 } else { porQuitar -= golesZurda; golesZurda = 0 }
+                                                if (porQuitar > 0) { golesDiestra = (golesDiestra - porQuitar).coerceAtLeast(0) }
+                                            }
+                                            misGoles = (golesDiestra + golesZurda + golesCabeza + golesOtro).coerceAtLeast(0)
+                                        }
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🅰️ Asistencias",
+                                        value = misAsistencias,
+                                        onValueChange = { misAsistencias = it.coerceAtLeast(0) }
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                    StepperInput(
+                                        label = "🎯 Palos",
+                                        value = tirosAlPalo,
+                                        onValueChange = { tirosAlPalo = it.coerceAtLeast(0) }
+                                    )
+                                }
                             }
                         }
 
@@ -2292,11 +3569,11 @@ fun DialogoPartido(
                     }
 
                     val rivalCol = if (equipoJugado == EquipoColor.CLARO) EquipoColor.OSCURO else EquipoColor.CLARO
-                    val maxCompaneros = (modoJuego.nJugadoresCampo - 1).coerceAtLeast(1)
-                    val maxRival = modoJuego.nJugadoresCampo
-                    val companerosCount = jugadoresMiEquipo.count { it !in usuarioIds }
-                    val tabTexto1 = if (jugadoPorMi) "Mi equipo (${equipoJugado.emoji}) ($companerosCount/$maxCompaneros)" else "⚪ Claro (${jugadoresMiEquipo.size}/$maxRival)"
-                    val tabTexto2 = if (jugadoPorMi) "Equipo rival (${rivalCol.emoji}) (${jugadoresEquipoRival.size}/$maxRival)" else "⚫ Oscuro (${jugadoresEquipoRival.size}/$maxRival)"
+                    val maxTotal = modoJuego.nJugadoresCampo
+                    val countMiEquipo = jugadoresMiEquipo.count { id -> id in usuarioIds || jugadoresDisponibles.any { it.id == id } }
+                    val countRival = jugadoresEquipoRival.count { id -> id in usuarioIds || jugadoresDisponibles.any { it.id == id } }
+                    val tabTexto1 = if (jugadoPorMi) "Mi equipo (${equipoJugado.emoji}) ($countMiEquipo/$maxTotal)" else "⚪ Claro ($countMiEquipo/$maxTotal)"
+                    val tabTexto2 = if (jugadoPorMi) "Equipo rival (${rivalCol.emoji}) ($countRival/$maxTotal)" else "⚫ Oscuro ($countRival/$maxTotal)"
 
                     Column {
                         Text("Jugadores participantes (por equipo)", color = TextSecondary, fontSize = 13.sp)
@@ -2398,7 +3675,7 @@ fun DialogoPartido(
                         // Lista de jugadores filtrados
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(jugadoresFiltrados) { jugador ->
-                                val esUsuarioChip = jugador.esUsuarioPropio || jugador.id == "usuario_propio_id" || (usuario != null && jugador.id == usuario.id)
+                                val esUsuarioChip = jugador.esUsuarioPropio || jugador.id in usuarioIds
                                 val enMiEquipo = if (esUsuarioChip) {
                                     jugadoresMiEquipo.any { it in usuarioIds }
                                 } else {
@@ -2414,48 +3691,235 @@ fun DialogoPartido(
                                 FilterChip(
                                     selected = seleccionadoActual,
                                     onClick = {
-                                        val actualId = if (esUsuarioChip) (usuario?.id ?: jugador.id) else jugador.id
+                                        val actualId = if (esUsuarioChip) canonicalUserId else jugador.id
                                         if (tabEquipoJugadores == 0) {
                                             if (enMiEquipo) {
-                                                if (esUsuarioChip) jugadoresMiEquipo.removeAll { it in usuarioIds }
-                                                else jugadoresMiEquipo.remove(actualId)
+                                                if (!(jugadoPorMi && esUsuarioChip)) {
+                                                    if (esUsuarioChip) jugadoresMiEquipo.removeAll { it in usuarioIds }
+                                                    else jugadoresMiEquipo.remove(jugador.id)
+                                                    detallesJugadores.remove(actualId)
+                                                }
                                             } else {
-                                                if (esUsuarioChip) {
-                                                    jugadoresEquipoRival.removeAll { it in usuarioIds }
-                                                    jugadoresMiEquipo.removeAll { it in usuarioIds }
-                                                    jugadoresMiEquipo.add(0, actualId)
-                                                } else {
-                                                    jugadoresEquipoRival.remove(actualId)
-                                                    jugadoresMiEquipo.add(actualId)
+                                                if (jugadoresMiEquipo.size < maxTotal) {
+                                                    if (esUsuarioChip) {
+                                                        jugadoresEquipoRival.removeAll { it in usuarioIds }
+                                                        jugadoresMiEquipo.removeAll { it in usuarioIds }
+                                                        jugadoresMiEquipo.add(0, actualId)
+                                                    } else {
+                                                        jugadoresEquipoRival.remove(jugador.id)
+                                                        if (!jugadoresMiEquipo.contains(jugador.id)) {
+                                                            jugadoresMiEquipo.add(jugador.id)
+                                                        }
+                                                    }
+                                                    if (!detallesJugadores.containsKey(actualId)) {
+                                                        detallesJugadores[actualId] = EstadisticasJugadorPartido(
+                                                            jugadorId = actualId,
+                                                            esMiEquipo = true,
+                                                            posicionPrincipal = if (esUsuarioChip) posicionPrincipal else (jugador.posicionesPrimarias.firstOrNull() ?: Posicion.DC),
+                                                            posicionesSecundarias = if (esUsuarioChip) posicionesSecundarias.toSet() else jugador.posicionesSecundarias.toSet(),
+                                                            posX = 0.5f,
+                                                            posY = 0.5f
+                                                        )
+                                                    }
                                                 }
                                             }
                                         } else {
                                             if (enRival) {
                                                 if (esUsuarioChip) jugadoresEquipoRival.removeAll { it in usuarioIds }
-                                                else jugadoresEquipoRival.remove(actualId)
+                                                else jugadoresEquipoRival.remove(jugador.id)
+                                                detallesJugadores.remove(actualId)
                                             } else {
-                                                if (esUsuarioChip) {
-                                                    jugadoresMiEquipo.removeAll { it in usuarioIds }
-                                                    jugadoresEquipoRival.removeAll { it in usuarioIds }
-                                                    jugadoresEquipoRival.add(actualId)
-                                                } else {
-                                                    jugadoresMiEquipo.remove(actualId)
-                                                    jugadoresEquipoRival.add(actualId)
+                                                if (jugadoresEquipoRival.size < maxTotal) {
+                                                    if (esUsuarioChip) {
+                                                        if (!jugadoPorMi) {
+                                                            jugadoresMiEquipo.removeAll { it in usuarioIds }
+                                                            jugadoresEquipoRival.removeAll { it in usuarioIds }
+                                                            jugadoresEquipoRival.add(actualId)
+                                                        }
+                                                    } else {
+                                                        jugadoresMiEquipo.remove(jugador.id)
+                                                        if (!jugadoresEquipoRival.contains(jugador.id)) {
+                                                            jugadoresEquipoRival.add(jugador.id)
+                                                        }
+                                                    }
+                                                    if (!detallesJugadores.containsKey(actualId)) {
+                                                        detallesJugadores[actualId] = EstadisticasJugadorPartido(
+                                                            jugadorId = actualId,
+                                                            esMiEquipo = false,
+                                                            posicionPrincipal = if (esUsuarioChip) posicionPrincipal else (jugador.posicionesPrimarias.firstOrNull() ?: Posicion.DC),
+                                                            posicionesSecundarias = if (esUsuarioChip) posicionesSecundarias.toSet() else jugador.posicionesSecundarias.toSet(),
+                                                            posX = 0.5f,
+                                                            posY = 0.5f
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
                                     },
                                     border = FilterChipDefaults.filterChipBorder(enabled = true, selected = seleccionadoActual, borderColor = LimeVolt.copy(alpha = 0.5f), selectedBorderColor = LimeVolt),
                                     leadingIcon = {
-                                        JugadorAvatar(
-                                            fotoUri = jugador.fotoUri,
-                                            nombre = jugador.nombre,
-                                            tamano = 22.dp,
-                                            fontSize = 9.sp
-                                        )
+                                        Box(
+                                            modifier = Modifier.size(24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            JugadorAvatar(
+                                                fotoUri = jugador.fotoUri,
+                                                nombre = jugador.nombre,
+                                                tamano = 22.dp,
+                                                fontSize = 9.sp
+                                            )
+                                        }
                                     },
                                     label = { Text(jugador.nombreConTu(), fontSize = 11.sp) }
                                 )
+                            }
+                        }
+
+                        val equipoSeleccionadoIds = if (tabEquipoJugadores == 0) jugadoresMiEquipo else jugadoresEquipoRival
+                        val jugadoresParaPizarra = remember(equipoSeleccionadoIds, jugadoresDisponibles, canonicalUserId) {
+                            equipoSeleccionadoIds.mapNotNull { jId ->
+                                jugadoresDisponibles.firstOrNull { it.id == jId || (jId in usuarioIds && (it.esUsuarioPropio || it.id in usuarioIds)) }
+                            }.distinctBy { it.id }
+                        }
+
+                        if (jugadoresParaPizarra.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Pizarra táctica (${if (tabEquipoJugadores == 0) "Mi equipo" else "Equipo rival"}):",
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            PizarraColocacionPartido(
+                                jugadores = jugadoresParaPizarra,
+                                detallesJugadores = detallesJugadores,
+                                nombreEquipo = if (tabEquipoJugadores == 0) "Mi equipo" else "Equipo rival",
+                                emojiEquipo = if (tabEquipoJugadores == 0) equipoJugado.emoji else (if (equipoJugado == EquipoColor.CLARO) EquipoColor.OSCURO.emoji else EquipoColor.CLARO.emoji),
+                                colorBordeFicha = if (tabEquipoJugadores == 0) {
+                                    if (equipoJugado == EquipoColor.CLARO) Color.White else Color.Black
+                                } else {
+                                    if (equipoJugado == EquipoColor.CLARO) Color.Black else Color.White
+                                },
+                                formacionesDisponibles = formacionesDisponibles,
+                                formacionSeleccionada = if (tabEquipoJugadores == 0) formacionMiEquipo else formacionRival,
+                                onFormacionSeleccionada = { nuevaForm ->
+                                    if (tabEquipoJugadores == 0) formacionMiEquipo = nuevaForm
+                                    else formacionRival = nuevaForm
+                                },
+                                onMoverJugador = { _, _, _ -> },
+                                onEditarStats = { j ->
+                                    jugadorParaEditarStats = j
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                jugadoresParaPizarra.forEach { jObj ->
+                                    val jId = jObj.id
+                                    val stats = detallesJugadores[jId] ?: (if (jId in usuarioIds) detallesJugadores[canonicalUserId] else null) ?: EstadisticasJugadorPartido(
+                                        jugadorId = jId,
+                                        esMiEquipo = tabEquipoJugadores == 0,
+                                        posicionPrincipal = jObj.posicionesPrimarias.firstOrNull() ?: Posicion.DC,
+                                        posicionesSecundarias = jObj.posicionesSecundarias.toSet()
+                                    )
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                jugadorParaEditarStats = jObj
+                                            },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = DarkCard,
+                                        border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.5f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                JugadorAvatar(
+                                                    fotoUri = jObj.fotoUri,
+                                                    nombre = jObj.nombre,
+                                                    tamano = 28.dp,
+                                                    fontSize = 11.sp,
+                                                    bordeColor = if (jObj.esFavorito) Color(0xFFFFD700) else Color.Transparent,
+                                                    bordeAncho = if (jObj.esFavorito) 1.dp else 0.dp
+                                                )
+                                                Column {
+                                                    Text(
+                                                        text = jObj.nombreConTu(),
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White
+                                                    )
+                                                    Row(
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Surface(
+                                                            shape = RoundedCornerShape(3.dp),
+                                                            color = LimeVolt.copy(alpha = 0.15f),
+                                                            modifier = Modifier.size(width = 36.dp, height = 20.dp)
+                                                        ) {
+                                                            Box(contentAlignment = Alignment.Center) {
+                                                                Text(
+                                                                    text = stats.posicionPrincipal.name,
+                                                                    color = LimeVolt,
+                                                                    fontSize = 9.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    textAlign = TextAlign.Center,
+                                                                    style = androidx.compose.ui.text.TextStyle(
+                                                                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                                                    )
+                                                                )
+                                                            }
+                                                        }
+                                                        if (stats.posicionesSecundarias.isNotEmpty()) {
+                                                            Text(
+                                                                text = "(${stats.posicionesSecundarias.joinToString { it.name }})",
+                                                                fontSize = 9.sp,
+                                                                color = TextSecondary
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                if (stats.goles > 0) {
+                                                    Text("⚽${stats.goles}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                                }
+                                                if (stats.asistencias > 0) {
+                                                    Text("🅰️${stats.asistencias}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                                }
+                                                if (stats.tirosAlPalo > 0) {
+                                                    Text("🎯${stats.tirosAlPalo}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                                }
+                                                val jugoDePortero = stats.posicionPrincipal == Posicion.POR || stats.posicionesSecundarias.contains(Posicion.POR)
+                                                if (stats.paradas > 0 && jugoDePortero) {
+                                                    Text("🧤${stats.paradas}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                                }
+                                                IconButton(
+                                                    onClick = { jugadorParaEditarStats = jObj },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Edit, contentDescription = "Editar stats", tint = LimeVolt, modifier = Modifier.size(15.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -2476,6 +3940,98 @@ fun DialogoPartido(
                 onClick = {
                     val equipo1Saneado = if (jugadoPorMi) jugadoresMiEquipo.toList() else jugadoresMiEquipo.filter { it !in usuarioIds }
                     val equipo2Saneado = if (jugadoPorMi) jugadoresEquipoRival.toList() else jugadoresEquipoRival.filter { it !in usuarioIds }
+
+                    val listaDetallesFinal = mutableListOf<EstadisticasJugadorPartido>()
+                    val userActualId = canonicalUserId
+
+                    val yoJugoDePortero = posicionPrincipal == Posicion.POR || Posicion.POR in posicionesSecundarias
+
+                    equipo1Saneado.forEach { jId ->
+                        val esUsuario = jId in usuarioIds
+                        val posObj = jugadoresDisponibles.firstOrNull { it.id == jId || (esUsuario && (it.esUsuarioPropio || it.id in usuarioIds)) }
+                        val detActual = detallesJugadores[jId] ?: (if (esUsuario) detallesJugadores[canonicalUserId] else null)
+                        if (esUsuario && jugadoPorMi) {
+                            listaDetallesFinal.add(
+                                EstadisticasJugadorPartido(
+                                    jugadorId = userActualId,
+                                    esMiEquipo = true,
+                                    posicionPrincipal = posicionPrincipal,
+                                    posicionesSecundarias = posicionesSecundarias.toSet(),
+                                    statsRegistradas = true,
+                                    posX = detActual?.posX ?: 0.5f,
+                                    posY = detActual?.posY ?: 0.5f,
+                                    goles = misGoles,
+                                    asistencias = misAsistencias,
+                                    tirosAlPalo = tirosAlPalo,
+                                    paradas = if (yoJugoDePortero) misParadas else 0,
+                                    golesZurda = golesZurda,
+                                    golesDiestra = golesDiestra,
+                                    golesCabeza = golesCabeza,
+                                    golesOtro = golesOtro,
+                                    golesChilena = golesChilena,
+                                    golesTacon = golesTacon,
+                                    golesFueraArea = golesFueraArea
+                                )
+                            )
+                        } else {
+                            val jugoPort = detActual?.let { it.posicionPrincipal == Posicion.POR || it.posicionesSecundarias.contains(Posicion.POR) } ?: false
+                            listaDetallesFinal.add(
+                                detActual?.copy(
+                                    esMiEquipo = true,
+                                    paradas = if (jugoPort) detActual.paradas else 0
+                                ) ?: EstadisticasJugadorPartido(
+                                    jugadorId = jId,
+                                    esMiEquipo = true,
+                                    posicionPrincipal = posObj?.posicionesPrimarias?.firstOrNull() ?: Posicion.DC,
+                                    posicionesSecundarias = posObj?.posicionesSecundarias?.toSet() ?: emptySet()
+                                )
+                            )
+                        }
+                    }
+
+                    equipo2Saneado.forEach { jId ->
+                        val esUsuario = jId in usuarioIds
+                        val posObj = jugadoresDisponibles.firstOrNull { it.id == jId || (esUsuario && (it.esUsuarioPropio || it.id in usuarioIds)) }
+                        val detActual = detallesJugadores[jId] ?: (if (esUsuario) detallesJugadores[canonicalUserId] else null)
+                        if (esUsuario && jugadoPorMi) {
+                            listaDetallesFinal.add(
+                                EstadisticasJugadorPartido(
+                                    jugadorId = userActualId,
+                                    esMiEquipo = false,
+                                    posicionPrincipal = posicionPrincipal,
+                                    posicionesSecundarias = posicionesSecundarias.toSet(),
+                                    statsRegistradas = true,
+                                    posX = detActual?.posX ?: 0.5f,
+                                    posY = detActual?.posY ?: 0.5f,
+                                    goles = misGoles,
+                                    asistencias = misAsistencias,
+                                    tirosAlPalo = tirosAlPalo,
+                                    paradas = if (yoJugoDePortero) misParadas else 0,
+                                    golesZurda = golesZurda,
+                                    golesDiestra = golesDiestra,
+                                    golesCabeza = golesCabeza,
+                                    golesOtro = golesOtro,
+                                    golesChilena = golesChilena,
+                                    golesTacon = golesTacon,
+                                    golesFueraArea = golesFueraArea
+                                )
+                            )
+                        } else {
+                            val jugoPort = detActual?.let { it.posicionPrincipal == Posicion.POR || it.posicionesSecundarias.contains(Posicion.POR) } ?: false
+                            listaDetallesFinal.add(
+                                detActual?.copy(
+                                    esMiEquipo = false,
+                                    paradas = if (jugoPort) detActual.paradas else 0
+                                ) ?: EstadisticasJugadorPartido(
+                                    jugadorId = jId,
+                                    esMiEquipo = false,
+                                    posicionPrincipal = posObj?.posicionesPrimarias?.firstOrNull() ?: Posicion.DC,
+                                    posicionesSecundarias = posObj?.posicionesSecundarias?.toSet() ?: emptySet()
+                                )
+                            )
+                        }
+                    }
+
                     val p = (partidoExistente ?: Partido()).copy(
                         fecha = fechaMillis,
                         modoJuego = modoJuego,
@@ -2493,6 +4049,7 @@ fun DialogoPartido(
                         goles = if (jugadoPorMi) misGoles else 0,
                         asistencias = if (jugadoPorMi) misAsistencias else 0,
                         tirosAlPalo = if (jugadoPorMi) tirosAlPalo else 0,
+                        paradas = if (jugadoPorMi && yoJugoDePortero) misParadas else 0,
                         golesFueraArea = if (jugadoPorMi) golesFueraArea else 0,
                         notas = notas.trim(),
                         jugadoresMiEquipo = equipo1Saneado,
@@ -2504,7 +4061,8 @@ fun DialogoPartido(
                         golesOtro = if (jugadoPorMi) golesOtro else 0,
                         golesChilena = if (jugadoPorMi) golesChilena else 0,
                         golesTacon = if (jugadoPorMi) golesTacon else 0,
-                        duracionMinutos = duracionMinutos
+                        duracionMinutos = duracionMinutos,
+                        jugadoresDetalle = listaDetallesFinal
                     )
                     onGuardar(p)
                 },
@@ -2519,6 +4077,55 @@ fun DialogoPartido(
             }
         }
     )
+
+    jugadorParaEditarStats?.let { jEdit ->
+        val esMiEquipoDelJugador = jEdit.id in jugadoresMiEquipo || (jEdit.esUsuarioPropio && jugadoresMiEquipo.any { it in usuarioIds })
+        val statsActuales = detallesJugadores[jEdit.id] ?: EstadisticasJugadorPartido(
+            jugadorId = jEdit.id,
+            esMiEquipo = esMiEquipoDelJugador,
+            posicionPrincipal = if (jEdit.esUsuarioPropio && jugadoPorMi) posicionPrincipal else (jEdit.posicionesPrimarias.firstOrNull() ?: Posicion.DC),
+            posicionesSecundarias = if (jEdit.esUsuarioPropio && jugadoPorMi) posicionesSecundarias.toSet() else jEdit.posicionesSecundarias.toSet(),
+            goles = if (jEdit.esUsuarioPropio && jugadoPorMi) misGoles else 0,
+            asistencias = if (jEdit.esUsuarioPropio && jugadoPorMi) misAsistencias else 0,
+            tirosAlPalo = if (jEdit.esUsuarioPropio && jugadoPorMi) tirosAlPalo else 0,
+            paradas = if (jEdit.esUsuarioPropio && jugadoPorMi) (if (posicionPrincipal == Posicion.POR || Posicion.POR in posicionesSecundarias) misParadas else 0) else 0,
+            golesZurda = if (jEdit.esUsuarioPropio && jugadoPorMi) golesZurda else 0,
+            golesDiestra = if (jEdit.esUsuarioPropio && jugadoPorMi) golesDiestra else 0,
+            golesCabeza = if (jEdit.esUsuarioPropio && jugadoPorMi) golesCabeza else 0,
+            golesOtro = if (jEdit.esUsuarioPropio && jugadoPorMi) golesOtro else 0,
+            golesChilena = if (jEdit.esUsuarioPropio && jugadoPorMi) golesChilena else 0,
+            golesTacon = if (jEdit.esUsuarioPropio && jugadoPorMi) golesTacon else 0,
+            golesFueraArea = if (jEdit.esUsuarioPropio && jugadoPorMi) golesFueraArea else 0
+        )
+
+        DialogoEditarStatsJugadorPartido(
+            jugador = jEdit,
+            statsActuales = statsActuales,
+            esMiEquipo = esMiEquipoDelJugador,
+            onDismiss = { jugadorParaEditarStats = null },
+            onGuardar = { nuevasStats ->
+                detallesJugadores[jEdit.id] = nuevasStats
+                if (jEdit.esUsuarioPropio || jEdit.id in usuarioIds || (usuario != null && jEdit.id == usuario.id)) {
+                    posicionPrincipal = nuevasStats.posicionPrincipal
+                    posicionesSecundarias.clear()
+                    posicionesSecundarias.addAll(nuevasStats.posicionesSecundarias)
+                    misGoles = nuevasStats.goles
+                    misAsistencias = nuevasStats.asistencias
+                    tirosAlPalo = nuevasStats.tirosAlPalo
+                    val jugoPort = nuevasStats.posicionPrincipal == Posicion.POR || Posicion.POR in nuevasStats.posicionesSecundarias
+                    misParadas = if (jugoPort) nuevasStats.paradas else 0
+                    golesZurda = nuevasStats.golesZurda
+                    golesDiestra = nuevasStats.golesDiestra
+                    golesCabeza = nuevasStats.golesCabeza
+                    golesOtro = nuevasStats.golesOtro
+                    golesChilena = nuevasStats.golesChilena
+                    golesTacon = nuevasStats.golesTacon
+                    golesFueraArea = nuevasStats.golesFueraArea
+                }
+                jugadorParaEditarStats = null
+            }
+        )
+    }
 }
 
 @Composable

@@ -44,6 +44,7 @@ fun RankingsScreen(
     val soloPosicionPrincipalGeneral by viewModel.soloPosicionPrincipalGeneral.collectAsState()
     val criterioOrdenGeneral by viewModel.criterioOrdenGeneral.collectAsState()
     val ordenAscendenteGeneral by viewModel.ordenAscendenteGeneral.collectAsState()
+    val ordenPorPartidoGeneral by viewModel.ordenPorPartidoGeneral.collectAsState()
     val jugadoresGeneral by viewModel.jugadoresEstadisticasGeneral.collectAsState()
 
     Scaffold(
@@ -204,34 +205,59 @@ fun RankingsScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Surface(
-                            onClick = { viewModel.toggleOrdenAscendenteGeneral() },
-                            shape = RoundedCornerShape(8.dp),
-                            color = DarkCard,
-                            border = BorderStroke(1.dp, (if (ordenAscendenteGeneral) LimeVolt else BlueCompanero).copy(alpha = 0.5f))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            Surface(
+                                onClick = { viewModel.toggleOrdenPorPartidoGeneral() },
+                                shape = RoundedCornerShape(8.dp),
+                                color = DarkCard,
+                                border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
                             ) {
-                                val flechaColor = if (ordenAscendenteGeneral) LimeVolt else BlueCompanero
-                                Icon(
-                                    imageVector = if (ordenAscendenteGeneral) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                                    contentDescription = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
-                                    tint = flechaColor,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = if (ordenPorPartidoGeneral) "Por partido" else "Total",
+                                        color = LimeVolt,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Surface(
+                                onClick = { viewModel.toggleOrdenAscendenteGeneral() },
+                                shape = RoundedCornerShape(8.dp),
+                                color = DarkCard,
+                                border = BorderStroke(1.dp, (if (ordenAscendenteGeneral) LimeVolt else BlueCompanero).copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val flechaColor = if (ordenAscendenteGeneral) LimeVolt else BlueCompanero
+                                    Icon(
+                                        imageVector = if (ordenAscendenteGeneral) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                        contentDescription = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
+                                        tint = flechaColor,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = if (ordenAscendenteGeneral) "Ascendente" else "Descendente",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
 
+                    // Fila 1: Generales
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         val opciones = listOf(
                             CriterioOrdenGeneral.PORCENTAJE to "% Victorias",
@@ -241,6 +267,27 @@ fun RankingsScreen(
                             CriterioOrdenGeneral.VICTORIAS to "Victorias",
                             CriterioOrdenGeneral.EMPATES to "Empates",
                             CriterioOrdenGeneral.DERROTAS to "Derrotas"
+                        )
+                        items(opciones) { (criterio, label) ->
+                            FilterChip(
+                                selected = criterioOrdenGeneral == criterio,
+                                onClick = { viewModel.setCriterioOrdenGeneral(criterio) },
+                                label = { Text(label, fontSize = 11.sp) }
+                            )
+                        }
+                    }
+
+                    // Fila 2: Rendimiento individual (nueva fila)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val opciones = listOf(
+                            CriterioOrdenGeneral.GOLES to "⚽ Goles",
+                            CriterioOrdenGeneral.ASISTENCIAS to "🅰️ Asistencias",
+                            CriterioOrdenGeneral.TIROS_AL_PALO to "🎯 Palos",
+                            CriterioOrdenGeneral.FUERA_AREA to "🚀 Fuera área",
+                            CriterioOrdenGeneral.CHILENAS to "🤸 Chilenas",
+                            CriterioOrdenGeneral.TACONES to "👟 Tacones",
+                            CriterioOrdenGeneral.GOLES_ENCAJADOS to "🥅 Goles enc.",
+                            CriterioOrdenGeneral.PARADAS to "🧤 Paradas"
                         )
                         items(opciones) { (criterio, label) ->
                             FilterChip(
@@ -278,7 +325,11 @@ fun RankingsScreen(
                 }
             } else {
                 items(jugadoresGeneral, key = { it.jugador.id }) { item ->
-                    CardJugadorGeneral(item = item)
+                    CardJugadorGeneral(
+                        item = item,
+                        criterio = criterioOrdenGeneral,
+                        porPartido = ordenPorPartidoGeneral
+                    )
                 }
             }
 
@@ -288,7 +339,11 @@ fun RankingsScreen(
 }
 
 @Composable
-fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
+fun CardJugadorGeneral(
+    item: EstadisticasJugadorGeneral,
+    criterio: CriterioOrdenGeneral = CriterioOrdenGeneral.PORCENTAJE,
+    porPartido: Boolean = false
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -343,32 +398,237 @@ fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
                     FilaBadgesPosiciones(
                         primarias = item.jugador.posicionesPrimarias,
                         secundarias = item.jugador.posicionesSecundarias,
-                        maxVisibles = 2
+                        maxVisibles = 4
                     )
                 }
 
-                // Porcentaje de victorias destacado
-                val colorPct = obtenerColorPorcentaje(item.porcentajeVictorias.toFloat())
-                Surface(
-                    color = colorPct.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, colorPct.copy(alpha = 0.5f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "${item.porcentajeVictorias}%",
-                            color = colorPct,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Victorias",
-                            color = colorPct.copy(alpha = 0.85f),
-                            fontSize = 9.sp
-                        )
+                // Destacado según criterio
+                when (criterio) {
+                    CriterioOrdenGeneral.GOLES -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesPorPartido) else item.goles.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr ⚽",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Goles/p" else "Goles",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.ASISTENCIAS -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.asistenciasPorPartido) else item.asistencias.toString()
+                        Surface(
+                            color = BlueCompanero.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, BlueCompanero.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🅰️",
+                                    color = BlueCompanero,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Asis/p" else "Asistencias",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.TIROS_AL_PALO -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.tirosAlPaloPorPartido) else item.tirosAlPalo.toString()
+                        Surface(
+                            color = OrangeDraw.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, OrangeDraw.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🎯",
+                                    color = OrangeDraw,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Palos/p" else "Palos",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.FUERA_AREA -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesFueraAreaPorPartido) else item.golesFueraArea.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🚀",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Fuera/p" else "Fuera área",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.CHILENAS -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesChilenaPorPartido) else item.golesChilena.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🤸",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Chilenas/p" else "Chilenas",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.TACONES -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesTaconPorPartido) else item.golesTacon.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 👟",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Tacones/p" else "Tacones",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.GOLES_ENCAJADOS -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.golesEncajadosPorPartido) else item.golesEncajadosTotal.toString()
+                        Surface(
+                            color = RedLoss.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, RedLoss.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🥅",
+                                    color = RedLoss,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Goles/p (POR)" else "Encajados (POR)",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    CriterioOrdenGeneral.PARADAS -> {
+                        val valorStr = if (porPartido) "%.2f".format(java.util.Locale.US, item.paradasPorPartido) else item.paradasTotal.toString()
+                        Surface(
+                            color = LimeVolt.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, LimeVolt.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "$valorStr 🧤",
+                                    color = LimeVolt,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (porPartido) "Paradas/p" else "Paradas",
+                                    color = TextSecondary,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        // Porcentaje de victorias destacado
+                        val colorPct = obtenerColorPorcentaje(item.porcentajeVictorias.toFloat())
+                        Surface(
+                            color = colorPct.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, colorPct.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "${item.porcentajeVictorias}%",
+                                    color = colorPct,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Victorias",
+                                    color = colorPct.copy(alpha = 0.85f),
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -415,6 +675,89 @@ fun CardJugadorGeneral(item: EstadisticasJugadorGeneral) {
                     color = RedLoss,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            // Fila adicional de rendimiento individual si tiene datos
+            val tieneStatsRendimiento = item.goles > 0 || item.asistencias > 0 || item.tirosAlPalo > 0 || item.partidosPortero > 0
+            if (tieneStatsRendimiento) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (item.goles > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "⚽",
+                                valor = if (porPartido) "${item.goles} (${"%.2f".format(java.util.Locale.US, item.golesPorPartido)}/p)" else "${item.goles}",
+                                color = LimeVolt
+                            )
+                        }
+                    }
+                    if (item.asistencias > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "🅰️",
+                                valor = if (porPartido) "${item.asistencias} (${"%.2f".format(java.util.Locale.US, item.asistenciasPorPartido)}/p)" else "${item.asistencias}",
+                                color = BlueCompanero
+                            )
+                        }
+                    }
+                    if (item.tirosAlPalo > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "🎯",
+                                valor = if (porPartido) "${item.tirosAlPalo} (${"%.2f".format(java.util.Locale.US, item.tirosAlPaloPorPartido)}/p)" else "${item.tirosAlPalo}",
+                                color = OrangeDraw
+                            )
+                        }
+                    }
+                    if (item.golesFueraArea > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "🚀",
+                                valor = "${item.golesFueraArea}",
+                                color = LimeVolt
+                            )
+                        }
+                    }
+                    if (item.golesChilena > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "🤸",
+                                valor = "${item.golesChilena}",
+                                color = LimeVolt
+                            )
+                        }
+                    }
+                    if (item.golesTacon > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "👟",
+                                valor = "${item.golesTacon}",
+                                color = LimeVolt
+                            )
+                        }
+                    }
+                    if (item.partidosPortero > 0 || item.golesEncajadosTotal > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "🥅",
+                                valor = if (porPartido) "${item.golesEncajadosTotal} (${"%.2f".format(java.util.Locale.US, item.golesEncajadosPorPartido)}/p)" else "${item.golesEncajadosTotal}",
+                                color = RedLoss
+                            )
+                        }
+                    }
+                    if (item.paradasTotal > 0) {
+                        item {
+                            StatGeneralPill(
+                                label = "🧤",
+                                valor = if (porPartido) "${item.paradasTotal} (${"%.2f".format(java.util.Locale.US, item.paradasPorPartido)}/p)" else "${item.paradasTotal}",
+                                color = LimeVolt
+                            )
+                        }
+                    }
+                }
             }
         }
     }

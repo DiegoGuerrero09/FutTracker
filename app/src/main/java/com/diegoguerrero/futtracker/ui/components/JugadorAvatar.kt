@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.text.style.TextAlign
 import com.diegoguerrero.futtracker.ui.screens.jugadores.obtenerIniciales
@@ -77,8 +78,8 @@ fun JugadorAvatar(
     val modBorde = if (bordeAncho > 0.dp) {
         modClickable
             .size(tamano)
-            .border(bordeAncho, bordeColor, CircleShape)
             .clip(CircleShape)
+            .border(bordeAncho, bordeColor, CircleShape)
     } else {
         modClickable
             .size(tamano)
@@ -135,9 +136,8 @@ fun BadgePosicion(label: String, esPrimaria: Boolean) {
     ) {
         Box(
             modifier = Modifier
-                .defaultMinSize(minWidth = 34.dp)
-                .height(20.dp)
-                .padding(horizontal = 4.dp),
+                .width(36.dp)
+                .height(20.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -176,13 +176,14 @@ fun FilaBadgesPosiciones(
                 BadgePosicion(label = pos.name, esPrimaria = pos in primarias)
             }
         } else {
-            val visiblesCount = (maxVisibles - 1).coerceAtLeast(1)
-            val mostradas = total.take(visiblesCount)
-            val restantes = total.size - visiblesCount
+            val mostradas = total.take(maxVisibles)
+            val restantes = total.size - maxVisibles
             mostradas.forEach { pos ->
                 BadgePosicion(label = pos.name, esPrimaria = pos in primarias)
             }
-            BadgePosicion(label = "+$restantes", esPrimaria = false)
+            if (restantes > 0) {
+                BadgePosicion(label = "+$restantes", esPrimaria = false)
+            }
         }
     }
 }

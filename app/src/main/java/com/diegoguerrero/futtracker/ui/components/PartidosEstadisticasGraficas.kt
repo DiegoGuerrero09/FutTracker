@@ -93,10 +93,13 @@ fun GraficoClima(
                             val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
                             val arcSize = Size(diameter, diameter)
 
+                            val itemsAireLibre = statsClima.filter { it.clima != null }
+                            val totalAireLibre = itemsAireLibre.sumOf { it.total }
+
                             var startAngle = -90f
-                            for (item in statsClima) {
-                                if (item.total > 0) {
-                                    val sweep = (item.total.toFloat() / totalPartidos) * 360f
+                            for (item in itemsAireLibre) {
+                                if (item.total > 0 && totalAireLibre > 0) {
+                                    val sweep = (item.total.toFloat() / totalAireLibre) * 360f
                                     val color = when (item.clima) {
                                         Clima.DESPEJADO -> DespejadoColor
                                         Clima.NUBLADO -> NubladoColor
@@ -134,12 +137,12 @@ fun GraficoClima(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Leyenda y conteos
+                    // Leyenda y conteos (solo al aire libre)
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        statsClima.forEach { item ->
+                        statsClima.filter { it.clima != null }.forEach { item ->
                             val color = when (item.clima) {
                                 Clima.DESPEJADO -> DespejadoColor
                                 Clima.NUBLADO -> NubladoColor
@@ -183,6 +186,62 @@ fun GraficoClima(
                                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Extra techado abajo
+                val techadoItem = statsClima.firstOrNull { it.clima == null }
+                if (techadoItem != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = DarkCardBorder, thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TechadoColor.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, TechadoColor.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🏟️", fontSize = 15.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Techado",
+                                    color = Color.White,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "${techadoItem.total} partidos",
+                                    color = TechadoColor,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = TechadoColor.copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "${String.format("%.0f", techadoItem.porcentaje)}%",
+                                        color = TechadoColor,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
                                 }
                             }
                         }
@@ -414,38 +473,58 @@ fun GraficoDiasSemana(
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
                             ) {
-                                Text(
-                                    text = if (item.total > 0) "${item.total}" else "",
-                                    color = if (esMax) LimeVolt else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
-                                )
+                                Box(
+                                    modifier = Modifier.height(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (item.total > 0) {
+                                        Text(
+                                            text = "${item.total}",
+                                            color = if (esMax) LimeVolt else TextSecondary,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
 
                                 Box(
                                     modifier = Modifier
-                                        .width(18.dp)
-                                        .fillMaxHeight(fraction = max(ratio, 0.06f))
-                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                        .background(
-                                            if (item.total > 0) {
-                                                if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
-                                            } else {
-                                                Color.White.copy(alpha = 0.08f)
-                                            }
-                                        )
-                                )
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(18.dp)
+                                            .fillMaxHeight(fraction = max(ratio, 0.06f))
+                                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                            .background(
+                                                if (item.total > 0) {
+                                                    if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
+                                                } else {
+                                                    Color.White.copy(alpha = 0.08f)
+                                                }
+                                            )
+                                    )
+                                }
 
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = item.dia,
-                                    color = if (esMax) Color.White else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
-                                )
+                                Box(
+                                    modifier = Modifier.height(20.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = item.dia,
+                                        color = if (esMax) Color.White else TextSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
                             }
                         }
                     }
@@ -525,7 +604,7 @@ fun GraficoHorasPartidos(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.5.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
                         items(statsHoras) { item ->
@@ -534,38 +613,58 @@ fun GraficoHorasPartidos(
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom,
-                                modifier = Modifier.fillMaxHeight()
+                                modifier = Modifier
+                                    .width(17.dp)
+                                    .fillMaxHeight()
                             ) {
-                                Text(
-                                    text = if (item.total > 0) "${item.total}" else "",
-                                    color = if (esMax) LimeVolt else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier.height(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (item.total > 0) {
+                                        Text(
+                                            text = "${item.total}",
+                                            color = if (esMax) LimeVolt else TextSecondary,
+                                            fontSize = 8.5.sp,
+                                            fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(3.dp))
 
                                 Box(
                                     modifier = Modifier
-                                        .width(22.dp)
-                                        .fillMaxHeight(fraction = max(ratio, 0.06f))
-                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                        .background(
-                                            if (item.total > 0) {
-                                                if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
-                                            } else {
-                                                Color.White.copy(alpha = 0.08f)
-                                            }
-                                        )
-                                )
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(11.dp)
+                                            .fillMaxHeight(fraction = max(ratio, 0.06f))
+                                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                            .background(
+                                                if (item.total > 0) {
+                                                    if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
+                                                } else {
+                                                    Color.White.copy(alpha = 0.08f)
+                                                }
+                                            )
+                                    )
+                                }
 
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = item.horaTexto,
-                                    color = if (esMax) Color.White else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
-                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier.height(18.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = item.horaTexto,
+                                        color = if (esMax) Color.White else TextSecondary,
+                                        fontSize = 8.5.sp,
+                                        fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
                             }
                         }
                     }
@@ -767,13 +866,13 @@ fun GraficoMapaCalorPosiciones(
     // Mapeo táctico de posiciones relativas en el campo (x: 0f..1f, y: 0f..1f)
     val coords = mapOf(
         Posicion.POR to Offset(0.50f, 0.91f),
-        Posicion.LI to Offset(0.20f, 0.68f),
+        Posicion.LI to Offset(0.20f, 0.60f),
         Posicion.DFC to Offset(0.50f, 0.68f),
-        Posicion.LD to Offset(0.80f, 0.68f),
-        Posicion.MC to Offset(0.50f, 0.44f),
-        Posicion.EI to Offset(0.20f, 0.22f),
-        Posicion.DC to Offset(0.50f, 0.14f),
-        Posicion.ED to Offset(0.80f, 0.22f)
+        Posicion.LD to Offset(0.80f, 0.60f),
+        Posicion.MC to Offset(0.50f, 0.48f),
+        Posicion.EI to Offset(0.20f, 0.28f),
+        Posicion.DC to Offset(0.50f, 0.20f),
+        Posicion.ED to Offset(0.80f, 0.28f)
     )
 
     Card(
@@ -888,41 +987,62 @@ fun GraficoMapaCalorPosiciones(
                                 Color.Black.copy(alpha = 0.5f)
                             }
                             val chipTextColor = if (hasMatches && ratio > 0.45f) Color.Black else Color.White
+                            val winBarColor = if (hasMatches) {
+                                lerp(Color(0xFFEF4444), Color(0xFF22C55E), (item.porcentajeVictorias / 100f).coerceIn(0f, 1f))
+                            } else {
+                                Color.Transparent
+                            }
 
-                            Box(
+                            Row(
                                 modifier = Modifier
                                     .offset(
-                                        x = width * pt.x - 28.dp,
-                                        y = height * pt.y - 15.dp
+                                        x = width * pt.x - 31.dp,
+                                        y = height * pt.y - 16.dp
                                     )
-                                    .width(56.dp)
+                                    .width(62.dp)
+                                    .height(32.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(chipBg)
                                     .border(
                                         1.dp,
                                         if (hasMatches) Color.White.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.15f),
                                         RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(vertical = 2.dp, horizontal = 2.dp),
-                                contentAlignment = Alignment.Center
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 2.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
                                     Text(
                                         text = item.posicion.name,
                                         color = chipTextColor,
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center
+                                        fontWeight = FontWeight.ExtraBold,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(top = 1.5.dp)
                                     )
                                     if (hasMatches) {
                                         Text(
-                                            text = "${item.minutos}m · ${item.porcentajeVictorias}%V",
+                                            text = "${item.minutos}m·${item.porcentajeVictorias}%V",
                                             color = chipTextColor.copy(alpha = 0.9f),
-                                            fontSize = 7.5.sp,
+                                            fontSize = 7.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            textAlign = TextAlign.Center
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1
                                         )
                                     }
+                                }
+                                if (hasMatches) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(4.dp)
+                                            .fillMaxHeight()
+                                            .background(winBarColor)
+                                    )
                                 }
                             }
                         }
@@ -1011,6 +1131,31 @@ fun GraficoMapaCalorPosiciones(
                                         fontSize = 11.sp,
                                         color = if (item.porcentajeVictorias >= 50) LimeVolt else Color(0xFFF59E0B),
                                         fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "⚽ ${item.goles}",
+                                        fontSize = 11.5.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🅰️ ${item.asistencias}",
+                                        fontSize = 11.5.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🎯 ${item.tirosAlPalo}",
+                                        fontSize = 11.5.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
 

@@ -116,7 +116,8 @@ private data class FiltrosCruzado(
     val filtro: FiltroHistorial,
     val fav: Boolean,
     val pos: Posicion?,
-    val soloPrin: Boolean
+    val soloPrin: Boolean,
+    val orden: OrdenHistorialCruzado
 )
 
 @HiltViewModel
@@ -148,6 +149,7 @@ class EnfrentamientosViewModel @Inject constructor(
     private val _filtroSoloFavoritos = MutableStateFlow(false)
     private val _filtroPosicion = MutableStateFlow<Posicion?>(null)
     private val _filtroSoloPosicionPrincipal = MutableStateFlow(false)
+    private val _ordenCruzado = MutableStateFlow(OrdenHistorialCruzado.DEFECTO)
     private val _jugadorDetalle = MutableStateFlow<EstadisticasJugadorCruzadas?>(null)
 
     val aniosDisponibles: StateFlow<List<Int>> = partidoRepository.obtenerPartidos()
@@ -249,9 +251,9 @@ class EnfrentamientosViewModel @Inject constructor(
         _filtroHistorial,
         _filtroSoloFavoritos,
         _filtroPosicion,
-        _filtroSoloPosicionPrincipal
-    ) { texto, hist, fav, pos, soloPrin ->
-        FiltrosCruzado(texto, hist, fav, pos, soloPrin)
+        combine(_filtroSoloPosicionPrincipal, _ordenCruzado, ::Pair)
+    ) { texto, hist, fav, pos, (soloPrin, ord) ->
+        FiltrosCruzado(texto, hist, fav, pos, soloPrin, ord)
     }
 
     val uiState: StateFlow<EnfrentamientosUiState> = combine(
@@ -302,6 +304,26 @@ class EnfrentamientosViewModel @Inject constructor(
             coincideTexto && coincideFiltro && coincideFav && coincidePos
         }
 
+        val historialOrdenado = when (fCruz.orden) {
+            OrdenHistorialCruzado.DEFECTO -> historialFiltrado
+            OrdenHistorialCruzado.MAS_GANADOS_COMPANERO -> historialFiltrado.sortedWith(
+                compareByDescending<EstadisticasJugadorCruzadas> { it.victoriasComoCompanero }
+                    .thenByDescending { it.partidosComoCompanero }
+            )
+            OrdenHistorialCruzado.MAS_PERDIDOS_COMPANERO -> historialFiltrado.sortedWith(
+                compareByDescending<EstadisticasJugadorCruzadas> { it.derrotasComoCompanero }
+                    .thenByDescending { it.partidosComoCompanero }
+            )
+            OrdenHistorialCruzado.MAS_GANADOS_RIVAL -> historialFiltrado.sortedWith(
+                compareByDescending<EstadisticasJugadorCruzadas> { it.victoriasComoRival }
+                    .thenByDescending { it.partidosComoRival }
+            )
+            OrdenHistorialCruzado.MAS_PERDIDOS_RIVAL -> historialFiltrado.sortedWith(
+                compareByDescending<EstadisticasJugadorCruzadas> { it.derrotasComoRival }
+                    .thenByDescending { it.partidosComoRival }
+            )
+        }
+
         EnfrentamientosUiState(
             seccionActual = sec,
             jugadorSeleccionadoId = fInsp.id,
@@ -318,12 +340,13 @@ class EnfrentamientosViewModel @Inject constructor(
             aniosDisponibles = aniosDisponibles.value,
             temporadasDisponibles = temporadasDisponibles.value,
             destacados = dest,
-            historial = historialFiltrado,
+            historial = historialOrdenado,
             filtroTexto = fCruz.texto,
             filtroHistorial = fCruz.filtro,
             filtroSoloFavoritos = fCruz.fav,
             filtroPosicion = fCruz.pos,
             filtroSoloPosicionPrincipal = fCruz.soloPrin,
+            ordenCruzado = fCruz.orden,
             jugadorDetalle = det,
             duos = duosList,
             todosLosJugadores = todos
@@ -403,6 +426,10 @@ class EnfrentamientosViewModel @Inject constructor(
 
     fun setFiltroSoloPosicionPrincipal(soloPrincipal: Boolean) {
         _filtroSoloPosicionPrincipal.value = soloPrincipal
+    }
+
+    fun setOrdenCruzado(orden: OrdenHistorialCruzado) {
+        _ordenCruzado.value = orden
     }
 
     fun seleccionarJugadorDetalle(item: EstadisticasJugadorCruzadas?) {

@@ -301,7 +301,14 @@ fun AlineacionScreen(
                     CampoFutbol(
                         alineacion = mapaAlineacion,
                         modifier = Modifier.fillMaxWidth(),
-                        onJugadorIntercambiado = null
+                        onJugadorIntercambiado = { key1, key2 ->
+                            val nuevoMapa = mapaAlineacion.toMutableMap()
+                            val jug1 = nuevoMapa[key1]
+                            val jug2 = nuevoMapa[key2]
+                            nuevoMapa[key1] = jug2
+                            nuevoMapa[key2] = jug1
+                            alineacionMapaCampo = nuevoMapa
+                        }
                     )
                 }
 
@@ -527,7 +534,7 @@ fun AlineacionScreen(
                                         text = when (ordenFechaDescendente) {
                                             true -> "Añadido recientemente"
                                             false -> "Más antiguos primero"
-                                            null -> "Fecha"
+                                            null -> "Fecha añadido"
                                         },
                                         fontSize = 11.sp
                                     )
@@ -660,7 +667,7 @@ fun AlineacionScreen(
                             FilaBadgesPosiciones(
                                 primarias = jugador.posicionesPrimarias,
                                 secundarias = jugador.posicionesSecundarias,
-                                maxVisibles = 3
+                                maxVisibles = 4
                             )
                         }
 
@@ -698,28 +705,6 @@ private fun ItemJugadorAlineado(
             .padding(vertical = 1.dp)
             .zIndex(if (isDragging) 99f else 1f)
             .offset { IntOffset(0, offsetY.roundToInt()) }
-            .pointerInput(jugador.id) {
-                detectDragGestures(
-                    onDragStart = { isDragging = true },
-                    onDragEnd = {
-                        val dragY = offsetY
-                        isDragging = false
-                        offsetY = 0f
-                        val umbralVertical = 20.dp.toPx()
-                        if (kotlin.math.abs(dragY) > umbralVertical) {
-                            onDragVertical(dragY)
-                        }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        offsetY = 0f
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        offsetY += dragAmount.y
-                    }
-                )
-            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = if (esSeleccionado) LimeVolt.copy(alpha = 0.28f) else DarkCard,
@@ -735,8 +720,31 @@ private fun ItemJugadorAlineado(
             Icon(
                 imageVector = Icons.Default.DragHandle,
                 contentDescription = "Arrastrar",
-                tint = TextSecondary,
-                modifier = Modifier.size(16.dp)
+                tint = if (isDragging) LimeVolt else TextSecondary,
+                modifier = Modifier
+                    .size(24.dp)
+                    .pointerInput(jugador.id) {
+                        detectDragGestures(
+                            onDragStart = { isDragging = true },
+                            onDragEnd = {
+                                val dragY = offsetY
+                                isDragging = false
+                                offsetY = 0f
+                                val umbralVertical = 20.dp.toPx()
+                                if (kotlin.math.abs(dragY) > umbralVertical) {
+                                    onDragVertical(dragY)
+                                }
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                offsetY = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                offsetY += dragAmount.y
+                            }
+                        )
+                    }
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
