@@ -1030,15 +1030,21 @@ fun CardJugadorHistorial(
                     )
                 }
 
-                if (item.goles > 0 || item.asistencias > 0 || item.tirosAlPalo > 0 || (item.haJugadoPortero && (item.golesEncajados > 0 || item.paradas > 0))) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "⚽ ${item.goles}  •  🅰️ ${item.asistencias}  •  🎯 ${item.tirosAlPalo}" + (if (item.haJugadoPortero && item.golesEncajados > 0) "  •  🥅 ${item.golesEncajados}" else "") + (if (item.haJugadoPortero && item.paradas > 0) "  •  🧤 ${item.paradas}" else ""),
-                        fontSize = 9.5.sp,
-                        color = LimeVolt,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Spacer(modifier = Modifier.height(2.dp))
+                val metricasTexto = buildString {
+                    append("⚽ ${item.goles} • 🅰️ ${item.asistencias} • 🎯 ${item.tirosAlPalo} • 🚀 ${item.fueraArea} • 🧤 ${item.paradas}")
+                    if (item.haJugadoPortero) {
+                        append(" • 🥅 ${item.golesEncajados}")
+                    }
                 }
+                Text(
+                    text = metricasTexto,
+                    fontSize = 9.sp,
+                    color = LimeVolt,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -1155,6 +1161,15 @@ fun DialogoDetalleJugadorCruzado(
                 val nombreDetalle = detalle.jugador.nombre
 
                 // Bloque: Total
+                val totalPartidos = detalle.totalPartidos
+                val victoriasTotal = detalle.victoriasComoCompanero + detalle.victoriasComoRival
+                val empatesTotal = detalle.empatesComoCompanero + detalle.empatesComoRival
+                val derrotasTotal = detalle.derrotasComoCompanero + detalle.derrotasComoRival
+                val porcentajeVictoriasTotal = if (totalPartidos > 0) (victoriasTotal.toFloat() / totalPartidos) * 100f else 0f
+                val golesFavorTotal = detalle.golesFavorComoCompanero + detalle.golesFavorComoRival
+                val golesContraTotal = detalle.golesContraComoCompanero + detalle.golesContraComoRival
+                val diferenciaGolesTotal = golesFavorTotal - golesContraTotal
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = DarkBackground),
@@ -1168,13 +1183,65 @@ fun DialogoDetalleJugadorCruzado(
                             fontWeight = FontWeight.Bold,
                             color = LimeVolt
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Partidos compartidos:", fontSize = 12.sp, color = TextSecondary)
+                            Text("$totalPartidos", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Balance (V / E / D):", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                "${victoriasTotal}V - ${empatesTotal}E - ${derrotasTotal}D",
+                                fontSize = 12.sp,
+                                color = if (victoriasTotal >= derrotasTotal) GreenWin else RedLoss,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("% Victorias:", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                String.format(Locale.getDefault(), "%.1f%%", porcentajeVictoriasTotal),
+                                fontSize = 12.sp,
+                                color = LimeVolt,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Goles (Favor / Contra / Dif):", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                "${golesFavorTotal} - ${golesContraTotal} (${if (diferenciaGolesTotal >= 0) "+$diferenciaGolesTotal" else "$diferenciaGolesTotal"})",
+                                fontSize = 12.sp,
+                                color = Color.White
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         TablaMetricasComparativas(
                             targetNombre = nombreTarget,
                             detalleNombre = nombreDetalle,
                             golesTarget = detalle.golesTarget,
                             golesDetalle = detalle.goles,
+                            golesDiestraTarget = detalle.golesDiestraTarget,
+                            golesDiestraDetalle = detalle.golesDiestra,
+                            golesZurdaTarget = detalle.golesZurdaTarget,
+                            golesZurdaDetalle = detalle.golesZurda,
+                            golesCabezaTarget = detalle.golesCabezaTarget,
+                            golesCabezaDetalle = detalle.golesCabeza,
+                            golesOtroTarget = detalle.golesOtroTarget,
+                            golesOtroDetalle = detalle.golesOtro,
                             asistenciasTarget = detalle.asistenciasTarget,
                             asistenciasDetalle = detalle.asistencias,
                             palosTarget = detalle.tirosAlPaloTarget,
@@ -1254,13 +1321,6 @@ fun DialogoDetalleJugadorCruzado(
                                 color = Color.White
                             )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Tus goles con él:", fontSize = 12.sp, color = TextSecondary)
-                            Text("${detalle.golesMarcadosComoCompanero}", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                        }
 
                         Spacer(modifier = Modifier.height(10.dp))
                         TablaMetricasComparativas(
@@ -1268,6 +1328,14 @@ fun DialogoDetalleJugadorCruzado(
                             detalleNombre = nombreDetalle,
                             golesTarget = detalle.golesTargetComoCompaneroInd,
                             golesDetalle = detalle.golesComoCompaneroInd,
+                            golesDiestraTarget = detalle.golesDiestraTargetComoCompaneroInd,
+                            golesDiestraDetalle = detalle.golesDiestraComoCompaneroInd,
+                            golesZurdaTarget = detalle.golesZurdaTargetComoCompaneroInd,
+                            golesZurdaDetalle = detalle.golesZurdaComoCompaneroInd,
+                            golesCabezaTarget = detalle.golesCabezaTargetComoCompaneroInd,
+                            golesCabezaDetalle = detalle.golesCabezaComoCompaneroInd,
+                            golesOtroTarget = detalle.golesOtroTargetComoCompaneroInd,
+                            golesOtroDetalle = detalle.golesOtroComoCompaneroInd,
                             asistenciasTarget = detalle.asistenciasTargetComoCompaneroInd,
                             asistenciasDetalle = detalle.asistenciasComoCompaneroInd,
                             palosTarget = detalle.tirosAlPaloTargetComoCompaneroInd,
@@ -1347,13 +1415,6 @@ fun DialogoDetalleJugadorCruzado(
                                 color = Color.White
                             )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Tus goles frente a él:", fontSize = 12.sp, color = TextSecondary)
-                            Text("${detalle.golesMarcadosComoRival}", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                        }
 
                         Spacer(modifier = Modifier.height(10.dp))
                         TablaMetricasComparativas(
@@ -1361,6 +1422,14 @@ fun DialogoDetalleJugadorCruzado(
                             detalleNombre = nombreDetalle,
                             golesTarget = detalle.golesTargetComoRivalInd,
                             golesDetalle = detalle.golesComoRivalInd,
+                            golesDiestraTarget = detalle.golesDiestraTargetComoRivalInd,
+                            golesDiestraDetalle = detalle.golesDiestraComoRivalInd,
+                            golesZurdaTarget = detalle.golesZurdaTargetComoRivalInd,
+                            golesZurdaDetalle = detalle.golesZurdaComoRivalInd,
+                            golesCabezaTarget = detalle.golesCabezaTargetComoRivalInd,
+                            golesCabezaDetalle = detalle.golesCabezaComoRivalInd,
+                            golesOtroTarget = detalle.golesOtroTargetComoRivalInd,
+                            golesOtroDetalle = detalle.golesOtroComoRivalInd,
                             asistenciasTarget = detalle.asistenciasTargetComoRivalInd,
                             asistenciasDetalle = detalle.asistenciasComoRivalInd,
                             palosTarget = detalle.tirosAlPaloTargetComoRivalInd,
@@ -1402,6 +1471,14 @@ private fun TablaMetricasComparativas(
     detalleNombre: String,
     golesTarget: Int,
     golesDetalle: Int,
+    golesDiestraTarget: Int = 0,
+    golesDiestraDetalle: Int = 0,
+    golesZurdaTarget: Int = 0,
+    golesZurdaDetalle: Int = 0,
+    golesCabezaTarget: Int = 0,
+    golesCabezaDetalle: Int = 0,
+    golesOtroTarget: Int = 0,
+    golesOtroDetalle: Int = 0,
     asistenciasTarget: Int,
     asistenciasDetalle: Int,
     palosTarget: Int,
@@ -1459,17 +1536,19 @@ private fun TablaMetricasComparativas(
     )
 
     FilaMetricaComparativa("⚽", "Goles", "$golesTarget", "$golesDetalle")
+    FilaMetricaComparativa("🦵", "Diestra", "$golesDiestraTarget", "$golesDiestraDetalle")
+    FilaMetricaComparativa("🦶", "Zurda", "$golesZurdaTarget", "$golesZurdaDetalle")
+    FilaMetricaComparativa("🗣️", "Cabeza", "$golesCabezaTarget", "$golesCabezaDetalle")
+    FilaMetricaComparativa("✨", "Otros", "$golesOtroTarget", "$golesOtroDetalle")
     FilaMetricaComparativa("🅰️", "Asistencias", "$asistenciasTarget", "$asistenciasDetalle")
     FilaMetricaComparativa("🎯", "Palos", "$palosTarget", "$palosDetalle")
     FilaMetricaComparativa("🚀", "Fuera área", "$fueraAreaTarget", "$fueraAreaDetalle")
     FilaMetricaComparativa("🤸", "Chilena", "$chilenaTarget", "$chilenaDetalle")
     FilaMetricaComparativa("👟", "Tacón", "$taconTarget", "$taconDetalle")
+    FilaMetricaComparativa("🧤", "Paradas", "$paradasTarget", "$paradasDetalle")
 
-    FilaMetricaComparativa("🥅", "Goles enc.", "$golesEncajadosTarget", "$golesEncajadosDetalle")
-
-    val showParadas = haJugadoPorteroTarget || haJugadoPorteroDetalle || paradasTarget > 0 || paradasDetalle > 0
-    if (showParadas) {
-        FilaMetricaComparativa("🧤", "Paradas", "$paradasTarget", "$paradasDetalle")
+    if (haJugadoPorteroTarget && haJugadoPorteroDetalle) {
+        FilaMetricaComparativa("🥅", "Goles enc.", "$golesEncajadosTarget", "$golesEncajadosDetalle")
     }
 }
 
@@ -1520,7 +1599,7 @@ fun SeccionDuos(duos: List<DuoEstadisticas>) {
 
     val duosFiltrados = remember(duos, mostrarSoloGanadores) {
         if (mostrarSoloGanadores) {
-            duos.filter { it.partidosJuntos >= 1 }
+            duos.filter { it.partidosJuntos >= 5 }
                 .sortedWith(
                     compareByDescending<DuoEstadisticas> { it.victorias }
                         .thenByDescending { it.porcentajeVictorias }
@@ -1528,7 +1607,7 @@ fun SeccionDuos(duos: List<DuoEstadisticas>) {
                 )
                 .take(10)
         } else {
-            duos.filter { it.partidosJuntos >= 1 }
+            duos.filter { it.partidosJuntos >= 5 }
                 .sortedWith(
                     compareByDescending<DuoEstadisticas> { it.derrotas }
                         .thenBy { it.porcentajeVictorias }
@@ -1551,7 +1630,7 @@ fun SeccionDuos(duos: List<DuoEstadisticas>) {
                 color = LimeVolt
             )
             Text(
-                text = "Conoce qué duplas obtienen mejores o peores resultados jugando en el mismo bando.",
+                text = "Conoce qué duplas obtienen mejores o peores resultados jugando en el mismo bando (mínimo 5 partidos).",
                 fontSize = 12.sp,
                 color = TextSecondary
             )
@@ -1606,7 +1685,7 @@ fun SeccionDuos(duos: List<DuoEstadisticas>) {
                 ) {
                     Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "No hay datos suficientes de parejas jugando juntas en partidos.",
+                            text = "No hay datos suficientes de parejas con al menos 5 partidos jugando juntas.",
                             color = TextSecondary,
                             textAlign = TextAlign.Center,
                             fontSize = 13.sp

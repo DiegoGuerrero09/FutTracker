@@ -66,6 +66,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var gmRiv = 0
 
                 var golesJ = 0
+                var golesDiestraJ = 0
+                var golesZurdaJ = 0
+                var golesCabezaJ = 0
+                var golesOtroJ = 0
                 var asistenciasJ = 0
                 var tirosAlPaloJ = 0
                 var fueraAreaJ = 0
@@ -76,6 +80,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var haJugadoPorteroJ = false
 
                 var golesJComp = 0
+                var golesDiestraJComp = 0
+                var golesZurdaJComp = 0
+                var golesCabezaJComp = 0
+                var golesOtroJComp = 0
                 var asistenciasJComp = 0
                 var tirosAlPaloJComp = 0
                 var fueraAreaJComp = 0
@@ -86,6 +94,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var haJugadoPorteroJComp = false
 
                 var golesJRiv = 0
+                var golesDiestraJRiv = 0
+                var golesZurdaJRiv = 0
+                var golesCabezaJRiv = 0
+                var golesOtroJRiv = 0
                 var asistenciasJRiv = 0
                 var tirosAlPaloJRiv = 0
                 var fueraAreaJRiv = 0
@@ -96,6 +108,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var haJugadoPorteroJRiv = false
 
                 var golesTarget = 0
+                var golesDiestraTarget = 0
+                var golesZurdaTarget = 0
+                var golesCabezaTarget = 0
+                var golesOtroTarget = 0
                 var asistenciasTarget = 0
                 var tirosAlPaloTarget = 0
                 var fueraAreaTarget = 0
@@ -106,6 +122,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var haJugadoPorteroTarget = false
 
                 var golesTargetComp = 0
+                var golesDiestraTargetComp = 0
+                var golesZurdaTargetComp = 0
+                var golesCabezaTargetComp = 0
+                var golesOtroTargetComp = 0
                 var asistenciasTargetComp = 0
                 var tirosAlPaloTargetComp = 0
                 var fueraAreaTargetComp = 0
@@ -116,6 +136,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                 var haJugadoPorteroTargetComp = false
 
                 var golesTargetRiv = 0
+                var golesDiestraTargetRiv = 0
+                var golesZurdaTargetRiv = 0
+                var golesCabezaTargetRiv = 0
+                var golesOtroTargetRiv = 0
                 var asistenciasTargetRiv = 0
                 var tirosAlPaloTargetRiv = 0
                 var fueraAreaTargetRiv = 0
@@ -144,6 +168,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     // Stats in match for target
                     val detTarget = p.jugadoresDetalle.firstOrNull { it.jugadorId == targetJugador.id || (targetJugador.esUsuarioPropio && it.jugadorId == "usuario_propio_id") }
                     val gTarget = detTarget?.goles ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.goles else 0
+                    val gDiestraTarget = detTarget?.golesDiestra ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.golesDiestra else 0
+                    val gZurdaTarget = detTarget?.golesZurda ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.golesZurda else 0
+                    val gCabezaTarget = detTarget?.golesCabeza ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.golesCabeza else 0
+                    val gOtroTarget = detTarget?.golesOtro ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.golesOtro else 0
                     val asisTarget = detTarget?.asistencias ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.asistencias else 0
                     val paloTarget = detTarget?.tirosAlPalo ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.tirosAlPalo else 0
                     val faTarget = detTarget?.golesFueraArea ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.golesFueraArea else 0
@@ -154,6 +182,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     val parTarget = if (esPorteroTarget) (detTarget?.paradas ?: if (targetJugador.esUsuarioPropio && p.jugadoPorMi) p.paradas else 0) else 0
 
                     golesTarget += gTarget
+                    golesDiestraTarget += gDiestraTarget
+                    golesZurdaTarget += gZurdaTarget
+                    golesCabezaTarget += gCabezaTarget
+                    golesOtroTarget += gOtroTarget
                     asistenciasTarget += asisTarget
                     tirosAlPaloTarget += paloTarget
                     fueraAreaTarget += faTarget
@@ -161,7 +193,15 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     taconTarget += tacTarget
                     paradasTarget += parTarget
 
-                    val encTarget = if (esPorteroTarget) {
+                    val esSoloPorteroTarget = if (detTarget != null) {
+                        detTarget.posicionPrincipal == Posicion.POR && detTarget.posicionesSecundarias.isEmpty()
+                    } else if (targetJugador.esUsuarioPropio && p.jugadoPorMi) {
+                        p.posicionJugada == Posicion.POR && p.posicionesSecundarias.isEmpty()
+                    } else {
+                        targetJugador.posicionesPrimarias.contains(Posicion.POR) && targetJugador.posicionesSecundarias.isEmpty()
+                    }
+
+                    val encTarget = if (esSoloPorteroTarget) {
                         haJugadoPorteroTarget = true
                         val enc = if (targetEnMiEquipo) p.golesEnContra else p.golesAFavor
                         golesEncajadosTarget += enc
@@ -171,6 +211,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     // Stats in match for j
                     val detJ = p.jugadoresDetalle.firstOrNull { it.jugadorId == j.id || (j.esUsuarioPropio && it.jugadorId == "usuario_propio_id") }
                     val gJ = detJ?.goles ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.goles else 0
+                    val gDiestraJ = detJ?.golesDiestra ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.golesDiestra else 0
+                    val gZurdaJ = detJ?.golesZurda ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.golesZurda else 0
+                    val gCabezaJ = detJ?.golesCabeza ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.golesCabeza else 0
+                    val gOtroJ = detJ?.golesOtro ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.golesOtro else 0
                     val asisJ = detJ?.asistencias ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.asistencias else 0
                     val paloJ = detJ?.tirosAlPalo ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.tirosAlPalo else 0
                     val faJ = detJ?.golesFueraArea ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.golesFueraArea else 0
@@ -182,6 +226,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     val parJ = if (esPorteroJ) (detJ?.paradas ?: if (j.esUsuarioPropio && p.jugadoPorMi) p.paradas else 0) else 0
 
                     golesJ += gJ
+                    golesDiestraJ += gDiestraJ
+                    golesZurdaJ += gZurdaJ
+                    golesCabezaJ += gCabezaJ
+                    golesOtroJ += gOtroJ
                     asistenciasJ += asisJ
                     tirosAlPaloJ += paloJ
                     fueraAreaJ += faJ
@@ -189,7 +237,15 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     taconJ += tacJ
                     paradasJ += parJ
 
-                    val encJ = if (esPorteroJ) {
+                    val esSoloPorteroJ = if (detJ != null) {
+                        detJ.posicionPrincipal == Posicion.POR && detJ.posicionesSecundarias.isEmpty()
+                    } else if (j.esUsuarioPropio && p.jugadoPorMi) {
+                        p.posicionJugada == Posicion.POR && p.posicionesSecundarias.isEmpty()
+                    } else {
+                        j.posicionesPrimarias.contains(Posicion.POR) && j.posicionesSecundarias.isEmpty()
+                    }
+
+                    val encJ = if (esSoloPorteroJ) {
                         haJugadoPorteroJ = true
                         val enc = if (jEnMiEquipo) p.golesEnContra else p.golesAFavor
                         golesEncajadosJ += enc
@@ -198,49 +254,65 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
 
                     if (sonCompaneros) {
                         golesTargetComp += gTarget
+                        golesDiestraTargetComp += gDiestraTarget
+                        golesZurdaTargetComp += gZurdaTarget
+                        golesCabezaTargetComp += gCabezaTarget
+                        golesOtroTargetComp += gOtroTarget
                         asistenciasTargetComp += asisTarget
                         tirosAlPaloTargetComp += paloTarget
                         fueraAreaTargetComp += faTarget
                         chilenaTargetComp += chilTarget
                         taconTargetComp += tacTarget
                         paradasTargetComp += parTarget
-                        if (esPorteroTarget) {
+                        if (esSoloPorteroTarget) {
                             haJugadoPorteroTargetComp = true
                             golesEncajadosTargetComp += encTarget
                         }
 
                         golesJComp += gJ
+                        golesDiestraJComp += gDiestraJ
+                        golesZurdaJComp += gZurdaJ
+                        golesCabezaJComp += gCabezaJ
+                        golesOtroJComp += gOtroJ
                         asistenciasJComp += asisJ
                         tirosAlPaloJComp += paloJ
                         fueraAreaJComp += faJ
                         chilenaJComp += chilJ
                         taconJComp += tacJ
                         paradasJComp += parJ
-                        if (esPorteroJ) {
+                        if (esSoloPorteroJ) {
                             haJugadoPorteroJComp = true
                             golesEncajadosJComp += encJ
                         }
                     } else if (sonRivales) {
                         golesTargetRiv += gTarget
+                        golesDiestraTargetRiv += gDiestraTarget
+                        golesZurdaTargetRiv += gZurdaTarget
+                        golesCabezaTargetRiv += gCabezaTarget
+                        golesOtroTargetRiv += gOtroTarget
                         asistenciasTargetRiv += asisTarget
                         tirosAlPaloTargetRiv += paloTarget
                         fueraAreaTargetRiv += faTarget
                         chilenaTargetRiv += chilTarget
                         taconTargetRiv += tacTarget
                         paradasTargetRiv += parTarget
-                        if (esPorteroTarget) {
+                        if (esSoloPorteroTarget) {
                             haJugadoPorteroTargetRiv = true
                             golesEncajadosTargetRiv += encTarget
                         }
 
                         golesJRiv += gJ
+                        golesDiestraJRiv += gDiestraJ
+                        golesZurdaJRiv += gZurdaJ
+                        golesCabezaJRiv += gCabezaJ
+                        golesOtroJRiv += gOtroJ
                         asistenciasJRiv += asisJ
                         tirosAlPaloJRiv += paloJ
                         fueraAreaJRiv += faJ
                         chilenaJRiv += chilJ
                         taconJRiv += tacJ
                         paradasJRiv += parJ
-                        if (esPorteroJ) {
+                        if (esSoloPorteroJ) {
                             haJugadoPorteroJRiv = true
                             golesEncajadosJRiv += encJ
                         }
@@ -304,6 +376,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     golesContraComoRival = gcRiv,
                     golesMarcadosComoRival = gmRiv,
                     goles = golesJ,
+                    golesDiestra = golesDiestraJ,
+                    golesZurda = golesZurdaJ,
+                    golesCabeza = golesCabezaJ,
+                    golesOtro = golesOtroJ,
                     asistencias = asistenciasJ,
                     tirosAlPalo = tirosAlPaloJ,
                     fueraArea = fueraAreaJ,
@@ -313,6 +389,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     paradas = paradasJ,
                     haJugadoPortero = haJugadoPorteroJ,
                     golesComoCompaneroInd = golesJComp,
+                    golesDiestraComoCompaneroInd = golesDiestraJComp,
+                    golesZurdaComoCompaneroInd = golesZurdaJComp,
+                    golesCabezaComoCompaneroInd = golesCabezaJComp,
+                    golesOtroComoCompaneroInd = golesOtroJComp,
                     asistenciasComoCompaneroInd = asistenciasJComp,
                     tirosAlPaloComoCompaneroInd = tirosAlPaloJComp,
                     fueraAreaComoCompaneroInd = fueraAreaJComp,
@@ -322,6 +402,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     paradasComoCompaneroInd = paradasJComp,
                     haJugadoPorteroComoCompaneroInd = haJugadoPorteroJComp,
                     golesComoRivalInd = golesJRiv,
+                    golesDiestraComoRivalInd = golesDiestraJRiv,
+                    golesZurdaComoRivalInd = golesZurdaJRiv,
+                    golesCabezaComoRivalInd = golesCabezaJRiv,
+                    golesOtroComoRivalInd = golesOtroJRiv,
                     asistenciasComoRivalInd = asistenciasJRiv,
                     tirosAlPaloComoRivalInd = tirosAlPaloJRiv,
                     fueraAreaComoRivalInd = fueraAreaJRiv,
@@ -331,6 +415,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     paradasComoRivalInd = paradasJRiv,
                     haJugadoPorteroComoRivalInd = haJugadoPorteroJRiv,
                     golesTarget = golesTarget,
+                    golesDiestraTarget = golesDiestraTarget,
+                    golesZurdaTarget = golesZurdaTarget,
+                    golesCabezaTarget = golesCabezaTarget,
+                    golesOtroTarget = golesOtroTarget,
                     asistenciasTarget = asistenciasTarget,
                     tirosAlPaloTarget = tirosAlPaloTarget,
                     fueraAreaTarget = fueraAreaTarget,
@@ -340,6 +428,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     paradasTarget = paradasTarget,
                     haJugadoPorteroTarget = haJugadoPorteroTarget,
                     golesTargetComoCompaneroInd = golesTargetComp,
+                    golesDiestraTargetComoCompaneroInd = golesDiestraTargetComp,
+                    golesZurdaTargetComoCompaneroInd = golesZurdaTargetComp,
+                    golesCabezaTargetComoCompaneroInd = golesCabezaTargetComp,
+                    golesOtroTargetComoCompaneroInd = golesOtroTargetComp,
                     asistenciasTargetComoCompaneroInd = asistenciasTargetComp,
                     tirosAlPaloTargetComoCompaneroInd = tirosAlPaloTargetComp,
                     fueraAreaTargetComoCompaneroInd = fueraAreaTargetComp,
@@ -349,6 +441,10 @@ class EnfrentamientosRepositoryImpl @Inject constructor(
                     paradasTargetComoCompaneroInd = paradasTargetComp,
                     haJugadoPorteroTargetComoCompaneroInd = haJugadoPorteroTargetComp,
                     golesTargetComoRivalInd = golesTargetRiv,
+                    golesDiestraTargetComoRivalInd = golesDiestraTargetRiv,
+                    golesZurdaTargetComoRivalInd = golesZurdaTargetRiv,
+                    golesCabezaTargetComoRivalInd = golesCabezaTargetRiv,
+                    golesOtroTargetComoRivalInd = golesOtroTargetRiv,
                     asistenciasTargetComoRivalInd = asistenciasTargetRiv,
                     tirosAlPaloTargetComoRivalInd = tirosAlPaloTargetRiv,
                     fueraAreaTargetComoRivalInd = fueraAreaTargetRiv,

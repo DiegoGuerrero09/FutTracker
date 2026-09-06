@@ -402,7 +402,7 @@ fun AlineacionScreen(
                         fontSize = 15.sp
                     )
 
-                    // Buscador con lupa y texto centrados
+                    // Buscador con lupa y texto alineados a la izquierda
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -410,49 +410,51 @@ fun AlineacionScreen(
                             .background(DarkCard, RoundedCornerShape(10.dp))
                             .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                             .padding(horizontal = 12.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        if (searchQuery.isEmpty()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxWidth()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = if (searchQuery.isNotEmpty()) 28.dp else 0.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .border(1.dp, Color.Gray.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .border(1.dp, Color.Gray.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = TextSecondary,
-                                        modifier = Modifier.size(15.dp)
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Buscar jugador...",
+                                        color = TextSecondary,
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Start
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Buscar jugador...",
-                                    color = TextSecondary,
-                                    fontSize = 14.sp,
-                                    textAlign = TextAlign.Center
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Start
+                                    ),
+                                    cursorBrush = SolidColor(LimeVolt),
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
-
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center
-                            ),
-                            cursorBrush = SolidColor(LimeVolt),
-                            modifier = Modifier.fillMaxWidth()
-                        )
 
                         if (searchQuery.isNotEmpty()) {
                             IconButton(

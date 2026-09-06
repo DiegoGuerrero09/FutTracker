@@ -23,9 +23,27 @@ enum class Clima(val label: String, val emoji: String) {
     }
 }
 
-fun Clima.obtenerEmoji(hora: Int? = null): String {
+fun Clima.obtenerEmoji(hora: Int? = null, fechaMillis: Long? = null): String {
     return when (this) {
-        Clima.DESPEJADO -> if (hora != null && hora >= 20) "🌙" else "☀️"
+        Clima.DESPEJADO -> {
+            if (hora == null) return "☀️"
+            val cal = java.util.Calendar.getInstance()
+            if (fechaMillis != null) {
+                cal.timeInMillis = fechaMillis
+            }
+            val mes = cal.get(java.util.Calendar.MONTH) + 1 // 1..12
+            val dia = cal.get(java.util.Calendar.DAY_OF_MONTH)
+            // Verano: 21 de junio al 21 de septiembre (Sol hasta las 21h)
+            val esVerano = (mes == 6 && dia >= 21) || mes == 7 || mes == 8 || (mes == 9 && dia <= 21)
+            // Invierno: 21 de diciembre al 20 de marzo (Sol hasta las 19h)
+            val esInvierno = (mes == 12 && dia >= 21) || mes == 1 || mes == 2 || (mes == 3 && dia <= 20)
+            val limiteLuna = when {
+                esVerano -> 21
+                esInvierno -> 19
+                else -> 20
+            }
+            if (hora >= limiteLuna || hora < 7) "🌙" else "☀️"
+        }
         Clima.NUBLADO -> "⛅"
         Clima.LLUVIOSO -> "🌧️"
     }
@@ -34,7 +52,7 @@ fun Clima.obtenerEmoji(hora: Int? = null): String {
 fun Clima.obtenerEmojiParaFecha(fechaMillis: Long): String {
     val cal = java.util.Calendar.getInstance().apply { timeInMillis = fechaMillis }
     val hora = cal.get(java.util.Calendar.HOUR_OF_DAY)
-    return obtenerEmoji(hora)
+    return obtenerEmoji(hora, fechaMillis)
 }
 
 enum class EquipoColor(val label: String, val emoji: String) {

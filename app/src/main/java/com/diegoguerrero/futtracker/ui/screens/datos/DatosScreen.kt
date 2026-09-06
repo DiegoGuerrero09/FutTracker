@@ -41,7 +41,7 @@ fun DatosScreen(
     onToggleFavoritoEstadio: (Estadio) -> Unit = {}
 ) {
     var tabSeleccionada by remember { mutableStateOf(0) }
-    val tabs = listOf("Jugadores", "Partidos", "Estadios")
+    val tabs = listOf("Partidos", "Jugadores", "Estadios")
 
     Scaffold(
         topBar = {
@@ -91,21 +91,21 @@ fun DatosScreen(
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when (tabSeleccionada) {
-                    0 -> JugadoresScreen(
-                        jugadores = jugadores,
-                        onAgregarJugador = onAgregarJugador,
-                        onActualizarJugador = onActualizarJugador,
-                        onEliminarJugador = onEliminarJugador,
-                        onToggleFavorito = onToggleFavorito,
-                        mostrarTopBar = false
-                    )
-                    1 -> PartidosScreen(
+                    0 -> PartidosScreen(
                         partidos = partidos,
                         jugadores = jugadores,
                         estadios = estadios,
                         onAgregarPartido = onAgregarPartido,
                         onActualizarPartido = onActualizarPartido,
                         onEliminarPartido = onEliminarPartido,
+                        mostrarTopBar = false
+                    )
+                    1 -> JugadoresScreen(
+                        jugadores = jugadores,
+                        onAgregarJugador = onAgregarJugador,
+                        onActualizarJugador = onActualizarJugador,
+                        onEliminarJugador = onEliminarJugador,
+                        onToggleFavorito = onToggleFavorito,
                         mostrarTopBar = false
                     )
                     2 -> EstadiosScreen(

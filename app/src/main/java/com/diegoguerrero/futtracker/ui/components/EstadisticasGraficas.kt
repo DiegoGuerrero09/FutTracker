@@ -177,7 +177,7 @@ fun GraficoGolesAsistencias(
     jugadorId: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val partidosRecientes = partidos.sortedBy { it.fecha }.takeLast(7)
+    val partidosRecientes = partidos.sortedByDescending { it.fecha }.take(7)
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -354,7 +354,7 @@ fun GraficoGolesEncajados(
     jugadorId: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val partidosRecientes = partidos.sortedBy { it.fecha }.takeLast(7)
+    val partidosRecientes = partidos.sortedByDescending { it.fecha }.take(7)
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -672,7 +672,7 @@ fun GraficoTirosAlPalo(
     jugadorId: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val partidosRecientes = partidos.sortedBy { it.fecha }.takeLast(7)
+    val partidosRecientes = partidos.sortedByDescending { it.fecha }.take(7)
     val totalPalos = if (jugadorId == null) partidos.sumOf { it.tirosAlPalo } else partidos.sumOf { p -> p.jugadoresDetalle.firstOrNull { it.jugadorId == jugadorId }?.tirosAlPalo ?: 0 }
 
     Card(

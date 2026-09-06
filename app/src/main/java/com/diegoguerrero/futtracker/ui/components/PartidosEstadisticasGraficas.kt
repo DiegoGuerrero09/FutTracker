@@ -1160,7 +1160,7 @@ fun GraficoMapaCalorPosiciones(
                                 }
 
                                 LinearProgressIndicator(
-                                    progress = { if (maxMins > 0f) item.minutos.toFloat() / maxMins else 0f },
+                                    progress = { (item.porcentaje / 100f).coerceIn(0f, 1f) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(4.dp)

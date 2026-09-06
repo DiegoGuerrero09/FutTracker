@@ -1508,8 +1508,9 @@ private fun PartidoItem(
                                 )
                             }
                         }
-                        // Posiciones secundarias si las hay
-                        partido.posicionesSecundarias.forEach { posSec ->
+                        // Posiciones secundarias si las hay (máximo 1 y el resto con +N)
+                        if (partido.posicionesSecundarias.isNotEmpty()) {
+                            val primeraPosSec = partido.posicionesSecundarias.first()
                             Surface(
                                 color = LimeVolt.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(4.dp),
@@ -1522,7 +1523,7 @@ private fun PartidoItem(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = posSec.name,
+                                        text = primeraPosSec.name,
                                         color = LimeVolt,
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 11.sp,
@@ -1531,6 +1532,31 @@ private fun PartidoItem(
                                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                                         )
                                     )
+                                }
+                            }
+                            if (partido.posicionesSecundarias.size > 1) {
+                                Surface(
+                                    color = LimeVolt.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    border = BorderStroke(0.8.dp, LimeVolt.copy(alpha = 0.35f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .height(22.dp)
+                                            .padding(horizontal = 4.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "+${partido.posicionesSecundarias.size - 1}",
+                                            color = LimeVolt,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                            textAlign = TextAlign.Center,
+                                            style = androidx.compose.ui.text.TextStyle(
+                                                platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+                                            )
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1581,7 +1607,7 @@ private fun PartidoItem(
                     if (partido.golesCabeza > 0) add("Cabeza: ${partido.golesCabeza}")
                     if (partido.golesTacon > 0) add("Tacón: ${partido.golesTacon}")
                     if (partido.golesChilena > 0) add("Chilena: ${partido.golesChilena}")
-                    if (partido.golesFueraArea > 0) add("Fuera área: ${partido.golesFueraArea}")
+                    if (partido.golesFueraArea > 0) add("Fuera del área: ${partido.golesFueraArea}")
                     if (partido.golesOtro > 0) add("Otro: ${partido.golesOtro}")
                 }
 
@@ -1623,7 +1649,34 @@ private fun PartidoItem(
             }
 
             // Jugadores del partido por equipo
-            val tieneEquipos = partido.jugadoresMiEquipo.isNotEmpty() || partido.jugadoresEquipoRival.isNotEmpty()
+            val esJugadorPorDefecto = { j: Jugador ->
+                val esYo = j.esUsuarioPropio || j.id == "usuario_propio_id"
+                !esYo && (j.id.startsWith("defecto_") || j.nombre == "Jugador")
+            }
+
+            val companeros = partido.jugadoresMiEquipo.map { id ->
+                jugadores.firstOrNull { it.id == id || (id == "usuario_propio_id" && it.esUsuarioPropio) }
+                    ?: Jugador(id = id, nombre = "Jugador")
+            }.filterNot(esJugadorPorDefecto)
+            .sortedWith(
+                compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
+                    .thenBy { it.nombre.lowercase() }
+            )
+
+            val rivales = partido.jugadoresEquipoRival.map { id ->
+                jugadores.firstOrNull { it.id == id || (id == "usuario_propio_id" && it.esUsuarioPropio) }
+                    ?: Jugador(id = id, nombre = "Jugador")
+            }.filterNot(esJugadorPorDefecto)
+            .sortedWith(compareBy { it.nombre.lowercase() })
+
+            val jugadoresGenerales = if (partido.jugadoresMiEquipo.isEmpty() && partido.jugadoresEquipoRival.isEmpty()) {
+                partido.jugadoresIds.map { id ->
+                    jugadores.firstOrNull { it.id == id || (id == "usuario_propio_id" && it.esUsuarioPropio) }
+                        ?: Jugador(id = id, nombre = "Jugador")
+                }.filterNot(esJugadorPorDefecto)
+            } else emptyList()
+
+            val tieneEquipos = companeros.isNotEmpty() || rivales.isNotEmpty()
             if (tieneEquipos) {
                 Spacer(modifier = Modifier.height(8.dp))
                 val miColor = partido.equipoJugado ?: EquipoColor.CLARO
@@ -1632,7 +1685,7 @@ private fun PartidoItem(
                 val etiquetaEquipo1 = if (partido.jugadoPorMi) "Mi equipo (${miColor.emoji}${miColor.label}):" else "⚪ Equipo claro:"
                 val etiquetaEquipo2 = if (partido.jugadoPorMi) "Equipo rival (${rivalColor.emoji}${rivalColor.label}):" else "⚫ Equipo oscuro:"
 
-                if (partido.jugadoresMiEquipo.isNotEmpty()) {
+                if (companeros.isNotEmpty()) {
                     Text(
                         text = etiquetaEquipo1,
                         color = TextSecondary,
@@ -1640,20 +1693,11 @@ private fun PartidoItem(
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val companeros = partido.jugadoresMiEquipo.map { id ->
-                            jugadores.firstOrNull { it.id == id || (id == "usuario_propio_id" && it.esUsuarioPropio) }
-                                ?: Jugador(id = id, nombre = "Jugador")
-                        }.sortedWith(
-                            compareByDescending<Jugador> { it.esUsuarioPropio || it.id == "usuario_propio_id" }
-                                .thenBy { it.nombre.lowercase() }
-                        )
                         items(companeros) { comp ->
                             val esYo = comp.esUsuarioPropio || comp.id == "usuario_propio_id"
-                            val esDef = comp.id.startsWith("defecto_")
                             Surface(
                                 color = when {
                                     esYo -> LimeVolt.copy(alpha = 0.35f)
-                                    esDef -> Color.White.copy(alpha = 0.05f)
                                     else -> LimeVolt.copy(alpha = 0.15f)
                                 },
                                 shape = RoundedCornerShape(4.dp),
@@ -1661,17 +1705,19 @@ private fun PartidoItem(
                             ) {
                                 Text(
                                     text = if (esYo) "${comp.nombre} (Tú)" else comp.nombre,
-                                    color = if (esDef) TextSecondary else LimeVolt,
+                                    color = LimeVolt,
                                     fontSize = 10.sp,
-                                    fontWeight = if (esYo) FontWeight.Bold else (if (esDef) FontWeight.Normal else FontWeight.SemiBold),
+                                    fontWeight = if (esYo) FontWeight.Bold else FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
                     }
                 }
-                if (partido.jugadoresEquipoRival.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                if (rivales.isNotEmpty()) {
+                    if (companeros.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                     Text(
                         text = etiquetaEquipo2,
                         color = TextSecondary,
@@ -1679,19 +1725,14 @@ private fun PartidoItem(
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val rivales = partido.jugadoresEquipoRival.map { id ->
-                            jugadores.firstOrNull { it.id == id || (id == "usuario_propio_id" && it.esUsuarioPropio) }
-                                ?: Jugador(id = id, nombre = "Jugador")
-                        }.sortedWith(compareBy { it.nombre.lowercase() })
                         items(rivales) { riv ->
-                            val esDef = riv.id.startsWith("defecto_")
                             Surface(
-                                color = if (esDef) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.08f),
+                                color = Color.White.copy(alpha = 0.08f),
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
                                     text = riv.nombre,
-                                    color = if (esDef) TextSecondary else Color.White,
+                                    color = Color.White,
                                     fontSize = 10.sp,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
@@ -1699,24 +1740,19 @@ private fun PartidoItem(
                         }
                     }
                 }
-            } else if (partido.jugadoresIds.isNotEmpty()) {
+            } else if (jugadoresGenerales.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = "Jugadores del partido:", color = TextSecondary, fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val companeros = partido.jugadoresIds.map { id ->
-                        jugadores.firstOrNull { it.id == id || (id == "usuario_propio_id" && it.esUsuarioPropio) }
-                            ?: Jugador(id = id, nombre = "Jugador")
-                    }
-                    items(companeros) { comp ->
-                        val esDef = comp.id.startsWith("defecto_")
+                    items(jugadoresGenerales) { comp ->
                         Surface(
-                            color = if (esDef) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.07f),
+                            color = Color.White.copy(alpha = 0.07f),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
                                 text = comp.nombre,
-                                color = if (esDef) TextSecondary else Color.White,
+                                color = Color.White,
                                 fontSize = 10.sp,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
@@ -3002,7 +3038,7 @@ fun DialogoPartido(
                         items(Clima.entries.toTypedArray()) { c ->
                             val sel = clima == c
                             val horaPartido = Calendar.getInstance().apply { timeInMillis = fechaMillis }.get(Calendar.HOUR_OF_DAY)
-                            val emoji = c.obtenerEmoji(horaPartido)
+                            val emoji = c.obtenerEmoji(horaPartido, fechaMillis)
                             FilterChip(
                                 selected = sel,
                                 onClick = { clima = c },
