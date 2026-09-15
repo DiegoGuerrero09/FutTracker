@@ -112,13 +112,14 @@ fun SorteosScreen(
     }
 
     val estadiosOrdenados = remember(estadios, tipoFutbolActual) {
-        estadios.filter { tipoFutbolActual in it.modalidades }.sortedBy { it.nombre.lowercase() }
+        estadios.filter { tipoFutbolActual in it.modalidades }
+            .sortedWith(compareByDescending<Estadio> { it.esFavorito }.thenBy { it.nombre.lowercase() })
     }
 
     LaunchedEffect(tipoFutbolActual) {
         if (lugarSorteo.isNotBlank()) {
-            val estadioActual = estadios.firstOrNull { it.nombre.equals(lugarSorteo, ignoreCase = true) }
-            if (estadioActual != null && tipoFutbolActual !in estadioActual.modalidades) {
+            val estadioValido = estadiosOrdenados.any { it.nombre.equals(lugarSorteo.trim(), ignoreCase = true) }
+            if (!estadioValido) {
                 lugarSorteo = ""
             }
         }

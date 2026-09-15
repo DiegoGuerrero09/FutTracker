@@ -57,6 +57,7 @@ data class EstadisticasJugadorGeneral(
     val golesChilena: Int = 0,
     val golesTacon: Int = 0,
     val partidosPortero: Int = 0,
+    val partidosPorteroParadas: Int = 0,
     val golesEncajadosTotal: Int = 0,
     val paradasTotal: Int = 0
 ) {
@@ -83,7 +84,7 @@ data class EstadisticasJugadorGeneral(
     val golesEncajadosPorPartido: Float
         get() = if (partidosPortero > 0) golesEncajadosTotal.toFloat() / partidosPortero else 0f
     val paradasPorPartido: Float
-        get() = if (partidosConStats > 0) paradasTotal.toFloat() / partidosConStats else 0f
+        get() = if (partidosPorteroParadas > 0) paradasTotal.toFloat() / partidosPorteroParadas else 0f
 }
 
 enum class FranjaHoraria(val label: String, val emoji: String) {
@@ -148,6 +149,15 @@ data class StatsPosicionFrecuencia(
     val goles: Int = 0,
     val asistencias: Int = 0,
     val tirosAlPalo: Int = 0,
+    val golesDiestra: Int = 0,
+    val golesZurda: Int = 0,
+    val golesCabeza: Int = 0,
+    val golesOtro: Int = 0,
+    val golesFueraArea: Int = 0,
+    val golesTacon: Int = 0,
+    val golesChilena: Int = 0,
+    val paradas: Int = 0,
+    val golesEncajados: Int = 0,
     val total: Float = minutos.toFloat(),
     val porcentaje: Float = 0f
 )
@@ -287,11 +297,11 @@ class EstadisticasViewModel @Inject constructor(
             TipoFiltroEstadisticas.TEMPORADA -> {
                 val anioInicio = runCatching { temporada.split("/")[0].toInt() }.getOrDefault(2024)
                 val calInicio = Calendar.getInstance().apply {
-                    set(anioInicio, Calendar.SEPTEMBER, 1, 0, 0, 0)
+                    set(anioInicio, Calendar.AUGUST, 1, 0, 0, 0)
                     set(Calendar.MILLISECOND, 0)
                 }.timeInMillis
                 val calFin = Calendar.getInstance().apply {
-                    set(anioInicio + 1, Calendar.AUGUST, 31, 23, 59, 59)
+                    set(anioInicio + 1, Calendar.JULY, 31, 23, 59, 59)
                     set(Calendar.MILLISECOND, 999)
                 }.timeInMillis
                 lista.filter { it.fecha in calInicio..calFin }
@@ -455,7 +465,7 @@ class EstadisticasViewModel @Inject constructor(
     private fun calcularTemporadaActual(): String {
         val now = LocalDate.now()
         val year = now.year
-        val startYear = if (now.monthValue >= 9) year else year - 1
+        val startYear = if (now.monthValue >= 8) year else year - 1
         val endTwoDigits = String.format(Locale.getDefault(), "%02d", (startYear + 1) % 100)
         return "$startYear/$endTwoDigits"
     }
@@ -464,7 +474,7 @@ class EstadisticasViewModel @Inject constructor(
         val cal = Calendar.getInstance().apply { timeInMillis = fechaMillis }
         val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH)
-        val startYear = if (month >= Calendar.SEPTEMBER) year else year - 1
+        val startYear = if (month >= Calendar.AUGUST) year else year - 1
         val endTwoDigits = String.format(Locale.getDefault(), "%02d", (startYear + 1) % 100)
         return "$startYear/$endTwoDigits"
     }
@@ -771,6 +781,15 @@ class EstadisticasViewModel @Inject constructor(
         val posGoles = mutableMapOf<Posicion, Int>()
         val posAsist = mutableMapOf<Posicion, Int>()
         val posPalos = mutableMapOf<Posicion, Int>()
+        val posGolesZurda = mutableMapOf<Posicion, Int>()
+        val posGolesDiestra = mutableMapOf<Posicion, Int>()
+        val posGolesCabeza = mutableMapOf<Posicion, Int>()
+        val posGolesOtro = mutableMapOf<Posicion, Int>()
+        val posGolesFueraArea = mutableMapOf<Posicion, Int>()
+        val posGolesTacon = mutableMapOf<Posicion, Int>()
+        val posGolesChilena = mutableMapOf<Posicion, Int>()
+        val posParadas = mutableMapOf<Posicion, Int>()
+        val posGolesEncajados = mutableMapOf<Posicion, Int>()
 
         partidos.forEach { p ->
             val enMiEquipo = if (jId == null) true else p.jugadoresMiEquipo.contains(jId)
@@ -818,13 +837,24 @@ class EstadisticasViewModel @Inject constructor(
                 }
             }
 
-            // Goles, asistencias y tiros al palo considerando SOLO la posición principal
+            // Goles, asistencias, tipos de gol y paradas considerando la posición principal
             if (jId == null) {
                 if (p.jugadoPorMi) {
                     val posPrin = (p.posicionesJugadas - p.posicionesSecundarias).firstOrNull() ?: p.posicionJugada
                     posGoles[posPrin] = (posGoles[posPrin] ?: 0) + p.goles
                     posAsist[posPrin] = (posAsist[posPrin] ?: 0) + p.asistencias
                     posPalos[posPrin] = (posPalos[posPrin] ?: 0) + p.tirosAlPalo
+                    posGolesZurda[posPrin] = (posGolesZurda[posPrin] ?: 0) + p.golesZurda
+                    posGolesDiestra[posPrin] = (posGolesDiestra[posPrin] ?: 0) + p.golesDiestra
+                    posGolesCabeza[posPrin] = (posGolesCabeza[posPrin] ?: 0) + p.golesCabeza
+                    posGolesOtro[posPrin] = (posGolesOtro[posPrin] ?: 0) + p.golesOtro
+                    posGolesFueraArea[posPrin] = (posGolesFueraArea[posPrin] ?: 0) + p.golesFueraArea
+                    posGolesTacon[posPrin] = (posGolesTacon[posPrin] ?: 0) + p.golesTacon
+                    posGolesChilena[posPrin] = (posGolesChilena[posPrin] ?: 0) + p.golesChilena
+                    if (posPrin == Posicion.POR) {
+                        posParadas[posPrin] = (posParadas[posPrin] ?: 0) + p.paradas
+                        posGolesEncajados[posPrin] = (posGolesEncajados[posPrin] ?: 0) + p.golesEnContra
+                    }
                 }
             } else {
                 if (det != null && det.statsRegistradas) {
@@ -832,6 +862,17 @@ class EstadisticasViewModel @Inject constructor(
                     posGoles[posPrin] = (posGoles[posPrin] ?: 0) + det.goles
                     posAsist[posPrin] = (posAsist[posPrin] ?: 0) + det.asistencias
                     posPalos[posPrin] = (posPalos[posPrin] ?: 0) + det.tirosAlPalo
+                    posGolesZurda[posPrin] = (posGolesZurda[posPrin] ?: 0) + det.golesZurda
+                    posGolesDiestra[posPrin] = (posGolesDiestra[posPrin] ?: 0) + det.golesDiestra
+                    posGolesCabeza[posPrin] = (posGolesCabeza[posPrin] ?: 0) + det.golesCabeza
+                    posGolesOtro[posPrin] = (posGolesOtro[posPrin] ?: 0) + det.golesOtro
+                    posGolesFueraArea[posPrin] = (posGolesFueraArea[posPrin] ?: 0) + det.golesFueraArea
+                    posGolesTacon[posPrin] = (posGolesTacon[posPrin] ?: 0) + det.golesTacon
+                    posGolesChilena[posPrin] = (posGolesChilena[posPrin] ?: 0) + det.golesChilena
+                    if (posPrin == Posicion.POR) {
+                        posParadas[posPrin] = (posParadas[posPrin] ?: 0) + det.paradas
+                        posGolesEncajados[posPrin] = (posGolesEncajados[posPrin] ?: 0) + (if (det.esMiEquipo) p.golesEnContra else p.golesAFavor)
+                    }
                 }
             }
         }
@@ -858,6 +899,15 @@ class EstadisticasViewModel @Inject constructor(
                 goles = posGoles[pos] ?: 0,
                 asistencias = posAsist[pos] ?: 0,
                 tirosAlPalo = posPalos[pos] ?: 0,
+                golesDiestra = posGolesDiestra[pos] ?: 0,
+                golesZurda = posGolesZurda[pos] ?: 0,
+                golesCabeza = posGolesCabeza[pos] ?: 0,
+                golesOtro = posGolesOtro[pos] ?: 0,
+                golesFueraArea = posGolesFueraArea[pos] ?: 0,
+                golesTacon = posGolesTacon[pos] ?: 0,
+                golesChilena = posGolesChilena[pos] ?: 0,
+                paradas = posParadas[pos] ?: 0,
+                golesEncajados = posGolesEncajados[pos] ?: 0,
                 total = mins.toFloat(),
                 porcentaje = pctMinutos
             )
@@ -889,8 +939,8 @@ class EstadisticasViewModel @Inject constructor(
     private val _soloPosicionPrincipalGeneral = MutableStateFlow(false)
     val soloPosicionPrincipalGeneral: StateFlow<Boolean> = _soloPosicionPrincipalGeneral.asStateFlow()
 
-    private val _criterioOrdenGeneral = MutableStateFlow(CriterioOrdenGeneral.PORCENTAJE)
-    val criterioOrdenGeneral: StateFlow<CriterioOrdenGeneral> = _criterioOrdenGeneral.asStateFlow()
+    private val _criterioOrdenGeneral = MutableStateFlow<CriterioOrdenGeneral?>(null)
+    val criterioOrdenGeneral: StateFlow<CriterioOrdenGeneral?> = _criterioOrdenGeneral.asStateFlow()
 
     private val _ordenAscendenteGeneral = MutableStateFlow(false)
     val ordenAscendenteGeneral: StateFlow<Boolean> = _ordenAscendenteGeneral.asStateFlow()
@@ -937,6 +987,7 @@ class EstadisticasViewModel @Inject constructor(
             var chilenas = 0
             var tacones = 0
             var partidosPortero = 0
+            var partidosPorteroParadas = 0
             var golesEncajadosTotal = 0
             var paradas = 0
 
@@ -981,6 +1032,7 @@ class EstadisticasViewModel @Inject constructor(
                     val jugoPortero = det.posicionPrincipal == Posicion.POR || det.posicionesSecundarias.contains(Posicion.POR)
                     if (jugoPortero) {
                         paradas += det.paradas
+                        partidosPorteroParadas++
                     }
                     if (det.posicionPrincipal == Posicion.POR && det.posicionesSecundarias.isEmpty()) {
                         partidosPortero++
@@ -1001,6 +1053,7 @@ class EstadisticasViewModel @Inject constructor(
                     val jugoPortero = p.posicionJugada == Posicion.POR || p.posicionesSecundarias.contains(Posicion.POR) || p.posicionesJugadas.contains(Posicion.POR)
                     if (jugoPortero) {
                         paradas += p.paradas
+                        partidosPorteroParadas++
                     }
                     if (p.posicionJugada == Posicion.POR && p.posicionesSecundarias.isEmpty()) {
                         partidosPortero++
@@ -1033,6 +1086,7 @@ class EstadisticasViewModel @Inject constructor(
                 golesChilena = chilenas,
                 golesTacon = tacones,
                 partidosPortero = partidosPortero,
+                partidosPorteroParadas = partidosPorteroParadas,
                 golesEncajadosTotal = golesEncajadosTotal,
                 paradasTotal = paradas
             )
@@ -1052,6 +1106,17 @@ class EstadisticasViewModel @Inject constructor(
         }
 
         val ordenados = when (criterio) {
+            null -> if (asc) {
+                filtrados.sortedWith(
+                    compareBy<EstadisticasJugadorGeneral> { !it.jugador.esFavorito }
+                        .thenByDescending { it.jugador.nombre.lowercase() }
+                )
+            } else {
+                filtrados.sortedWith(
+                    compareByDescending<EstadisticasJugadorGeneral> { it.jugador.esFavorito }
+                        .thenBy { it.jugador.nombre.lowercase() }
+                )
+            }
             CriterioOrdenGeneral.VICTORIAS -> if (asc) filtrados.sortedWith(compareBy({ it.victorias }, { it.porcentajeVictorias }, { it.jugador.nombre }))
                 else filtrados.sortedWith(compareByDescending<EstadisticasJugadorGeneral> { it.victorias }.thenByDescending { it.porcentajeVictorias }.thenBy { it.jugador.nombre })
             CriterioOrdenGeneral.DERROTAS -> if (asc) filtrados.sortedWith(compareBy({ it.derrotas }, { it.partidosJugados }, { it.jugador.nombre }))
@@ -1177,7 +1242,7 @@ class EstadisticasViewModel @Inject constructor(
 
     fun setCriterioOrdenGeneral(criterio: CriterioOrdenGeneral) {
         if (_criterioOrdenGeneral.value == criterio) {
-            _ordenAscendenteGeneral.value = !_ordenAscendenteGeneral.value
+            _criterioOrdenGeneral.value = null
         } else {
             _criterioOrdenGeneral.value = criterio
             _ordenAscendenteGeneral.value = when (criterio) {

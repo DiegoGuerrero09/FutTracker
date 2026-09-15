@@ -22,14 +22,14 @@ private fun calcularTemporadaActual(): String {
     val cal = Calendar.getInstance()
     val anio = cal.get(Calendar.YEAR)
     val mes = cal.get(Calendar.MONTH)
-    return if (mes >= Calendar.SEPTEMBER) "$anio/${anio + 1}" else "${anio - 1}/$anio"
+    return if (mes >= Calendar.AUGUST) "$anio/${anio + 1}" else "${anio - 1}/$anio"
 }
 
 private fun obtenerTemporada(fecha: Long): String {
     val cal = Calendar.getInstance().apply { timeInMillis = fecha }
     val anio = cal.get(Calendar.YEAR)
     val mes = cal.get(Calendar.MONTH)
-    return if (mes >= Calendar.SEPTEMBER) "$anio/${anio + 1}" else "${anio - 1}/$anio"
+    return if (mes >= Calendar.AUGUST) "$anio/${anio + 1}" else "${anio - 1}/$anio"
 }
 
 private fun calcularRangoPeriodo(
@@ -44,14 +44,14 @@ private fun calcularRangoPeriodo(
         PeriodoPartidos.TEMPORADA -> {
             val anioInicio = runCatching { temporada.split("/")[0].toInt() }.getOrElse {
                 val now = Calendar.getInstance()
-                if (now.get(Calendar.MONTH) >= Calendar.SEPTEMBER) now.get(Calendar.YEAR) else now.get(Calendar.YEAR) - 1
+                if (now.get(Calendar.MONTH) >= Calendar.AUGUST) now.get(Calendar.YEAR) else now.get(Calendar.YEAR) - 1
             }
             val calInicio = Calendar.getInstance().apply {
-                set(anioInicio, Calendar.SEPTEMBER, 1, 0, 0, 0)
+                set(anioInicio, Calendar.AUGUST, 1, 0, 0, 0)
                 set(Calendar.MILLISECOND, 0)
             }.timeInMillis
             val calFin = Calendar.getInstance().apply {
-                set(anioInicio + 1, Calendar.AUGUST, 31, 23, 59, 59)
+                set(anioInicio + 1, Calendar.JULY, 31, 23, 59, 59)
                 set(Calendar.MILLISECOND, 999)
             }.timeInMillis
             Pair(calInicio, calFin)

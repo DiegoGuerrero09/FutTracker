@@ -82,51 +82,48 @@ fun RankingsScreen(
                         .background(DarkCard, RoundedCornerShape(10.dp))
                         .border(1.dp, TextSecondary.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    if (busquedaGeneral.isEmpty()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Buscar jugador...",
-                                color = TextSecondary,
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (busquedaGeneral.isEmpty()) {
+                                Text(
+                                    text = "Buscar jugador...",
+                                    color = TextSecondary,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                            BasicTextField(
+                                value = busquedaGeneral,
+                                onValueChange = { viewModel.setBusquedaGeneral(it) },
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Start
+                                ),
+                                cursorBrush = SolidColor(LimeVolt),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
-                    }
-
-                    BasicTextField(
-                        value = busquedaGeneral,
-                        onValueChange = { viewModel.setBusquedaGeneral(it) },
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        ),
-                        cursorBrush = SolidColor(LimeVolt),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (busquedaGeneral.isNotEmpty()) {
-                        IconButton(
-                            onClick = { viewModel.setBusquedaGeneral("") },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .size(24.dp)
-                        ) {
-                            Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                        if (busquedaGeneral.isNotEmpty()) {
+                            IconButton(
+                                onClick = { viewModel.setBusquedaGeneral("") },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
@@ -347,7 +344,7 @@ fun RankingsScreen(
 @Composable
 fun CardJugadorGeneral(
     item: EstadisticasJugadorGeneral,
-    criterio: CriterioOrdenGeneral = CriterioOrdenGeneral.PORCENTAJE,
+    criterio: CriterioOrdenGeneral? = null,
     porPartido: Boolean = false
 ) {
     Card(
@@ -848,21 +845,21 @@ fun CardJugadorGeneral(
                     if (item.golesFueraArea > 0) {
                         StatGeneralPill(
                             label = "🚀",
-                            valor = "${item.golesFueraArea}",
+                            valor = if (porPartido) "${item.golesFueraArea} (${"%.2f".format(java.util.Locale.US, item.golesFueraAreaPorPartido)}/p)" else "${item.golesFueraArea}",
                             color = LimeVolt
                         )
                     }
                     if (item.golesChilena > 0) {
                         StatGeneralPill(
                             label = "🤸",
-                            valor = "${item.golesChilena}",
+                            valor = if (porPartido) "${item.golesChilena} (${"%.2f".format(java.util.Locale.US, item.golesChilenaPorPartido)}/p)" else "${item.golesChilena}",
                             color = LimeVolt
                         )
                     }
                     if (item.golesTacon > 0) {
                         StatGeneralPill(
                             label = "👟",
-                            valor = "${item.golesTacon}",
+                            valor = if (porPartido) "${item.golesTacon} (${"%.2f".format(java.util.Locale.US, item.golesTaconPorPartido)}/p)" else "${item.golesTacon}",
                             color = LimeVolt
                         )
                     }

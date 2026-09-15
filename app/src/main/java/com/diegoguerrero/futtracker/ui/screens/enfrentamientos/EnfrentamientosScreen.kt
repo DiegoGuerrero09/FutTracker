@@ -210,49 +210,46 @@ fun SeccionIndividual(
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.busquedaJugadorInspeccionado.isEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Buscar jugador...",
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (uiState.busquedaJugadorInspeccionado.isEmpty()) {
+                            Text(
+                                text = "Buscar jugador...",
+                                color = TextSecondary,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Start
+                            )
+                        }
+                        BasicTextField(
+                            value = uiState.busquedaJugadorInspeccionado,
+                            onValueChange = onBusquedaJugadorInspeccionadoChange,
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Start
+                            ),
+                            cursorBrush = SolidColor(LimeVolt),
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                }
-
-                BasicTextField(
-                    value = uiState.busquedaJugadorInspeccionado,
-                    onValueChange = onBusquedaJugadorInspeccionadoChange,
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
-                    ),
-                    cursorBrush = SolidColor(LimeVolt),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (uiState.busquedaJugadorInspeccionado.isNotEmpty()) {
-                    IconButton(
-                        onClick = { onBusquedaJugadorInspeccionadoChange("") },
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .size(24.dp)
-                    ) {
-                        Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                    if (uiState.busquedaJugadorInspeccionado.isNotEmpty()) {
+                        IconButton(
+                            onClick = { onBusquedaJugadorInspeccionadoChange("") },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
@@ -603,51 +600,48 @@ fun SeccionIndividual(
                         .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (uiState.filtroTexto.isEmpty()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (uiState.filtroTexto.isEmpty()) {
                             Text(
                                 text = "Buscar jugador...",
                                 color = TextSecondary,
                                 fontSize = 14.sp,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Start
                             )
                         }
+                        BasicTextField(
+                            value = uiState.filtroTexto,
+                            onValueChange = onFiltroTextoHistorialChange,
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Start
+                            ),
+                            cursorBrush = SolidColor(LimeVolt),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
-
-                    BasicTextField(
-                        value = uiState.filtroTexto,
-                        onValueChange = onFiltroTextoHistorialChange,
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        ),
-                        cursorBrush = SolidColor(LimeVolt),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
                     if (uiState.filtroTexto.isNotEmpty()) {
                         IconButton(
                             onClick = { onFiltroTextoHistorialChange("") },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .size(24.dp)
+                            modifier = Modifier.size(24.dp)
                         ) {
                             Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = TextSecondary, modifier = Modifier.size(18.dp))
                         }
                     }
+                }
                 }
 
                 LazyRow(

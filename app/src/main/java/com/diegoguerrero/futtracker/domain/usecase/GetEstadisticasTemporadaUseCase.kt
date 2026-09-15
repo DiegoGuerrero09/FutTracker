@@ -13,10 +13,10 @@ class GetEstadisticasTemporadaUseCase {
                 LocalDate.of(anio, 1, 1) to LocalDate.of(anio, 12, 31)
             }
             TipoFiltroFecha.TEMPORADA_DEPORTIVA -> {
-                if (fecha.monthValue >= 9) {
-                    LocalDate.of(anio, 9, 1) to LocalDate.of(anio + 1, 8, 31)
+                if (fecha.monthValue >= 8) {
+                    LocalDate.of(anio, 8, 1) to LocalDate.of(anio + 1, 7, 31)
                 } else {
-                    LocalDate.of(anio - 1, 9, 1) to LocalDate.of(anio, 8, 31)
+                    LocalDate.of(anio - 1, 8, 1) to LocalDate.of(anio, 7, 31)
                 }
             }
         }

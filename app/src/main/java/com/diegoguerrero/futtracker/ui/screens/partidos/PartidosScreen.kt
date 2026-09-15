@@ -115,7 +115,7 @@ fun PartidosScreen(
                 val cal = Calendar.getInstance()
                 val mesActual = cal.get(Calendar.MONTH)
                 val anioActual = cal.get(Calendar.YEAR)
-                val anioInicio = if (mesActual >= Calendar.SEPTEMBER) anioActual else anioActual - 1
+                val anioInicio = if (mesActual >= Calendar.AUGUST) anioActual else anioActual - 1
                 "$anioInicio/${anioInicio + 1}"
             }
         )
@@ -144,13 +144,13 @@ fun PartidosScreen(
             val cal = Calendar.getInstance().apply { timeInMillis = p.fecha }
             val mes = cal.get(Calendar.MONTH)
             val anio = cal.get(Calendar.YEAR)
-            val anioInicio = if (mes >= Calendar.SEPTEMBER) anio else anio - 1
+            val anioInicio = if (mes >= Calendar.AUGUST) anio else anio - 1
             "$anioInicio/${anioInicio + 1}"
         }.distinct().sortedDescending()
         val cal = Calendar.getInstance()
         val mes = cal.get(Calendar.MONTH)
         val anio = cal.get(Calendar.YEAR)
-        val actual = "${if (mes >= Calendar.SEPTEMBER) anio else anio - 1}/${if (mes >= Calendar.SEPTEMBER) anio + 1 else anio}"
+        val actual = "${if (mes >= Calendar.AUGUST) anio else anio - 1}/${if (mes >= Calendar.AUGUST) anio + 1 else anio}"
         (list + actual).distinct().sortedDescending()
     }
 
@@ -238,14 +238,14 @@ fun PartidosScreen(
                 val cal = Calendar.getInstance()
                 val mesActual = cal.get(Calendar.MONTH)
                 val anioActual = cal.get(Calendar.YEAR)
-                if (mesActual >= Calendar.SEPTEMBER) anioActual else anioActual - 1
+                if (mesActual >= Calendar.AUGUST) anioActual else anioActual - 1
             }
             val start = Calendar.getInstance().apply {
-                set(anioInicio, Calendar.SEPTEMBER, 1, 0, 0, 0)
+                set(anioInicio, Calendar.AUGUST, 1, 0, 0, 0)
                 set(Calendar.MILLISECOND, 0)
             }.timeInMillis
             val end = Calendar.getInstance().apply {
-                set(anioInicio + 1, Calendar.AUGUST, 31, 23, 59, 59)
+                set(anioInicio + 1, Calendar.JULY, 31, 23, 59, 59)
                 set(Calendar.MILLISECOND, 999)
             }.timeInMillis
             start to end
@@ -278,10 +278,22 @@ fun PartidosScreen(
             if (!cumplePeriodo) return@filter false
 
             if (filtroParticipantes.isNotEmpty()) {
-                val participa = p.jugadoresIds.any { it in filtroParticipantes } ||
-                        p.jugadoresMiEquipo.any { it in filtroParticipantes } ||
-                        p.jugadoresEquipoRival.any { it in filtroParticipantes }
-                if (!participa) return@filter false
+                val todosParticipan = filtroParticipantes.all { id ->
+                    val esTargetYo = id == "usuario_propio_id" || id in usuarioIds
+                    if (esTargetYo) {
+                        p.jugadoPorMi ||
+                                p.jugadoresIds.any { it in usuarioIds } ||
+                                p.jugadoresMiEquipo.any { it in usuarioIds } ||
+                                p.jugadoresEquipoRival.any { it in usuarioIds } ||
+                                p.jugadoresDetalle.any { it.jugadorId in usuarioIds }
+                    } else {
+                        p.jugadoresIds.contains(id) ||
+                                p.jugadoresMiEquipo.contains(id) ||
+                                p.jugadoresEquipoRival.contains(id) ||
+                                p.jugadoresDetalle.any { it.jugadorId == id }
+                    }
+                }
+                if (!todosParticipan) return@filter false
             }
 
             if (filtroJugadorJugadoPor != null) {
@@ -4309,6 +4321,7 @@ fun DialogoPartido(
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
+                                                    .height(24.dp)
                                                     .padding(start = 30.dp, end = 4.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -4319,10 +4332,14 @@ fun DialogoPartido(
                                                         shape = RoundedCornerShape(4.dp),
                                                         color = Color.White.copy(alpha = 0.08f),
                                                         border = BorderStroke(0.8.dp, Color.Gray.copy(alpha = 0.4f)),
-                                                        modifier = Modifier.clickable { menuSecundariasExpanded = true }
+                                                        modifier = Modifier
+                                                            .height(24.dp)
+                                                            .clickable { menuSecundariasExpanded = true }
                                                     ) {
                                                         Row(
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                            modifier = Modifier
+                                                                .fillMaxHeight()
+                                                                .padding(horizontal = 6.dp),
                                                             verticalAlignment = Alignment.CenterVertically,
                                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                                         ) {

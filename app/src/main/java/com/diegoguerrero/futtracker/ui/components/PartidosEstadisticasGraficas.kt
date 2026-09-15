@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -477,40 +478,47 @@ fun GraficoDiasSemana(
                                     .weight(1f)
                                     .fillMaxHeight()
                             ) {
-                                Box(
-                                    modifier = Modifier.height(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (item.total > 0) {
-                                        Text(
-                                            text = "${item.total}",
-                                            color = if (esMax) LimeVolt else TextSecondary,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Box(
+                                BoxWithConstraints(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth(),
                                     contentAlignment = Alignment.BottomCenter
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(18.dp)
-                                            .fillMaxHeight(fraction = max(ratio, 0.06f))
-                                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                            .background(
-                                                if (item.total > 0) {
-                                                    if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
-                                                } else {
-                                                    Color.White.copy(alpha = 0.08f)
-                                                }
+                                    val availableH = maxHeight
+                                    val labelH = 16.dp
+                                    val barH = if (maxCount > 0 && item.total > 0) {
+                                        ((availableH - labelH - 2.dp) * ratio).coerceAtLeast(8.dp)
+                                    } else {
+                                        6.dp
+                                    }
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Bottom
+                                    ) {
+                                        if (item.total > 0) {
+                                            Text(
+                                                text = "${item.total}",
+                                                color = if (esMax) LimeVolt else TextSecondary,
+                                                fontSize = 11.sp,
+                                                fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
                                             )
-                                    )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .width(18.dp)
+                                                .height(barH)
+                                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                                .background(
+                                                    if (item.total > 0) {
+                                                        if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
+                                                    } else {
+                                                        Color.White.copy(alpha = 0.08f)
+                                                    }
+                                                )
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -617,40 +625,47 @@ fun GraficoHorasPartidos(
                                     .width(17.dp)
                                     .fillMaxHeight()
                             ) {
-                                Box(
-                                    modifier = Modifier.height(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (item.total > 0) {
-                                        Text(
-                                            text = "${item.total}",
-                                            color = if (esMax) LimeVolt else TextSecondary,
-                                            fontSize = 8.5.sp,
-                                            fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(3.dp))
-
-                                Box(
+                                BoxWithConstraints(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth(),
                                     contentAlignment = Alignment.BottomCenter
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(11.dp)
-                                            .fillMaxHeight(fraction = max(ratio, 0.06f))
-                                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                                            .background(
-                                                if (item.total > 0) {
-                                                    if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
-                                                } else {
-                                                    Color.White.copy(alpha = 0.08f)
-                                                }
+                                    val availableH = maxHeight
+                                    val labelH = 14.dp
+                                    val barH = if (maxCount > 0 && item.total > 0) {
+                                        ((availableH - labelH - 2.dp) * ratio).coerceAtLeast(6.dp)
+                                    } else {
+                                        4.dp
+                                    }
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Bottom
+                                    ) {
+                                        if (item.total > 0) {
+                                            Text(
+                                                text = "${item.total}",
+                                                color = if (esMax) LimeVolt else TextSecondary,
+                                                fontSize = 8.5.sp,
+                                                fontWeight = if (esMax) FontWeight.Bold else FontWeight.Normal
                                             )
-                                    )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .width(11.dp)
+                                                .height(barH)
+                                                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                                .background(
+                                                    if (item.total > 0) {
+                                                        if (esMax) LimeVolt else LimeVolt.copy(alpha = 0.45f)
+                                                    } else {
+                                                        Color.White.copy(alpha = 0.08f)
+                                                    }
+                                                )
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -855,6 +870,7 @@ private fun Posicion.nombreLargo(): String = when (this) {
     Posicion.DC -> "Delantero centro"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GraficoMapaCalorPosiciones(
     posicionesFrecuencia: List<StatsPosicionFrecuencia>,
@@ -871,7 +887,7 @@ fun GraficoMapaCalorPosiciones(
         Posicion.LD to Offset(0.80f, 0.60f),
         Posicion.MC to Offset(0.50f, 0.48f),
         Posicion.EI to Offset(0.20f, 0.28f),
-        Posicion.DC to Offset(0.50f, 0.20f),
+        Posicion.DC to Offset(0.50f, 0.24f),
         Posicion.ED to Offset(0.80f, 0.28f)
     )
 
@@ -1134,29 +1150,85 @@ fun GraficoMapaCalorPosiciones(
                                     )
                                 }
 
-                                Row(
+                                FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
                                 ) {
                                     Text(
                                         text = "⚽ ${item.goles}",
-                                        fontSize = 11.5.sp,
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🦶 ${item.golesZurda}",
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🦵 ${item.golesDiestra}",
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🗣️ ${item.golesCabeza}",
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "✨ ${item.golesOtro}",
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🚀 ${item.golesFueraArea}",
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "👟 ${item.golesTacon}",
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "🤸 ${item.golesChilena}",
+                                        fontSize = 11.sp,
                                         color = Color.White,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         text = "🅰️ ${item.asistencias}",
-                                        fontSize = 11.5.sp,
+                                        fontSize = 11.sp,
                                         color = Color.White,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         text = "🎯 ${item.tirosAlPalo}",
-                                        fontSize = 11.5.sp,
+                                        fontSize = 11.sp,
                                         color = Color.White,
                                         fontWeight = FontWeight.SemiBold
                                     )
+                                    if (item.posicion == Posicion.POR) {
+                                        Text(
+                                            text = "🧤 ${item.paradas}",
+                                            fontSize = 11.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "🥅 ${item.golesEncajados}",
+                                            fontSize = 11.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
 
                                 LinearProgressIndicator(
