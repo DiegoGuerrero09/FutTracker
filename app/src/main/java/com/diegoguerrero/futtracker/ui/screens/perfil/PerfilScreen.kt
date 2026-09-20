@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
@@ -186,7 +187,7 @@ fun PerfilScreen(
                             .padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Box(contentAlignment = Alignment.BottomEnd) {
+                        Box(contentAlignment = Alignment.Center) {
                             val bitmap = remember(perfil.fotoUri) {
                                 perfil.fotoUri?.let { path ->
                                     val file = File(path)
@@ -223,13 +224,36 @@ fun PerfilScreen(
 
                             FilledIconButton(
                                 onClick = { photoPickerLauncher.launch("image/*") },
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .offset(x = 4.dp, y = 4.dp)
+                                    .size(32.dp),
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = LimeVolt,
                                     contentColor = Color.Black
                                 )
                             ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = "Cambiar foto", modifier = Modifier.size(17.dp))
+                                Icon(Icons.Default.CameraAlt, contentDescription = if (perfil.fotoUri != null) "Cambiar foto" else "Añadir foto", modifier = Modifier.size(17.dp))
+                            }
+
+                            if (perfil.fotoUri != null) {
+                                FilledIconButton(
+                                    onClick = { onGuardarPerfil(perfil.copy(fotoUri = null)) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 4.dp, y = (-4).dp)
+                                        .size(28.dp),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Quitar foto",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
 
@@ -382,6 +406,10 @@ fun PerfilScreen(
         DialogoVisorFotoConZoom(
             fotoUri = perfil.fotoUri,
             nombre = perfil.nombre,
+            onEliminar = {
+                mostrarZoomPerfil = false
+                onGuardarPerfil(perfil.copy(fotoUri = null))
+            },
             onDismiss = { mostrarZoomPerfil = false }
         )
     }

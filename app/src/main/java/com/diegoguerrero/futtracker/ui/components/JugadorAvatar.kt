@@ -50,6 +50,7 @@ fun JugadorAvatar(
     bordeAncho: Dp = 0.dp,
     permitirZoom: Boolean = false,
     esPorDefecto: Boolean = false,
+    onEliminarFoto: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     var mostrarZoom by remember { mutableStateOf(false) }
@@ -126,6 +127,12 @@ fun JugadorAvatar(
         DialogoVisorFotoConZoom(
             fotoUri = fotoUri,
             nombre = nombre,
+            onEliminar = onEliminarFoto?.let { action ->
+                {
+                    mostrarZoom = false
+                    action()
+                }
+            },
             onDismiss = { mostrarZoom = false }
         )
     }

@@ -10,11 +10,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +37,7 @@ import java.io.File
 fun DialogoVisorFotoConZoom(
     fotoUri: String,
     nombre: String,
+    onEliminar: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val bitmap = remember(fotoUri) {
@@ -58,6 +57,7 @@ fun DialogoVisorFotoConZoom(
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+    var mostrarConfirmacionEliminar by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -170,6 +170,23 @@ fun DialogoVisorFotoConZoom(
                         Spacer(modifier = Modifier.width(8.dp))
                     }
 
+                    if (onEliminar != null) {
+                        IconButton(
+                            onClick = { mostrarConfirmacionEliminar = true },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(DarkCard, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Quitar foto",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier
@@ -184,6 +201,29 @@ fun DialogoVisorFotoConZoom(
                         )
                     }
                 }
+            }
+
+            if (mostrarConfirmacionEliminar && onEliminar != null) {
+                AlertDialog(
+                    onDismissRequest = { mostrarConfirmacionEliminar = false },
+                    title = { Text("Quitar foto") },
+                    text = { Text("¿Estás seguro de que quieres quitar la foto de $nombre?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                mostrarConfirmacionEliminar = false
+                                onEliminar()
+                            }
+                        ) {
+                            Text("Quitar", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { mostrarConfirmacionEliminar = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
             }
 
             // Indicador inferior

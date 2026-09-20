@@ -31,6 +31,7 @@ import com.diegoguerrero.futtracker.domain.model.Jugador
 import com.diegoguerrero.futtracker.domain.model.Posicion
 import com.diegoguerrero.futtracker.domain.model.nombreConTu
 import com.diegoguerrero.futtracker.ui.components.DialogoRecorteFoto
+import com.diegoguerrero.futtracker.ui.components.DialogoVisorFotoConZoom
 import com.diegoguerrero.futtracker.ui.components.FilaBadgesPosiciones
 import com.diegoguerrero.futtracker.ui.components.JugadorAvatar
 import com.diegoguerrero.futtracker.ui.theme.DarkCard
@@ -316,7 +317,10 @@ fun JugadoresScreen(
                             jugador = jugador,
                             onClick = { jugadorAEditar = jugador },
                             onToggleFavorito = { onToggleFavorito(jugador) },
-                            onEliminar = { jugadorAEliminar = jugador }
+                            onEliminar = { jugadorAEliminar = jugador },
+                            onQuitarFoto = if (jugador.fotoUri != null) {
+                                { onActualizarJugador(jugador.copy(fotoUri = null)) }
+                            } else null
                         )
                     }
                 }
@@ -375,7 +379,8 @@ private fun JugadorItem(
     jugador: Jugador,
     onClick: () -> Unit,
     onToggleFavorito: () -> Unit,
-    onEliminar: () -> Unit
+    onEliminar: () -> Unit,
+    onQuitarFoto: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -401,7 +406,8 @@ private fun JugadorItem(
                     fotoUri = jugador.fotoUri,
                     nombre = jugador.nombre,
                     tamano = 48.dp,
-                    permitirZoom = true
+                    permitirZoom = true,
+                    onEliminarFoto = onQuitarFoto
                 )
 
                 Column(
@@ -495,20 +501,44 @@ private fun DialogoJugador(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Selector / Visualizador de Foto
-                Box(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
+                    val fotoValida = fotoUri != null && File(fotoUri!!).exists()
+                    var mostrarZoomDialogo by remember { mutableStateOf(false) }
+
+                    if (mostrarZoomDialogo && fotoValida && fotoUri != null) {
+                        DialogoVisorFotoConZoom(
+                            fotoUri = fotoUri!!,
+                            nombre = nombre.ifBlank { "Jugador" },
+                            onEliminar = {
+                                fotoUri = null
+                                mostrarZoomDialogo = false
+                            },
+                            onDismiss = { mostrarZoomDialogo = false }
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier.padding(top = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         JugadorAvatar(
                             fotoUri = fotoUri,
                             nombre = nombre.ifBlank { "?" },
-                            tamano = 68.dp,
-                            fontSize = 22.sp
+                            tamano = 72.dp,
+                            fontSize = 24.sp,
+                            permitirZoom = false,
+                            onClick = if (fotoValida) { { mostrarZoomDialogo = true } } else null
                         )
+
                         FilledIconButton(
                             onClick = { photoPickerLauncher.launch("image/*") },
-                            modifier = Modifier.size(26.dp),
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 6.dp, y = 6.dp)
+                                .size(28.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = LimeVolt,
                                 contentColor = Color.Black
@@ -516,9 +546,76 @@ private fun DialogoJugador(
                         ) {
                             Icon(
                                 Icons.Default.CameraAlt,
-                                contentDescription = "Añadir foto",
-                                modifier = Modifier.size(15.dp)
+                                contentDescription = if (fotoUri != null) "Cambiar foto" else "Añadir foto",
+                                modifier = Modifier.size(16.dp)
                             )
+                        }
+
+                        if (fotoUri != null) {
+                            FilledIconButton(
+                                onClick = { fotoUri = null },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 6.dp, y = (-6).dp)
+                                    .size(26.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Quitar foto",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (fotoUri != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (fotoValida) {
+                                TextButton(
+                                    onClick = { mostrarZoomDialogo = true },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ZoomIn,
+                                        contentDescription = null,
+                                        tint = LimeVolt,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Ver foto",
+                                        color = LimeVolt,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = { fotoUri = null },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Quitar foto",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
