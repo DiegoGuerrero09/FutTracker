@@ -1,6 +1,6 @@
 # ⚽ FutTracker & Lineup Generator
 
-App Android nativa moderna desarrollada con **Kotlin** y **Jetpack Compose** (Material 3). Diseñada para registrar partidos de fútbol (Futsal, Fútbol 6 y Fútbol 7), gestionar plantillas y estadios con fotos interactivas, realizar sorteos y alineaciones tácticas equilibradas por posiciones, analizar estadísticas detalladas individuales y globales, evaluar enfrentamientos y sinergias (H2H y Dúos) y realizar copias de seguridad de todos tus datos.
+**FutTracker** (v1.1.0) es una app Android nativa moderna desarrollada con **Kotlin** y **Jetpack Compose** (Material 3). Diseñada para registrar partidos de fútbol (Futsal, Fútbol 6 y Fútbol 7), gestionar plantillas y estadios con fotos interactivas, realizar sorteos y alineaciones tácticas equilibradas por posiciones, analizar estadísticas detalladas individuales y globales, evaluar enfrentamientos y sinergias (H2H y Dúos) y realizar copias de seguridad de todos tus datos.
 
 ---
 
